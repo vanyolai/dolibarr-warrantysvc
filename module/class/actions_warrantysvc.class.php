@@ -308,6 +308,21 @@ class ActionsWarrantySvc
 			);
 		}
 
+		// When viewing a warranty or service-request card, also offer calls as linkable.
+		// 'pbxcalls_call' key produces tplpath=pbxcalls/call which resolves to
+		// custom/pbxcalls/call/tpl/linkedobjectblock.tpl.php via dol_buildpath.
+		if (isset($object->element) && in_array($object->element, array('svcwarranty', 'svcrequest'))
+			&& isModEnabled('pbxcalls')
+			&& $user->hasRight('pbxcalls', 'call', 'read')
+		) {
+			$this->results['pbxcalls_call'] = array(
+				'enabled' => 1,
+				'perms'   => 1,
+				'label'   => 'LinkToCall',
+				'sql'     => $this->buildLinkToObjectSQL('pbxcalls_call', 'call', $sanitized),
+			);
+		}
+
 		return 0;
 	}
 
