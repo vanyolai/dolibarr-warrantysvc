@@ -282,14 +282,16 @@ class ActionsWarrantySvc
 		$listofidcompanytoscan = isset($parameters['listofidcompanytoscan'])
 			? $parameters['listofidcompanytoscan']
 			: '';
+
 		if (empty($listofidcompanytoscan)) return 0;
 
 		$sanitized = $db->sanitize($listofidcompanytoscan);
-
 		$this->results = array();
 
 		if ($user->hasRight('warrantysvc', 'svcwarranty', 'read')) {
-			$this->results['svcwarranty'] = array(
+			// Key must be 'module_element' form so showLinkedObjectBlock can resolve
+			// the template path as /warrantysvc/svcwarranty/tpl/linkedobjectblock.tpl.php
+			$this->results['warrantysvc_svcwarranty'] = array(
 				'enabled' => 1,
 				'perms'   => 1,
 				'label'   => 'LinkToWarranty',
@@ -298,7 +300,7 @@ class ActionsWarrantySvc
 		}
 
 		if ($user->hasRight('warrantysvc', 'svcrequest', 'read')) {
-			$this->results['svcrequest'] = array(
+			$this->results['warrantysvc_svcrequest'] = array(
 				'enabled' => 1,
 				'perms'   => 1,
 				'label'   => 'LinkToServiceRequest',
@@ -312,8 +314,8 @@ class ActionsWarrantySvc
 	/**
 	 * Build the SQL for a "Link to..." dropdown entry scoped to a company list.
 	 *
-	 * @param  string $table      DB table suffix (e.g. 'svc_warranty')
-	 * @param  string $element    Element type string for getEntity() (e.g. 'svcwarranty')
+	 * @param  string $table      DB table suffix (e.g. 'svc_request')
+	 * @param  string $element    Element type string for getEntity() (e.g. 'svcrequest')
 	 * @param  string $sanitized  Already-sanitized comma-separated company IDs
 	 * @return string
 	 */
