@@ -617,7 +617,10 @@ class SvcRequest extends CommonObject
 	 */
 	public function setInProgress($user)
 	{
-		if ($this->status != self::STATUS_VALIDATED) {
+		// Await Return is a valid entry point: the CustomerReturn trigger advances
+		// the case here once the returned goods are booked in. Guarding on
+		// VALIDATED alone silently rejected that transition.
+		if ($this->status != self::STATUS_VALIDATED && $this->status != self::STATUS_AWAIT_RETURN) {
 			$this->error = 'SvcRequestNotInValidatedStatus';
 			return -1;
 		}

@@ -280,9 +280,13 @@ class InterfaceWarrantySvcTrigger extends DolibarrTriggers
 		$sr->date_return_received = dol_now();
 		$sr->update($user);
 
-		// Advance SR: if awaiting return → in progress; if in progress → resolve
+		// Advance SR: awaiting return -> in progress, now that the goods are booked in.
 		if ($sr->status == SvcRequest::STATUS_AWAIT_RETURN) {
-			$sr->setInProgress($user);
+			if ($sr->setInProgress($user) < 0) {
+				// Do not fail the return over this — the stock movement is the
+				// important half — but never let it fail silently again.
+				dol_syslog('WarrantySvcTrigger: could not advance SR '.$sr_id.' from Await Return: '.$sr->error, LOG_WARNING);
+			}
 		}
 
 		dol_syslog('WarrantySvcTrigger: CustomerReturn '.$cr_id.' validated, updated SR '.$sr_id, LOG_DEBUG);

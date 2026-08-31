@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.32.5] - 2026-08-31
+
+### Fixed
+- Service request now actually advances Await Return -> In Progress when its linked Customer Return is validated. `setInProgress()` guarded on `STATUS_VALIDATED` only, so the call the CustomerReturn trigger makes from `STATUS_AWAIT_RETURN` always returned -1. The trigger discarded that return value, so the case silently stayed in Await Return while `date_return_received` was set — visible in production on SRQ-20260327-0001. Await Return is now an accepted entry point, and the trigger logs a warning instead of swallowing a failure.
+
+### Notes
+- Verified end-to-end on Dolibarr 22.0.4 against the returns module (customerreturn 2.4.0), mirroring production config: 17/17 assertions covering the link, the trigger, the lot-named stock movement and the reversal.
+- `createReturnReception()` / `validateReception()` (the non-CustomerReturn inbound path) are **non-functional on Dolibarr 22** and left unchanged. The INSERT names `fk_commandefourndet`, renamed to `fk_elementdet` in v22; and every stock path in core `Reception` inner-joins `commande_fournisseurdet`, so the deliberately PO-less lines this method builds are skipped by all of them. Production has never used it (`fk_reception` is NULL on every service request) and `WARRANTYSVC_USE_CUSTOMERRETURN` is enabled. Keep it enabled. See `doli-returns/docs/ARCHITECTURE.md`.
+- Changelog gap: versions 1.32.3 and 1.32.4 shipped without entries here. Their commits are `3c357aa` (prefixed element-type keys in `showLinkToObjectBlock`) and `2844a02` ("Link to Call" on warranty and service-request cards).
+
 ## [1.32.2] - 2026-05-12
 
 ### Fixed

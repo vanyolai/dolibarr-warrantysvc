@@ -1,8 +1,11 @@
 # WarrantySvc -- Technical Reference
 
-Module ID: **510000** | Family: `crm` | Version: **1.32.0**
+Module ID: **510000** | Family: `crm` | Version: **1.32.5**
 Requires: Dolibarr >= 16.0, PHP >= 7.0
 Dependencies: `modSociete`, `modProduct`, `modStock`
+
+For how this module pairs with the Customer Returns module — the two inbound paths, lot ownership,
+and who may write stock movements — see `doli-returns/docs/ARCHITECTURE.md`.
 
 ---
 
@@ -102,8 +105,8 @@ Extends `CommonObject`. Manages RMA/service request cases.
 | `syncLinkedObjects()` | void | Ensures `element_element` rows exist for all FK relationships (warranty, order, shipment, invoice, reception, intervention). Cleans stale unprefixed type names. |
 | `isWarrantyCovered()` | bool | Returns true if `warranty_status == 'active'`. |
 | `getNomUrl($withpicto, $option, $notooltip)` | string | HTML link to card.php. |
-| `createReturnReception($user, $fk_warehouse)` | int | Creates a Reception object for customer return. Inserts `receptiondet_batch` lines from the outbound shipment. |
-| `validateReception($user)` | int | Validates the linked reception. Sets `date_return_received`. |
+| `createReturnReception($user, $fk_warehouse)` | int | **Non-functional on Dolibarr 22.** Creates a Reception for a customer return with no source PO. The INSERT names `fk_commandefourndet`, renamed to `fk_elementdet` in v22, so it errors. Even patched it would move no stock: every stock path in core `Reception` inner-joins `commande_fournisseurdet`. Use the CustomerReturn path (`WARRANTYSVC_USE_CUSTOMERRETURN`). |
+| `validateReception($user)` | int | Validates the linked reception and sets `date_return_received`. Unreachable in practice — see above. |
 | `linkShipment($shipment_id, $tracking, $carrier, $user)` | int | Associates an Expedition and sets tracking/carrier/date_shipped. |
 | `linkReception($reception_id, $condition, $user)` | int | Associates a Reception and sets `date_return_received`. |
 | `createLinkedIntervention($user, $type='repair')` | int | Creates a Fichinter linked to this SR. Sets extrafields `rma_ref` and `rma_serial_in`. |
