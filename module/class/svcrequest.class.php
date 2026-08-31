@@ -47,6 +47,7 @@ class SvcRequest extends CommonObject
 	// Status constants
 	const STATUS_DRAFT         = 0;
 	const STATUS_VALIDATED     = 1;
+	const STATUS_DIAGNOSING    = 6;
 	const STATUS_IN_PROGRESS   = 2;
 	const STATUS_AWAIT_RETURN  = 3;
 	const STATUS_RESOLVED      = 4;
@@ -610,15 +611,39 @@ class SvcRequest extends CommonObject
 	}
 
 	/**
-	 * Set RMA to In Progress
+	 * Move a validated request into diagnosis (STATUS_VALIDATED -> STATUS_DIAGNOSING)
+	 *
+	 * @param  User $user User performing action
+	 * @return int        >0 if OK, <0 if KO
+	 */
+	public function setDiagnosing($user)
+	{
+		if ($this->status != self::STATUS_VALIDATED) {
+			$this->error = 'SvcRequestNotInValidatedStatus';
+			return -1;
+		}
+
+		$this->status = self::STATUS_DIAGNOSING;
+		return $this->update($user);
+	}
+
+	/**
+	 * Set RMA to In Progress. Allowed from DIAGNOSING (normal forward path)
+	 * or AWAIT_RETURN (return-received auto-advance). A resolution type must
+	 * have been chosen before fulfillment can begin.
 	 *
 	 * @param  User $user User performing action
 	 * @return int        >0 if OK, <0 if KO
 	 */
 	public function setInProgress($user)
 	{
-		if ($this->status != self::STATUS_VALIDATED) {
-			$this->error = 'SvcRequestNotInValidatedStatus';
+		if (!in_array($this->status, array(self::STATUS_DIAGNOSING, self::STATUS_AWAIT_RETURN))) {
+			$this->error = 'SvcRequestNotInDiagnosingStatus';
+			return -1;
+		}
+
+		if (empty($this->resolution_type)) {
+			$this->error = 'SvcRequestResolutionTypeRequiredBeforeProgress';
 			return -1;
 		}
 
@@ -923,6 +948,67 @@ class SvcRequest extends CommonObject
 		$this->syncLinkedObjects();
 		$this->db->commit();
 		return $rec_id;
+	}
+
+	/**
+	 * Return all sales-order IDs linked to this service request, regardless of how the
+	 * link was created. This unions both directions in llx_element_element and accepts
+	 * both source-type spellings the module's history has produced:
+	 *   - 'svcrequest' (written by our own syncLinkedObjects / add_object_linked)
+	 *   - 'warrantysvc_svcrequest' (written by Dolibarr core when a commande was created
+	 *      with origin=warrantysvc_svcrequest, e.g. via the CreateReplacementOrder button)
+	 * The primary $fk_commande is included as a fallback for records that pre-date the
+	 * element_element link, or whose element_element row was lost.
+	 *
+	 * @return int[] Distinct commande IDs (preserves insertion order)
+	 */
+	public function getLinkedCommandeIds()
+	{
+		$ids = array();
+
+		$sql  = "SELECT fk_target as id FROM ".MAIN_DB_PREFIX."element_element";
+		$sql .= " WHERE sourcetype IN ('svcrequest','warrantysvc_svcrequest')";
+		$sql .= " AND fk_source = ".((int) $this->id);
+		$sql .= " AND targettype = 'commande'";
+		$sql .= " UNION";
+		$sql .= " SELECT fk_source as id FROM ".MAIN_DB_PREFIX."element_element";
+		$sql .= " WHERE targettype IN ('svcrequest','warrantysvc_svcrequest')";
+		$sql .= " AND fk_target = ".((int) $this->id);
+		$sql .= " AND sourcetype = 'commande'";
+
+		$resql = $this->db->query($sql);
+		if ($resql) {
+			while ($obj = $this->db->fetch_object($resql)) {
+				$ids[(int) $obj->id] = (int) $obj->id;
+			}
+		}
+
+		// Fallback: primary fk_commande may not yet have an element_element row
+		if (!empty($this->fk_commande) && !isset($ids[(int) $this->fk_commande])) {
+			$ids[(int) $this->fk_commande] = (int) $this->fk_commande;
+		}
+
+		return array_values($ids);
+	}
+
+	/**
+	 * Fetch and return all sales orders linked to this service request as populated
+	 * Commande objects. IDs whose Commande record no longer exists are skipped.
+	 *
+	 * @return Commande[]
+	 */
+	public function getLinkedCommandes()
+	{
+		require_once DOL_DOCUMENT_ROOT.'/commande/class/commande.class.php';
+
+		$list = array();
+		foreach ($this->getLinkedCommandeIds() as $cid) {
+			$ord = new Commande($this->db);
+			if ($ord->fetch($cid) > 0) {
+				$list[] = $ord;
+			}
+		}
+		return $list;
 	}
 
 	/**
@@ -1252,7 +1338,7 @@ class SvcRequest extends CommonObject
 		$subject  = $langs->trans('ReminderReturnSubject', $this->ref);
 
 		// Build body
-		$body  = $langs->trans('ReminderReturnBody', $this->ref, $this->serial_number ? $this->serial_number : '-');
+		$body  = $langs->trans('ReminderReturnBody', $this->serial_number ? $this->serial_number : '-', $this->ref);
 		$body .= "\n\n";
 		if (!empty($this->outbound_carrier)) {
 			$body .= $langs->trans('OutboundCarrier').': '.$this->outbound_carrier."\n";

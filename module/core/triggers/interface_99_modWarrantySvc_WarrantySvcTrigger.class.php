@@ -331,10 +331,10 @@ class InterfaceWarrantySvcTrigger extends DolibarrTriggers
 
 		if ($event == 'validate') {
 			$subject = $langs->trans('NotifTechValidateSubject', $object->ref);
-			$body    = $langs->trans('NotifTechValidateBody', $object->ref, $tech->getFullName($langs));
+			$body    = $langs->trans('NotifTechValidateBody', $tech->getFullName($langs), $object->ref);
 		} else {
 			$subject = $langs->trans('NotifTechInProgressSubject', $object->ref);
-			$body    = $langs->trans('NotifTechInProgressBody', $object->ref, $tech->getFullName($langs));
+			$body    = $langs->trans('NotifTechInProgressBody', $tech->getFullName($langs), $object->ref);
 		}
 
 		$body .= $this->_requestSummary($object, $langs);
@@ -490,7 +490,10 @@ class InterfaceWarrantySvcTrigger extends DolibarrTriggers
 		$lines[] = '';
 		$lines[] = $langs->trans('Ref').': '.$object->ref;
 		$lines[] = $langs->trans('SvcSerialNumber').': '.($object->serial_number ?? '-');
-		$lines[] = $langs->trans('ResolutionType').': '.svcrequest_resolution_label($object->resolution_type);
+		// Resolution type is chosen after diagnosis — only include it once set
+		if (!empty($object->resolution_type)) {
+			$lines[] = $langs->trans('ResolutionType').': '.svcrequest_resolution_label($object->resolution_type);
+		}
 		return "\n".implode("\n", $lines);
 	}
 

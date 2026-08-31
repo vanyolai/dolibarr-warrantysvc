@@ -34,6 +34,7 @@ LinkToServiceRequest = Link to warranty claim
 #
 SvcDraft = Draft
 SvcValidated = Validated
+SvcDiagnosing = Diagnosing
 SvcInProgress = In Progress
 AwaitingReturn = Awaiting Return
 SvcResolved = Resolved
@@ -151,6 +152,8 @@ StrategyManual = Manual Selection
 # Action buttons
 #
 ValidateSvcRequest = Validate
+BeginDiagnosis = Begin Diagnosis
+OpenTroubleshoot = Open Troubleshoot
 SetInProgress = Set In Progress
 SendReplacement = Send Replacement
 ReceiveReturn = Receive Return
@@ -165,6 +168,11 @@ ConfirmCancelSvcRequest = Are you sure you want to cancel this warranty claim? T
 ConfirmReopenSvcRequest = Are you sure you want to re-open this warranty claim?
 ConfirmDeleteSvcRequest = Are you sure you want to permanently delete warranty claim %s? This action cannot be undone.
 SendReminder = Send Return Reminder
+SvcDiagnosingStarted = Diagnosis started
+SvcChooseResolutionAfterDiagnosis = Choose a resolution type once diagnosis is complete
+SvcRequestNotInValidatedStatus = This warranty claim must be validated before it can enter diagnosis.
+SvcRequestNotInDiagnosingStatus = This warranty claim is not in a state that allows moving to In Progress.
+SvcRequestResolutionTypeRequiredBeforeProgress = Choose a resolution type before moving to In Progress.
 InvoiceNonReturn = Invoice for Non-Return
 VoidWarranty = Void Warranty
 
@@ -280,22 +288,22 @@ ChecklistFirmwareDesc = Check if unit is on current firmware. Note version.
 # Email notifications — trigger-based
 #
 NotifTechValidateSubject = [New Assignment] Warranty Claim %s assigned to you
-NotifTechValidateBody = Hello %2$s,\n\nWarranty claim %1$s has been validated and assigned to you.
+NotifTechValidateBody = Hello %s,\n\nWarranty claim %s has been validated and assigned to you.
 NotifTechInProgressSubject = [In Progress] Warranty Claim %s
-NotifTechInProgressBody = Hello %2$s,\n\nWarranty claim %1$s has been moved to In Progress status.
+NotifTechInProgressBody = Hello %s,\n\nWarranty claim %s has been moved to In Progress status.
 NotifCustAwaitReturnSubject = [Action Required] Please return unit — Warranty Claim %s
-NotifCustAwaitReturnBody = Dear customer,\n\nA replacement unit has been shipped for warranty claim %1$s (serial: %2$s).\n\nPlease arrange the return of the original unit.
+NotifCustAwaitReturnBody = Dear customer,\n\nA replacement unit has been shipped for warranty claim %s (serial: %s).\n\nPlease arrange the return of the original unit.
 NotifCustResolvedSubject = [Resolved] Warranty Claim %s
 NotifCustResolvedBody = Dear customer,\n\nYour warranty claim %s has been resolved.
 NotifWarrantyCreatedSubject = Warranty Registration — %s
-NotifWarrantyCreatedBody = Dear customer,\n\nYour warranty %1$s for serial number %2$s has been registered.\n\nCoverage expires: %3$s
+NotifWarrantyCreatedBody = Dear customer,\n\nYour warranty %s for serial number %s has been registered.\n\nCoverage expires: %s
 NoExpiryDate = No expiry date
 
 #
 # Email notifications — cron reminders
 #
 ReminderReturnSubject = [ACTION REQUIRED] Please return unit for warranty claim %s
-ReminderReturnBody = Dear customer,\n\nThis is a reminder that we are waiting for the return of serial number %2$s related to warranty claim %1$s.\n\nPlease arrange return shipment at your earliest convenience.
+ReminderReturnBody = Dear customer,\n\nThis is a reminder that we are waiting for the return of serial number %s related to warranty claim %s.\n\nPlease arrange return shipment at your earliest convenience.
 ReminderReturnFooter = Thank you for your cooperation.\n\nWarranty & Service Team
 NoEmailForCustomer = No email address on file for this customer.
 NoSenderEmailConfigured = No sender email address configured in Dolibarr settings.
@@ -376,6 +384,7 @@ Overdue = Overdue
 SvcConfirm = Confirm
 ReplacementSerial = Replacement Serial #
 CreateReplacementOrder = Create Replacement Order
+AddReplacementOrder = Add Replacement Order
 ReplacementOrderCreated = Replacement order created.
 NoReplacementOrderYet = No replacement order yet
 SvcCreateShipment = Create Shipment
