@@ -91,7 +91,7 @@ if ($action == 'add' && $permwrite) {
 	$object->reported_via      = GETPOST('reported_via', 'alpha');
 	$object->issue_description = GETPOST('issue_description', 'restricthtml');
 	$object->fk_user_assigned  = GETPOST('fk_user_assigned', 'int');
-	$object->resolution_type   = GETPOST('resolution_type', 'alpha');
+	// resolution_type is not set at intake — chosen during the Diagnosing stage
 
 	// Manual warranty pairing
 	$fk_warranty_posted = GETPOST('fk_warranty', 'int');
@@ -177,8 +177,29 @@ if ($action == 'confirm_validate' && $permvalidate) {
 	exit;
 }
 
+if ($action == 'confirm_setdiagnosing' && $permwrite) {
+	$result = $object->setDiagnosing($user);
+	if ($result < 0) {
+		setEventMessages($langs->trans($object->error), $object->errors, 'errors');
+	} else {
+		setEventMessages($langs->trans('SvcDiagnosingStarted'), null, 'mesgs');
+	}
+	header('Location: '.$_SERVER['PHP_SELF'].'?id='.$object->id);
+	exit;
+}
+
+if ($action == 'set_resolution_type' && $permwrite) {
+	$object->resolution_type = GETPOST('resolution_type', 'alpha');
+	$object->update($user);
+	header('Location: '.$_SERVER['PHP_SELF'].'?id='.$object->id);
+	exit;
+}
+
 if ($action == 'confirm_setinprogress' && $permwrite) {
-	$object->setInProgress($user);
+	$result = $object->setInProgress($user);
+	if ($result < 0) {
+		setEventMessages($langs->trans($object->error), $object->errors, 'errors');
+	}
 	header('Location: '.$_SERVER['PHP_SELF'].'?id='.$object->id);
 	exit;
 }
@@ -543,11 +564,8 @@ if ($action == 'create') {
 	print '</select>';
 	print '</td></tr>';
 
-	// Resolution type — chosen at intake so the workflow is immediately clear
-	print '<tr><td class="fieldrequired">'.$form->textwithpicto($langs->trans('ResolutionType'), $langs->trans('TooltipResolutionType')).'</td>';
-	print '<td>';
-	print Form::selectarray('resolution_type', svcrequest_resolution_types(), '', 1, 0, 0, '', 0, 0, 0, '', 'flat minwidth300');
-	print '</td></tr>';
+	// Resolution type is intentionally NOT collected at intake — it is the
+	// solution, chosen after diagnosis (see Diagnosing lifecycle stage).
 
 	// Reported via
 	print '<tr><td>'.$form->textwithpicto($langs->trans('ReportedVia'), $langs->trans('TooltipReportedVia')).'</td>';
@@ -1054,6 +1072,16 @@ if ($action == 'create') {
 	print '<tr><td>'.$form->textwithpicto($langs->trans('ResolutionType'), $langs->trans('TooltipResolutionType')).'</td><td>';
 	if ($action == 'edit' && $permwrite) {
 		print Form::selectarray('resolution_type', svcrequest_resolution_types(), $object->resolution_type, 1, 0, 0, '', 0, 0, 0, '', 'flat minwidth200');
+	} elseif ($object->status == SvcRequest::STATUS_DIAGNOSING && $permwrite) {
+		print '<form action="'.$_SERVER['PHP_SELF'].'?id='.$object->id.'" method="POST" style="display:inline">';
+		print '<input type="hidden" name="token" value="'.newToken().'">';
+		print '<input type="hidden" name="action" value="set_resolution_type">';
+		print Form::selectarray('resolution_type', svcrequest_resolution_types(), $object->resolution_type, 1, 0, 0, '', 0, 0, 0, '', 'flat minwidth200');
+		print ' <input type="submit" class="button smallpaddingimp" value="'.$langs->trans('Save').'">';
+		print '</form>';
+		if (empty($object->resolution_type)) {
+			print ' <span class="opacitymedium">'.$langs->trans('SvcChooseResolutionAfterDiagnosis').'</span>';
+		}
 	} else {
 		print svcrequest_resolution_label($object->resolution_type);
 	}
@@ -1149,7 +1177,7 @@ if ($action == 'create') {
 			}
 		}
 
-		$active_status = in_array($s, array(SvcRequest::STATUS_VALIDATED, SvcRequest::STATUS_IN_PROGRESS, SvcRequest::STATUS_AWAIT_RETURN));
+		$active_status = in_array($s, array(SvcRequest::STATUS_VALIDATED, SvcRequest::STATUS_DIAGNOSING, SvcRequest::STATUS_IN_PROGRESS, SvcRequest::STATUS_AWAIT_RETURN));
 
 		print '<br>';
 		print '<div class="div-table-responsive">';
@@ -1158,17 +1186,21 @@ if ($action == 'create') {
 		print '<td colspan="2">'.img_picto('', 'truck', 'class="pictofixedwidth"').$langs->trans('RMAActions').'</td>';
 		print '</tr>';
 
-		// --- Replacement Order row ---
+		// --- Replacement Order / Shipment rows ---
+		// A warranty claim can carry multiple replacement orders when additional
+		// parts are needed for the same problem. Each linked sales order shows on
+		// its own row; the "Add Replacement Order" button remains available while
+		// the claim is active so more orders can be attached.
 		if ($has_outbound) {
-			print '<tr class="oddeven">';
-			print '<td style="padding:8px 12px; font-weight:bold; width:220px;">'.img_picto('', 'rightarrow', 'class="pictofixedwidth"').$langs->trans('ReplacementOrder').'</td>';
-			print '<td style="padding:8px 12px;">';
-
+			// Direct $0 shipment row (when the original "Ship Replacement Unit" flow was used)
 			if (!empty($object->fk_shipment)) {
-				// Linked shipment — check if it still exists
 				require_once DOL_DOCUMENT_ROOT.'/expedition/class/expedition.class.php';
 				$_exp = new Expedition($db);
 				$_exp_exists = ($_exp->fetch($object->fk_shipment) > 0);
+
+				print '<tr class="oddeven">';
+				print '<td style="padding:8px 12px; font-weight:bold; width:220px;">'.img_picto('', 'rightarrow', 'class="pictofixedwidth"').$langs->trans('ReplacementOrder').'</td>';
+				print '<td style="padding:8px 12px;">';
 				if ($_exp_exists) {
 					print img_picto('', 'dolly', 'class="pictofixedwidth"');
 					print '<a href="'.DOL_URL_ROOT.'/expedition/card.php?id='.$object->fk_shipment.'">'.$langs->trans('Shipment').' '.$_exp->ref.'</a>';
@@ -1176,44 +1208,61 @@ if ($action == 'create') {
 						print ' &mdash; '.$langs->trans('Serial').': <strong>'.dol_escape_htmltag($object->serial_out).'</strong>';
 					}
 				} else {
-					// Shipment was deleted — show orphan notice and clear link
 					print '<span class="opacitymedium" style="text-decoration:line-through;">'.img_picto('', 'dolly', 'class="pictofixedwidth"').$langs->trans('Shipment').' #'.$object->fk_shipment.' ('.$langs->trans('Deleted').')</span>';
 					if ($permwrite) {
 						print ' <a href="'.$_SERVER['PHP_SELF'].'?id='.$object->id.'&action=clearorphanshipment&token='.newToken().'" class="butActionDelete" style="margin-left:8px;">'.$langs->trans('RemoveLink').'</a>';
 					}
 				}
-			} elseif (!empty($object->fk_commande)) {
-				require_once DOL_DOCUMENT_ROOT.'/commande/class/commande.class.php';
-				$_ord = new Commande($db);
-				$_ord_exists = ($_ord->fetch($object->fk_commande) > 0);
-				if ($_ord_exists) {
-					print img_picto('', 'order', 'class="pictofixedwidth"');
-					print '<a href="'.DOL_URL_ROOT.'/commande/card.php?id='.$object->fk_commande.'">'.$langs->trans('Order').' '.$_ord->ref.'</a>';
-					if ($object->serial_out) {
-						print ' &mdash; '.$langs->trans('Serial').': <strong>'.dol_escape_htmltag($object->serial_out).'</strong>';
-					}
-				} else {
-					print '<span class="opacitymedium" style="text-decoration:line-through;">'.img_picto('', 'order', 'class="pictofixedwidth"').$langs->trans('Order').' #'.$object->fk_commande.' ('.$langs->trans('Deleted').')</span>';
-					if ($permwrite) {
-						print ' <a href="'.$_SERVER['PHP_SELF'].'?id='.$object->id.'&action=clearorphanorder&token='.newToken().'" class="butActionDelete" style="margin-left:8px;">'.$langs->trans('RemoveLink').'</a>';
-					}
-				}
-			} elseif ($active_status && $permwrite) {
-				// Direct shipment button (no order needed)
-				if (isModEnabled('shipping')) {
-					print '<a href="'.$_SERVER['PHP_SELF'].'?id='.$object->id.'&action=createreplacementshipment&token='.newToken().'" class="butAction" style="margin:0;">'.$langs->trans('ShipReplacementUnit').'</a>';
-				}
-				// Order-based flow as fallback
-				if (isModEnabled('order')) {
-					print ' ';
-					print '<a href="'.dol_escape_htmltag(DOL_URL_ROOT.'/commande/card.php?action=create&socid='.((int) $object->fk_soc).'&rma_sr_id='.((int) $object->id).'&backtopage='.urlencode(DOL_URL_ROOT.'/custom/warrantysvc/card.php?id='.$object->id)).'" class="butAction" style="margin:0;">'.$langs->trans('CreateReplacementOrder').'</a>';
-				}
-			} else {
-				print '<span class="opacitymedium">'.$langs->trans('NoReplacementOrderYet').'</span>';
+				print '</td></tr>';
 			}
 
-			print '</td>';
-			print '</tr>';
+			// All linked sales orders (via element_element, regardless of source-type spelling)
+			$linked_orders = $object->getLinkedCommandes();
+			foreach ($linked_orders as $_ord) {
+				print '<tr class="oddeven">';
+				print '<td style="padding:8px 12px; font-weight:bold; width:220px;">'.img_picto('', 'rightarrow', 'class="pictofixedwidth"').$langs->trans('ReplacementOrder').'</td>';
+				print '<td style="padding:8px 12px;">';
+				print $_ord->getNomUrl(1).' '.$_ord->getLibStatut(5);
+				if ((int) $_ord->id === (int) $object->fk_commande && $object->serial_out) {
+					print ' &mdash; '.$langs->trans('Serial').': <strong>'.dol_escape_htmltag($object->serial_out).'</strong>';
+				}
+				print '</td></tr>';
+			}
+
+			// Orphan: fk_commande set but its commande was deleted (won't appear in the linked list)
+			if (!empty($object->fk_commande) && empty($linked_orders)) {
+				print '<tr class="oddeven">';
+				print '<td style="padding:8px 12px; font-weight:bold; width:220px;">'.img_picto('', 'rightarrow', 'class="pictofixedwidth"').$langs->trans('ReplacementOrder').'</td>';
+				print '<td style="padding:8px 12px;">';
+				print '<span class="opacitymedium" style="text-decoration:line-through;">'.img_picto('', 'order', 'class="pictofixedwidth"').$langs->trans('Order').' #'.$object->fk_commande.' ('.$langs->trans('Deleted').')</span>';
+				if ($permwrite) {
+					print ' <a href="'.$_SERVER['PHP_SELF'].'?id='.$object->id.'&action=clearorphanorder&token='.newToken().'" class="butActionDelete" style="margin-left:8px;">'.$langs->trans('RemoveLink').'</a>';
+				}
+				print '</td></tr>';
+			}
+
+			// Action row: always offer "Add Replacement Order" while the claim is active.
+			// "Ship Replacement Unit" (direct $0 shipment) is offered only the first time,
+			// before any shipment or order exists — it's the single-swap shortcut.
+			if ($active_status && $permwrite) {
+				$nothing_yet = empty($object->fk_shipment) && empty($linked_orders);
+
+				print '<tr class="oddeven">';
+				print '<td style="padding:8px 12px; font-weight:bold; width:220px;">&nbsp;</td>';
+				print '<td style="padding:8px 12px;">';
+				if ($nothing_yet && isModEnabled('shipping')) {
+					print '<a href="'.$_SERVER['PHP_SELF'].'?id='.$object->id.'&action=createreplacementshipment&token='.newToken().'" class="butAction" style="margin:0;">'.$langs->trans('ShipReplacementUnit').'</a> ';
+				}
+				if (isModEnabled('order')) {
+					$btnlabel = $nothing_yet ? 'CreateReplacementOrder' : 'AddReplacementOrder';
+					print '<a href="'.dol_escape_htmltag(DOL_URL_ROOT.'/commande/card.php?action=create&socid='.((int) $object->fk_soc).'&rma_sr_id='.((int) $object->id).'&backtopage='.urlencode(DOL_URL_ROOT.'/custom/warrantysvc/card.php?id='.$object->id)).'" class="butAction" style="margin:0;">'.$langs->trans($btnlabel).'</a>';
+				}
+				print '</td></tr>';
+			} elseif (empty($object->fk_shipment) && empty($linked_orders) && empty($object->fk_commande)) {
+				print '<tr class="oddeven">';
+				print '<td style="padding:8px 12px; font-weight:bold; width:220px;">'.img_picto('', 'rightarrow', 'class="pictofixedwidth"').$langs->trans('ReplacementOrder').'</td>';
+				print '<td style="padding:8px 12px;"><span class="opacitymedium">'.$langs->trans('NoReplacementOrderYet').'</span></td></tr>';
+			}
 		}
 
 		// --- Return Reception row ---
@@ -1375,7 +1424,7 @@ if ($action == 'create') {
 		print '<a href="'.$_SERVER['PHP_SELF'].'?id='.$object->id.'" class="butActionDelete">'.$langs->trans('Cancel').'</a>';
 	} else {
 		// Edit: available while request is not yet closed/cancelled
-		if ($permwrite && in_array($s, array(SvcRequest::STATUS_DRAFT, SvcRequest::STATUS_VALIDATED, SvcRequest::STATUS_IN_PROGRESS, SvcRequest::STATUS_AWAIT_RETURN))) {
+		if ($permwrite && in_array($s, array(SvcRequest::STATUS_DRAFT, SvcRequest::STATUS_VALIDATED, SvcRequest::STATUS_DIAGNOSING, SvcRequest::STATUS_IN_PROGRESS, SvcRequest::STATUS_AWAIT_RETURN))) {
 			print '<a href="'.$_SERVER['PHP_SELF'].'?id='.$object->id.'&action=edit&token='.newToken().'" class="butAction">'.$langs->trans('Modify').'</a>';
 		}
 
@@ -1384,9 +1433,19 @@ if ($action == 'create') {
 			print '<a href="'.$_SERVER['PHP_SELF'].'?id='.$object->id.'&action=confirm_validate&token='.newToken().'" class="butAction">'.$langs->trans('ValidateSvcRequest').'</a>';
 		}
 
-		// VALIDATED → Set In Progress
+		// VALIDATED → Begin Diagnosis
 		if ($s == SvcRequest::STATUS_VALIDATED && $permwrite) {
-			print '<a href="'.$_SERVER['PHP_SELF'].'?id='.$object->id.'&action=confirm_setinprogress&token='.newToken().'" class="butAction">'.$langs->trans('SetInProgress').'</a>';
+			print '<a href="'.$_SERVER['PHP_SELF'].'?id='.$object->id.'&action=confirm_setdiagnosing&token='.newToken().'" class="butAction">'.$langs->trans('BeginDiagnosis').'</a>';
+		}
+
+		// DIAGNOSING → troubleshoot + Set In Progress (gated on resolution type)
+		if ($s == SvcRequest::STATUS_DIAGNOSING && $permwrite) {
+			print '<a href="'.DOL_URL_ROOT.'/custom/warrantysvc/troubleshoot.php?id='.$object->id.'" class="butAction">'.$langs->trans('OpenTroubleshoot').'</a>';
+			if (!empty($object->resolution_type)) {
+				print '<a href="'.$_SERVER['PHP_SELF'].'?id='.$object->id.'&action=confirm_setinprogress&token='.newToken().'" class="butAction">'.$langs->trans('SetInProgress').'</a>';
+			} else {
+				print '<span class="butActionRefused classfortooltip" title="'.dol_escape_htmltag($langs->trans('SvcRequestResolutionTypeRequiredBeforeProgress')).'">'.$langs->trans('SetInProgress').'</span>';
+			}
 		}
 
 		// IN PROGRESS — resolution-type-specific next actions
@@ -1416,8 +1475,8 @@ if ($action == 'create') {
 			print '<a href="'.$_SERVER['PHP_SELF'].'?id='.$object->id.'&action=reopen&token='.newToken().'" class="butActionDelete">'.$langs->trans('ReopenSvcRequest').'</a>';
 		}
 
-		// DRAFT / VALIDATED / IN_PROGRESS / AWAIT_RETURN → Cancel
-		if (in_array($s, array(SvcRequest::STATUS_DRAFT, SvcRequest::STATUS_VALIDATED, SvcRequest::STATUS_IN_PROGRESS, SvcRequest::STATUS_AWAIT_RETURN)) && $permwrite) {
+		// DRAFT / VALIDATED / DIAGNOSING / IN_PROGRESS / AWAIT_RETURN → Cancel
+		if (in_array($s, array(SvcRequest::STATUS_DRAFT, SvcRequest::STATUS_VALIDATED, SvcRequest::STATUS_DIAGNOSING, SvcRequest::STATUS_IN_PROGRESS, SvcRequest::STATUS_AWAIT_RETURN)) && $permwrite) {
 			print '<a href="'.$_SERVER['PHP_SELF'].'?id='.$object->id.'&action=cancel&token='.newToken().'" class="butActionDelete">'.$langs->trans('CancelSvcRequest').'</a>';
 		}
 

@@ -22,7 +22,9 @@ if (!$res) { die("Include of main fails"); }
 
 require_once DOL_DOCUMENT_ROOT.'/core/lib/date.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/product/class/product.class.php';
+require_once DOL_DOCUMENT_ROOT.'/user/class/user.class.php';
 require_once DOL_DOCUMENT_ROOT.'/custom/warrantysvc/class/svcrequest.class.php';
+require_once DOL_DOCUMENT_ROOT.'/custom/warrantysvc/class/svctroubleshoot.class.php';
 require_once DOL_DOCUMENT_ROOT.'/custom/warrantysvc/lib/warrantysvc.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/custom/warrantysvc/lib/troubleshoot.lib.php';
 
@@ -64,29 +66,38 @@ if ($action == 'save_findings' && $permwrite) {
 	$summary  = GETPOST('troubleshoot_summary', 'restricthtml');
 	$outcome  = GETPOST('troubleshoot_outcome', 'alpha');
 
-	// Build structured block to inject into note_private
-	$block  = "\n\n--- TROUBLESHOOT ".dol_print_date(dol_now(), 'dayhour')." ---\n";
+	// Record the session as a structured, immutable history entry
+	$session = new SvcTroubleshoot($db);
+	$session->fk_svcrequest  = $object->id;
+	$session->datec          = dol_now();
+	$session->fk_user_author = $user->id;
+	$session->summary        = $summary;
+	$session->outcome        = $outcome;
+	$session->checklist      = array();
 	foreach ($steps as $key => $step) {
-		$done    = !empty($checks[$key]['done']) ? '[x]' : '[ ]';
-		$finding = !empty($checks[$key]['finding']) ? ' — '.$checks[$key]['finding'] : '';
-		$block  .= $done.' '.$step['label'].$finding."\n";
+		$session->checklist[] = array(
+			'label'   => $step['label'],
+			'done'    => !empty($checks[$key]['done']) ? 1 : 0,
+			'finding' => $checks[$key]['finding'],
+		);
 	}
-	if ($summary) {
-		$block .= "Summary: ".$summary."\n";
-	}
-	if ($outcome) {
-		$block .= "Outcome: ".$langs->trans('TroubleshootOutcome_'.$outcome)."\n";
-	}
-	$block .= "---\n";
+	$session->create($user);
 
-	$object->note_private = ($object->note_private ? $object->note_private : '').$block;
-
-	// If outcome is informational, update resolution type
-	if ($outcome == 'no_fault') {
-		$object->resolution_type = SvcRequest::RESOLUTION_INFORMATIONAL;
+	// Suggest a resolution type from the outcome, but only if none chosen yet —
+	// never overwrite a type the user explicitly picked during diagnosis.
+	if (empty($object->resolution_type)) {
+		$outcome_to_resolution = array(
+			'no_fault'     => 'informational',
+			'resolved'     => 'guidance',
+			'escalate'     => 'intervention',
+			'parts_needed' => 'component',
+			'intervention' => 'intervention',
+		);
+		if (!empty($outcome) && isset($outcome_to_resolution[$outcome])) {
+			$object->resolution_type = $outcome_to_resolution[$outcome];
+			$object->update($user);
+		}
 	}
-
-	$object->update($user);
 
 	// Update the service log for this serial — populates Unit Service History on warranty card
 	if (!empty($object->serial_number)) {
@@ -218,17 +229,69 @@ if ($permwrite) {
 
 print '</form>';
 
-// ---- PREVIOUS TROUBLESHOOT NOTES ----
-if (!empty($object->note_private) && strpos($object->note_private, '--- TROUBLESHOOT') !== false) {
+// ---- PREVIOUS TROUBLESHOOT SESSIONS ----
+$sessions = SvcTroubleshoot::fetchAllForRequest($db, $object->id);
+if (!empty($sessions)) {
+	$outcomelabels = array(
+		'resolved'     => $langs->trans('TroubleshootOutcome_resolved'),
+		'no_fault'     => $langs->trans('TroubleshootOutcome_no_fault'),
+		'escalate'     => $langs->trans('TroubleshootOutcome_escalate'),
+		'parts_needed' => $langs->trans('TroubleshootOutcome_parts_needed'),
+		'intervention' => $langs->trans('TroubleshootOutcome_intervention'),
+	);
+
 	print '<br>';
-	print '<div class="div-table-responsive">';
-	print '<table class="noborder centpercent">';
-	print '<tr class="liste_titre"><td>'.$langs->trans('PreviousTroubleshootSessions').'</td></tr>';
-	print '<tr class="oddeven"><td>';
-	print '<pre style="white-space:pre-wrap;font-size:0.9em">'.dol_escape_htmltag($object->note_private).'</pre>';
-	print '</td></tr>';
-	print '</table>';
-	print '</div>';
+	print load_fiche_titre($langs->trans('PreviousTroubleshootSessions'), '', 'technic');
+
+	foreach ($sessions as $sess) {
+		$author = '';
+		if ($sess->fk_user_author > 0) {
+			$u = new User($db);
+			if ($u->fetch($sess->fk_user_author) > 0) {
+				$author = $u->getFullName($langs);
+			}
+		}
+
+		print '<div class="div-table-responsive-no-min"><table class="noborder centpercent">';
+
+		// Header row: date + author + outcome badge
+		print '<tr class="liste_titre">';
+		print '<td>'.img_picto('', 'object_action', 'class="pictofixedwidth"').dol_print_date($sess->datec, 'dayhour');
+		if ($author) {
+			print ' &mdash; <span class="opacitymedium">'.dol_escape_htmltag($author).'</span>';
+		}
+		print '</td>';
+		print '<td class="right">';
+		if ($sess->outcome) {
+			$olabel = isset($outcomelabels[$sess->outcome]) ? $outcomelabels[$sess->outcome] : $sess->outcome;
+			print $langs->trans('TroubleshootOutcome').': '.dolGetStatus($olabel, '', '', 'status4', 3);
+		}
+		print '</td>';
+		print '</tr>';
+
+		// Checklist rows
+		foreach ($sess->checklist as $item) {
+			$done  = !empty($item['done']);
+			$label = isset($item['label']) ? $item['label'] : '';
+			$find  = isset($item['finding']) ? $item['finding'] : '';
+			print '<tr class="oddeven">';
+			print '<td class="center nowraponall" style="width:24px">'.($done ? img_picto($langs->trans('SvcDone'), 'tick') : '<span class="opacitymedium">&mdash;</span>').'</td>';
+			print '<td colspan="1"'.($done ? '' : ' class="opacitymedium"').'>'.dol_escape_htmltag($label);
+			if ($find !== '') {
+				print '<br><span class="opacitymedium small">'.dol_escape_htmltag($find).'</span>';
+			}
+			print '</td>';
+			print '</tr>';
+		}
+
+		// Summary row
+		if (!empty($sess->summary)) {
+			print '<tr class="oddeven"><td class="tdtop">'.$langs->trans('TroubleshootSummary').'</td>';
+			print '<td>'.dol_nl2br(dol_escape_htmltag($sess->summary, 0, 1)).'</td></tr>';
+		}
+
+		print '</table></div><br>';
+	}
 }
 
 llxFooter();

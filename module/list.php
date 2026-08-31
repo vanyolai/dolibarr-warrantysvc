@@ -47,14 +47,14 @@ $search_date_end      = dol_mktime(23, 59, 59, GETPOST('search_date_endmonth', '
 $preset = GETPOST('preset', 'alpha');
 if ($preset == 'myopen') {
 	$search_assigned = $user->id;
-	$search_status   = '0,1,2,3';
+	$search_status   = '0,1,2,3,6';
 }
 if ($preset == 'awaitreturn') {
 	$search_status = '3';
 }
 if ($preset == 'unassigned') {
 	$search_assigned = -1;
-	$search_status   = '0,1,2';
+	$search_status   = '0,1,2,6';
 }
 
 // Reset filters
@@ -195,6 +195,7 @@ $statuses = array(
 	-1 => '',
 	0  => $langs->trans('SvcDraft'),
 	1  => $langs->trans('SvcValidated'),
+	6  => $langs->trans('SvcDiagnosing'),
 	2  => $langs->trans('SvcInProgress'),
 	3  => $langs->trans('AwaitingReturn'),
 	4  => $langs->trans('SvcResolved'),

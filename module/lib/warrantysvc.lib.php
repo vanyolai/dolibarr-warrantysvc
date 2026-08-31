@@ -41,6 +41,11 @@ function warrantysvc_prepare_head($object)
 	// Troubleshoot tab
 	$head[$h][0] = DOL_URL_ROOT.'/custom/warrantysvc/troubleshoot.php?id='.$object->id;
 	$head[$h][1] = $langs->trans('Troubleshoot');
+	require_once DOL_DOCUMENT_ROOT.'/custom/warrantysvc/class/svctroubleshoot.class.php';
+	$nbts = SvcTroubleshoot::countForRequest($object->db, $object->id);
+	if ($nbts > 0) {
+		$head[$h][1] .= '<span class="badge marginleftonlyshort">'.$nbts.'</span>';
+	}
 	$head[$h][2] = 'troubleshoot';
 	$h++;
 
@@ -118,6 +123,7 @@ function svcrequest_status_badge($status, $mode = 0)
 	$map = array(
 		0 => array('label' => 'SvcDraft',         'color' => 'status0'),
 		1 => array('label' => 'SvcValidated',      'color' => 'status1'),
+		6 => array('label' => 'SvcDiagnosing',     'color' => 'status2'),
 		2 => array('label' => 'SvcInProgress',     'color' => 'status3'),
 		3 => array('label' => 'AwaitingReturn', 'color' => 'status4'),
 		4 => array('label' => 'SvcResolved',       'color' => 'status6'),

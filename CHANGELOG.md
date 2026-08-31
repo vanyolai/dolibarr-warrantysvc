@@ -1,5 +1,41 @@
 # Changelog
 
+## [1.35.0] - 2026-08-31
+
+### Changed
+- Reconciles the field-deployed 1.34.0 line (diagnosis-first lifecycle, structured troubleshoot sessions, multi-order claims) with the fixes that landed on main after it branched: 1.32.3 (prefixed element-type keys in `showLinkToObjectBlock`), 1.32.4 ("Link to Call" on warranty and service-request cards), and 1.32.5 (trigger no longer swallows a failed status advance). Production had been running the 1.34.0 build, which lacked those three; main had been missing everything from 1.33.0 up.
+- `setInProgress()` follows the field-tested diagnosis-first model: allowed from **Diagnosing** (forward path) or **Await Return** (return-received auto-advance), and requires a chosen resolution type. 1.32.5's interim widening (accepting Validated) is superseded — the forward path goes through `setDiagnosing()`.
+
+### Notes
+- Behavior consequence of the resolution-type gate: validating a Customer Return against a service request in Await Return with **no resolution type chosen** no longer advances the case — the trigger logs a warning (1.32.5) and the case stays in Await Return with `date_return_received` set. Choose a resolution type, then advance manually.
+
+## [1.34.0] - 2026-05-21
+
+### Added
+- Multiple replacement orders per warranty claim. When more parts are needed to finish fixing the same machine, click **Add Replacement Order** on the service request card to create another sales order — independent of the first, but hierarchically tied to the claim through Dolibarr's native Related Objects (`element_element`). The RMA Action panel now lists every linked order on its own row with a native status badge (`Commande::getNomUrl(1)` + `getLibStatut(5)`); the **Add Replacement Order** button remains available while the claim is active.
+- New `SvcRequest::getLinkedCommandeIds()` / `getLinkedCommandes()` resolve linked orders robustly across both source-type spellings the module has produced over time (`'svcrequest'` and `'warrantysvc_svcrequest'`), in both directions of `element_element`, with the primary `fk_commande` retained as a fallback.
+
+## [1.33.2] - 2026-05-12
+
+### Changed
+- Troubleshoot sessions are now a first-class structured record instead of free text appended to `resolution_notes`. New `llx_svc_troubleshoot` table and `SvcTroubleshoot` class store each session (checklist state as JSON, summary, outcome, author, date) linked to its service request. The Troubleshoot tab "Previous Sessions" panel renders them with native Dolibarr table markup (`load_fiche_titre`, `liste_titre`/`oddeven` rows, `img_picto('','tick')`, `dolGetStatus` outcome badge, `dol_print_date`) — no hand-rolled HTML/CSS or text parsing. The tab shows a session-count badge. `resolution_notes` returns to being a plain human-written field; the `svcservicelog` unit-history mirror is unchanged.
+
+## [1.33.1] - 2026-05-12
+
+### Fixed
+- Notification emails rendered raw `%1$s` / `%2$s` placeholders instead of substituted values. Dolibarr's `Translate::trans()` does not support positional placeholders — all five notification bodies (tech validate/in-progress, customer await-return, warranty-created, return reminder) now use sequential `%s` with correctly ordered arguments.
+- The assigned-technician email no longer prints an empty "Resolution Type:" line; that field is now populated only after diagnosis, so the summary omits it until a type is chosen.
+
+## [1.33.0] - 2026-05-12
+
+### Changed
+- Service request lifecycle is now diagnosis-first. Resolution Type is no longer chosen at intake; it is selected after diagnosis. A new **Diagnosing** stage sits between Validated and In Progress: Validate → Begin Diagnosis → (troubleshoot) → Set In Progress. A request cannot advance to In Progress until a resolution type is chosen.
+- Troubleshoot is now a first-class step of the Diagnosing stage (see 1.33.2 for the structured session record). The unit service-history mirror (`svcservicelog`) is unchanged.
+- Troubleshoot outcomes now only *suggest* a resolution type when none is set; a user-chosen type is never overwritten.
+
+### Fixed
+- Troubleshoot `no_fault` outcome referenced an undefined `SvcRequest::RESOLUTION_INFORMATIONAL` constant (fatal on save); now uses the valid `informational` resolution type.
+
 ## [1.32.5] - 2026-08-31
 
 ### Fixed
