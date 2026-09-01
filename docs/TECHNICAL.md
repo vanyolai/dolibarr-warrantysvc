@@ -1,6 +1,6 @@
 # WarrantySvc -- Technical Reference
 
-Module ID: **510000** | Family: `crm` | Version: **1.32.5**
+Module ID: **510000** | Family: `crm` | Version: **1.35.0**
 Requires: Dolibarr >= 16.0, PHP >= 7.0
 Dependencies: `modSociete`, `modProduct`, `modStock`
 
@@ -15,7 +15,7 @@ and who may write stock movements — see `doli-returns/docs/ARCHITECTURE.md`.
 
 | File | Purpose | Key GET/POST Parameters |
 |------|---------|------------------------|
-| `card.php` | Service Request create / view / edit card | `id` (int), `ref` (alpha), `action` (aZ09: create, edit, update, confirm_validate, confirm_delete, confirm_close, confirm_cancel, confirm_reopen, addline, updateline, deleteline, createshipment, validateshipment, createreception, validatereception, createintervention, sendreminder, invoicenonreturn, builddoc, setresolved, setinprogress, setawaitreturn, createorder, createcustomerreturn, voidwarranty), `cancel`, `backtopage`, `lineid`, `rma_sr_id` |
+| `card.php` | Service Request create / view / edit card | `id` (int), `ref` (alpha), `action` (aZ09: create, edit, update, confirm_validate, confirm_delete, confirm_close, confirm_cancel, confirm_reopen, addline, updateline, deleteline, createshipment, validateshipment, createreception, validatereception, createintervention, sendreminder, invoicenonreturn, builddoc, setresolved, setinprogress, setawaitreturn, confirm_setdiagnosing, set_resolution_type, createorder, createcustomerreturn, voidwarranty), `cancel`, `backtopage`, `lineid`, `rma_sr_id` |
 | `list.php` | Service Request list with filters and pagination | `action`, `massaction`, `contextpage`, `optioncss`, `projectid` (int -- pre-filter by project), `search_ref`, `search_company`, `search_serial`, `search_resolution`, `search_status` (intcomma), `search_assigned` (int, -1=unassigned), `search_warranty`, `search_date_startday/month/year`, `search_date_endday/month/year`, `preset` (alpha: myopen, awaitreturn, unassigned), `sortfield`, `sortorder`, `page` |
 | `note.php` | Notes tab for Service Request | `id` (int), `action` |
 | `troubleshoot.php` | Guided diagnostic checklist workflow | `id` (int), `action` (aZ09: save) |
@@ -71,6 +71,7 @@ Extends `CommonObject`. Manages RMA/service request cases.
 |----------|-------|-------------|
 | `STATUS_DRAFT` | 0 | Initial state |
 | `STATUS_VALIDATED` | 1 | Approved, ready to work |
+| `STATUS_DIAGNOSING` | 6 | Under diagnosis; resolution type chosen here (value 6 — added after CLOSED=5 was taken) |
 | `STATUS_IN_PROGRESS` | 2 | Being worked on |
 | `STATUS_AWAIT_RETURN` | 3 | Waiting for customer to return unit |
 | `STATUS_RESOLVED` | 4 | Issue fixed |
@@ -82,6 +83,8 @@ Extends `CommonObject`. Manages RMA/service request cases.
 | `RESOLUTION_SWAP_WAIT` | 'swap_wait' | Customer returns first |
 | `RESOLUTION_INTERVENTION` | 'intervention' | On-site service |
 | `RESOLUTION_GUIDANCE` | 'guidance' | Troubleshooting only |
+
+**Lifecycle (diagnosis-first, since 1.33.0):** Draft -> Validated -> **Diagnosing** -> In Progress -> (Await Return) -> Resolved -> Closed. Resolution type is chosen during diagnosis, not at intake; a case cannot reach In Progress without one. Await Return re-enters In Progress automatically when a linked Customer Return is validated (see Triggers).
 
 **Key properties:** `$module = 'warrantysvc'`, `$element = 'svcrequest'`, `$table_element = 'svc_request'`, `$TRIGGER_PREFIX = 'WARRANTYSVC'`
 
@@ -95,7 +98,8 @@ Extends `CommonObject`. Manages RMA/service request cases.
 | `update($user, $notrigger=0)` | int | Update all fields. Inserts extrafields. Fires `WARRANTYSVC_MODIFY`. |
 | `delete($user, $notrigger=0)` | int | Delete record, lines, extrafields. Fires `WARRANTYSVC_DELETE`. |
 | `validate($user, $notrigger=0)` | int | Draft -> Validated. Sets `date_validation`, auto-checks warranty. Fires `WARRANTYSVC_VALIDATE`. |
-| `setInProgress($user)` | int | Validated -> In Progress. Fires `WARRANTYSVC_SETINPROGRESS` (via update trigger). |
+| `setDiagnosing($user)` | int | Validated -> Diagnosing. Refuses from any other status (`SvcRequestNotInValidatedStatus`). |
+| `setInProgress($user)` | int | Diagnosing or Await Return -> In Progress. Refuses from other statuses (`SvcRequestNotInDiagnosingStatus`) and refuses while `resolution_type` is empty (`SvcRequestResolutionTypeRequiredBeforeProgress`). Await Return entry is used by the CustomerReturn validate trigger. |
 | `setAwaitingReturn($user)` | int | Any -> Awaiting Return. |
 | `resolve($user)` | int | Any -> Resolved. |
 | `close($user, $notrigger=0)` | int | Resolved/InProgress/AwaitReturn -> Closed. Sets `date_closed`. Fires `WARRANTYSVC_CLOSE`. |
@@ -105,6 +109,8 @@ Extends `CommonObject`. Manages RMA/service request cases.
 | `syncLinkedObjects()` | void | Ensures `element_element` rows exist for all FK relationships (warranty, order, shipment, invoice, reception, intervention). Cleans stale unprefixed type names. |
 | `isWarrantyCovered()` | bool | Returns true if `warranty_status == 'active'`. |
 | `getNomUrl($withpicto, $option, $notooltip)` | string | HTML link to card.php. |
+| `getLinkedCommandeIds()` | int[] | All sales-order IDs linked to this SR: unions both directions of `element_element`, accepts both historical source-type spellings (`svcrequest`, `warrantysvc_svcrequest`), falls back to `fk_commande`. |
+| `getLinkedCommandes()` | Commande[] | `getLinkedCommandeIds()` resolved to populated `Commande` objects; missing records skipped. |
 | `createReturnReception($user, $fk_warehouse)` | int | **Non-functional on Dolibarr 22.** Creates a Reception for a customer return with no source PO. The INSERT names `fk_commandefourndet`, renamed to `fk_elementdet` in v22, so it errors. Even patched it would move no stock: every stock path in core `Reception` inner-joins `commande_fournisseurdet`. Use the CustomerReturn path (`WARRANTYSVC_USE_CUSTOMERRETURN`). |
 | `validateReception($user)` | int | Validates the linked reception and sets `date_return_received`. Unreachable in practice — see above. |
 | `linkShipment($shipment_id, $tracking, $carrier, $user)` | int | Associates an Expedition and sets tracking/carrier/date_shipped. |
@@ -183,6 +189,18 @@ Extends `CommonObject`. User-defined warranty type templates.
 | `fetchAllActive($db)` | array | Static. Active types as `code => label` for dropdowns. |
 | `fetchAllForForm($db)` | array | Static. Active type objects with `code`, `label`, `coverage_terms`, `exclusions`, `default_coverage_days`. |
 | `getLabelByCode($db, $code)` | string | Static. Returns label for a type code. |
+
+### SvcTroubleshoot (`class/svctroubleshoot.class.php`)
+
+Plain persistence class (no `CommonObject`). One row per troubleshoot session run against a service request, replacing the old free-text append to `resolution_notes`. Rendered by the Troubleshoot tab's "Previous Sessions" panel; the tab badge shows `countForRequest()`.
+
+| Member | Description |
+|--------|-------------|
+| `create($user)` | Insert a session (`fk_svcrequest`, `checklist` JSON, `summary`, `outcome`, author, `datec`). |
+| `fetchAllForRequest($db, $fk_svcrequest)` (static) | All sessions for an SR, newest first. |
+| `countForRequest($db, $fk_svcrequest)` (static) | Session count, used for the tab badge. |
+
+Troubleshoot outcomes only *suggest* a `resolution_type` when the SR has none; a user-chosen type is never overwritten.
 
 ### SvcServiceLog (`class/svcservicelog.class.php`)
 
@@ -296,7 +314,7 @@ Class: `InterfaceWarrantySvcTrigger` (extends `DolibarrTriggers`)
 | `SHIPPING_CLOSED` | Shipment closed | Same as above, gated by trigger event setting. |
 | `ORDER_CLOSE` | Order delivered | Auto-creates warranties by iterating linked shipments (if `WARRANTYSVC_AUTO_WARRANTY_ON_ORDER_CLOSE` enabled). |
 | `ORDER_CREATE` | Order created | If origin is `warrantysvc_svcrequest`, auto-links SO to SR via `element_element` and stores `fk_commande` on the SR. |
-| `CUSTOMERRETURN_CUSTOMERRETURN_VALIDATE` | Customer Return validated | If linked to an SR, sets `date_return_received` and advances SR status from Await Return to In Progress (if `WARRANTYSVC_USE_CUSTOMERRETURN` enabled). |
+| `CUSTOMERRETURN_CUSTOMERRETURN_VALIDATE` | Customer Return validated | If linked to an SR, sets `date_return_received`, then advances Await Return -> In Progress **only if a resolution type is chosen** (the diagnosis-first gate in `setInProgress()`). A refused advance is logged as a warning, never swallowed. Gated by `WARRANTYSVC_USE_CUSTOMERRETURN`. |
 
 **Auto-warranty logic:** When a shipment is closed/validated, for each `expeditiondet_batch` line with a serial, the trigger: (1) skips if warranty already exists for that serial+expedition, (2) voids active warranties for the same serial held by a different customer (resale scenario), (3) resolves warranty type via product default -> parent product default -> first active type, (4) creates the warranty record with coverage terms/exclusions from the type, (5) links to expedition, order, and invoices via `element_element`.
 
@@ -469,6 +487,21 @@ Per-serial service/condition history for replacement selection scoring.
 
 **Indexes:** `idx_svc_service_log_serial`, `idx_svc_service_log_product`
 
+### llx_svc_troubleshoot
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `rowid` | INTEGER PK | |
+| `entity` | INTEGER | Multi-company entity (default 1) |
+| `fk_svcrequest` | INTEGER NOT NULL | Owning service request |
+| `datec` | DATETIME NOT NULL | Session date |
+| `fk_user_author` | INTEGER | Author |
+| `checklist` | TEXT | Checklist state as JSON |
+| `summary` | TEXT | Free-text session summary |
+| `outcome` | VARCHAR(32) | Outcome code (drives the status badge; `no_fault` maps to the `informational` resolution type) |
+| `tms` | TIMESTAMP | |
+| `import_key` | VARCHAR(14) | |
+
 ### llx_warrantysvc_product_default
 
 Per-product warranty type defaults (used on product card and auto-warranty creation).
@@ -579,6 +612,7 @@ File: `langs/en_US/warrantysvc.lang`
 | Troubleshoot workflow | `TroubleshootSaved`, `TroubleshootSummary`, `TroubleshootOutcome`, `DiagnosticStep`, `Finding`, `SaveFindings`, `ChecklistSafety*`, `ChecklistPower*`, `ChecklistComp*`, `ChecklistCustomerSteps`, `ChecklistReproduce`, `ChecklistFirmware` |
 | Email notifications | `NotifTechValidateSubject`, `NotifTechValidateBody`, `NotifTechInProgressSubject`, `NotifCustAwaitReturnSubject`, `NotifCustResolvedSubject`, `NotifWarrantyCreatedSubject`, `ReminderReturnSubject`, `ReminderReturnBody` |
 | Error messages | `ErrorSvcRequestNotInDraftStatus`, `ErrorSvcRequestNotInValidatedStatus`, `ErrorNoSerialForSwap`, `ErrorNoWarehouseSelected`, `ErrorWarrantySerialRequired` |
+| Diagnosis (1.33.0+) | `SvcDiagnosing`, `BeginDiagnosis`, `OpenTroubleshoot`, `SvcDiagnosingStarted`, `SvcChooseResolutionAfterDiagnosis`, `SvcRequestNotInValidatedStatus`, `SvcRequestNotInDiagnosingStatus`, `SvcRequestResolutionTypeRequiredBeforeProgress`, `AddReplacementOrder` |
 | Admin/setup | `SvcSetup`, `SetupSaved`, `SvcWarehouseRefurbDesc`, `SvcWarehouseReturnDesc`, `ReturnGraceDays`, `ReturnInvoiceDays`, `ReplacementStrategy`, `AutoWarrantyCheck`, `AutoWarrantyOnShipment`, `WarrantyTriggerEvent`, `DefaultCoverageDays`, `NotifyWarrantyCreated`, `WarrantyRequiresLots`, `UseCustomerReturns`, `NumberingModule` |
 | Product card warranty defaults | `WarrantyDefaultType`, `WarrantyDefaultDays`, `WarrantyNoDefault`, `WarrantyInheritParent`, `WarrantyBlankInherits`, `WarrantyInheritedFromParent`, `WarrantyVariantOverride` |
 | Tooltips | `Tooltip*` (30+ tooltip keys for form field help icons) |
