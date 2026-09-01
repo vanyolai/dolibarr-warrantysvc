@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.36.0] - 2026-09-01
+
+### Added
+- Reopening a linked Customer Return now updates the service request — the inverse of the validate handler, closing the asymmetry documented in `doli-returns/docs/ARCHITECTURE.md`. The reversal voids the recorded receipt, so the trigger clears `date_return_received` and moves an In Progress case back to Await Return. A case already Resolved or Closed is never yanked backward automatically: its receipt date is cleared and a warning is logged for manual review. Gated by `WARRANTYSVC_USE_CUSTOMERRETURN`, like the validate handler.
+
+### Notes
+- Verified on Dolibarr 22.0.4 against customerreturn 2.4.0: 15/15 assertions, including the full validate -> reopen -> re-validate round-trip (permitted by the returns module's zero-balance invariant) and toggle-off inertness.
+
 ## [1.35.0] - 2026-08-31
 
 ### Changed

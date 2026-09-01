@@ -209,6 +209,17 @@ class InterfaceWarrantySvcTrigger extends DolibarrTriggers
 				$this->_handleCustomerReturnValidated($object, $user);
 				return 0;
 
+			// ------------------------------------------------------------------
+			// Customer Return reopened — its stock movements were reversed, so
+			// the recorded receipt on the linked SR is void. Inverse of VALIDATE.
+			// ------------------------------------------------------------------
+			case 'CUSTOMERRETURN_CUSTOMERRETURN_REOPEN':
+				if (!getDolGlobalString('WARRANTYSVC_USE_CUSTOMERRETURN')) {
+					return 0;
+				}
+				$this->_handleCustomerReturnReopened($object, $user);
+				return 0;
+
 			default:
 				return 0;
 		}
@@ -290,6 +301,54 @@ class InterfaceWarrantySvcTrigger extends DolibarrTriggers
 		}
 
 		dol_syslog('WarrantySvcTrigger: CustomerReturn '.$cr_id.' validated, updated SR '.$sr_id, LOG_DEBUG);
+	}
+
+	/**
+	 * When a Customer Return linked to an SR is reopened, its stock movements
+	 * have been reversed — the goods are no longer booked in. Undo what
+	 * _handleCustomerReturnValidated() recorded: clear date_return_received,
+	 * and put an In Progress case back to Await Return. A case that has moved
+	 * on to Resolved/Closed is not yanked backward automatically; that is a
+	 * human decision, so it is logged for review instead.
+	 *
+	 * @param  object $object  The reopened CustomerReturn
+	 * @param  User   $user    Actor
+	 * @return void
+	 */
+	private function _handleCustomerReturnReopened($object, $user)
+	{
+		$cr_id = (int) $object->id;
+
+		$sql = "SELECT fk_source FROM ".MAIN_DB_PREFIX."element_element WHERE fk_target = ".$cr_id." AND targettype IN ('customerreturn', 'customerreturn_customerreturn') AND sourcetype = 'warrantysvc_svcrequest' LIMIT 1";
+		$res = $this->db->query($sql);
+		if (!$res) {
+			return;
+		}
+		$row = $this->db->fetch_object($res);
+		if (!$row || empty($row->fk_source)) {
+			return;
+		}
+
+		$sr_id = (int) $row->fk_source;
+		require_once DOL_DOCUMENT_ROOT.'/custom/warrantysvc/class/svcrequest.class.php';
+		$sr = new SvcRequest($this->db);
+		if ($sr->fetch($sr_id) <= 0) {
+			return;
+		}
+
+		// The receipt this date recorded no longer stands.
+		$sr->date_return_received = null;
+		$sr->update($user);
+
+		if ($sr->status == SvcRequest::STATUS_IN_PROGRESS) {
+			if ($sr->setAwaitingReturn($user) < 0) {
+				dol_syslog('WarrantySvcTrigger: could not move SR '.$sr_id.' back to Await Return after return reopen: '.$sr->error, LOG_WARNING);
+			}
+		} elseif (in_array($sr->status, array(SvcRequest::STATUS_RESOLVED, SvcRequest::STATUS_CLOSED))) {
+			dol_syslog('WarrantySvcTrigger: CustomerReturn '.$cr_id.' reopened but SR '.$sr_id.' is already resolved/closed (status '.$sr->status.') — review manually', LOG_WARNING);
+		}
+
+		dol_syslog('WarrantySvcTrigger: CustomerReturn '.$cr_id.' reopened, receipt cleared on SR '.$sr_id, LOG_DEBUG);
 	}
 
 	/**

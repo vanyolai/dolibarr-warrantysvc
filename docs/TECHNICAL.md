@@ -1,6 +1,6 @@
 # WarrantySvc -- Technical Reference
 
-Module ID: **510000** | Family: `crm` | Version: **1.35.0**
+Module ID: **510000** | Family: `crm` | Version: **1.36.0**
 Requires: Dolibarr >= 16.0, PHP >= 7.0
 Dependencies: `modSociete`, `modProduct`, `modStock`
 
@@ -315,6 +315,7 @@ Class: `InterfaceWarrantySvcTrigger` (extends `DolibarrTriggers`)
 | `ORDER_CLOSE` | Order delivered | Auto-creates warranties by iterating linked shipments (if `WARRANTYSVC_AUTO_WARRANTY_ON_ORDER_CLOSE` enabled). |
 | `ORDER_CREATE` | Order created | If origin is `warrantysvc_svcrequest`, auto-links SO to SR via `element_element` and stores `fk_commande` on the SR. |
 | `CUSTOMERRETURN_CUSTOMERRETURN_VALIDATE` | Customer Return validated | If linked to an SR, sets `date_return_received`, then advances Await Return -> In Progress **only if a resolution type is chosen** (the diagnosis-first gate in `setInProgress()`). A refused advance is logged as a warning, never swallowed. Gated by `WARRANTYSVC_USE_CUSTOMERRETURN`. |
+| `CUSTOMERRETURN_CUSTOMERRETURN_REOPEN` | Customer Return reopened | Inverse of VALIDATE: clears `date_return_received` on the linked SR and moves an In Progress case back to Await Return. Resolved/Closed cases keep their status (receipt date still cleared; warning logged for manual review). Gated by `WARRANTYSVC_USE_CUSTOMERRETURN`. |
 
 **Auto-warranty logic:** When a shipment is closed/validated, for each `expeditiondet_batch` line with a serial, the trigger: (1) skips if warranty already exists for that serial+expedition, (2) voids active warranties for the same serial held by a different customer (resale scenario), (3) resolves warranty type via product default -> parent product default -> first active type, (4) creates the warranty record with coverage terms/exclusions from the type, (5) links to expedition, order, and invoices via `element_element`.
 
