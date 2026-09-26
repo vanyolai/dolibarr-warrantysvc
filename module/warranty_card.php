@@ -290,7 +290,6 @@ if ($action == 'create_from_shipment') {
 		if ($shipment_start_date === null) {
 			$shipment_start_date = dol_now();
 		}
-		$product_month_field = trim(getDolGlobalString('WARRANTYSVC_PRODUCT_WARRANTY_MONTHS_FIELD'));
 
 		// Serials in this shipment that don't yet have a warranty.
 		// Candidate serials and module warranty rows are queried separately: comparing
