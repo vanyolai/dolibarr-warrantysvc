@@ -514,11 +514,10 @@ if ($action == 'create_from_shipment') {
 				print '</td></tr>';
 			}
 
-			// Start date
-			print '<tr><td class="fieldrequired">'.$langs->trans('StartDate').'</td>';
-			print '<td>';
-			print $form->selectDate($shipment_start_date, 'start_date', 0, 0, 0, 'formship', 1, 1);
-			print '</td></tr>';
+			// Shipment-origin warranties always start on the contractual shipment date.
+			print '<tr><td>'.$langs->trans('StartDate').'</td>';
+			print '<td><strong>'.dol_print_date($shipment_start_date, 'day').'</strong>';
+			print ' <span class="opacitymedium">('.$langs->trans('WarrantyStartFromShipment').')</span></td></tr>';
 
 			if ($duration_source === 'product_field') {
 				print '<tr><td>'.$langs->trans('WarrantyDuration').'</td>';
