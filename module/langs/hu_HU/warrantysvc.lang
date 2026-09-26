@@ -418,153 +418,153 @@ WarrantyVoided = A garancia érvénytelenítve.
 #
 # Tooltips — shown as hover help icons on form field labels
 #
-IssueDescriptionPlaceholder = Describe the fault, symptoms, or customer complaint in detail...
-NotePublicPlaceholder = Notes or comments visible to the customer...
-TooltipSerialNumber = The serial or lot number of the customer's defective unit. Used to automatically look up warranty coverage.
-TooltipSvcWarranty = Optional — link to an existing warranty record. If left blank, the system will auto-match by serial number on save.
-TooltipResolutionType = Determines the workflow: whether components are shipped, a unit is swapped, an on-site visit is scheduled, or guidance only is provided.
-TooltipIssueDescription = Describe the fault or complaint as reported by the customer. This text appears on the service authorization PDF.
-TooltipCustomerSite = Physical location or site name where the unit is installed. Helpful for on-site service calls.
-TooltipBillable = When checked, this request will be invoiced to the customer. Automatically set based on warranty status — override here if needed.
-TooltipResolutionNotes = Internal notes on how the issue was resolved. Visible on the closed case record and printed on service summaries.
-TooltipReportedVia = The channel through which the customer reported the issue. Used for intake volume reporting.
-TooltipIssueDate = The date the customer reported the issue — not necessarily today's date.
-TooltipSerialOut = Serial number of the replacement or component unit being sent to the customer.
-TooltipSerialIn = Serial number of the unit being returned by the customer for repair or analysis.
-TooltipWarrantySerial = The unique serial number of the unit covered by this warranty. Must match the serial recorded on the original shipment.
-TooltipWarrantyType = Warranty terms/exclusions profile. When a Product warranty-duration field is configured, this selection never changes the warranty duration.
-TooltipCoverageDays = Stored equivalent duration in days. If the configured Product warranty-month field has a value, expiry is calculated from calendar months and this day count is derived from that result. Warranty type duration is only a fallback.
-CoverageFromProductMonths = Product warranty period: %s calendar months
-ExpiryDateOverride = Expiry Date Override
-ExpiryAutoComputed = (auto-computed from start date + coverage days)
-TooltipExpiryDateOverride = Optionally set an exact expiry date. Leave blank to auto-compute from start date + coverage days.
-TooltipCoverageTerms = Describe what this warranty covers — parts, labour, on-site service, etc. Printed on warranty documents.
-TooltipExclusions = Explicitly list what is not covered — physical damage, accessories, misuse, etc. Printed on warranty documents.
-OriginOrder = Origin Order
-TooltipOriginOrder = Dolibarr order ID this warranty originated from. Optional — used for purchase traceability.
-TooltipNotePublic = Notes visible to the customer. Included in warranty registration emails if notifications are enabled.
-TooltipWTypeCode = Short machine-readable identifier, e.g. "standard" or "extended_2yr". Used internally — no spaces allowed.
-TooltipWTypeLabel = Human-readable name shown in warranty type dropdowns and on warranty records.
-TooltipWTypeDescription = Optional description of what this warranty type covers. Visible to staff when choosing a type.
-TooltipWTypeCoverageTerms = Default coverage terms template for this warranty type. Auto-fills the Coverage Terms field on the warranty form when this type is selected. Can be edited per warranty.
-TooltipWTypeExclusions = Default exclusions template for this warranty type. Auto-fills the Exclusions field on the warranty form when this type is selected. Can be edited per warranty.
-TooltipWTypeDefaultDays = Legacy duration used only when no Product warranty-duration field is configured.
-TooltipWTypePosition = Controls display order in dropdown menus. Lower numbers appear first.
-CoverageTermsPlaceholder = e.g. Covers defects in materials and workmanship under normal use conditions...
-ExclusionsPlaceholder = e.g. Physical damage, consumables, accessories, damage caused by misuse...
-TroubleshootSummaryPlaceholder = Summarise what was checked, what symptoms were observed, and what action was recommended...
-TooltipTroubleshootSummary = Overall summary of this diagnostic session — what was checked, what was found, and recommended next steps.
-TooltipTroubleshootOutcome = The result of this session. Selecting "No fault found" will update the resolution type on the warranty claim to Informational.
-SelectProductFirst = Select a product first
-NoSerialsAvailable = No known serials for this product
-SelectCustomerFirst = Select a customer first
-SelectProject = Select a project...
-NoProjectForCustomer = No open projects for this customer
-NoProductForCustomer = No shipped products found for this customer
-NoProductsWithUnassignedSerials = All registered serials are already covered by a warranty. Register a new shipment or add serial numbers via the Stocks module before creating a manual warranty.
-WarrantyModeStandard = Standard
-WarrantyModeOverride = Override / Special Case
-WarrantyModeManual = Manual Entry
-WarrantyOverrideWarning = Override mode — only products with a validated shipment on record are shown. Serial number is entered manually and will not be validated against stock records. For special cases only (e.g. warranty transfers).
-WarrantyManualWarning = Manual entry mode — no module data is used. Both product and serial are entered freely. Use only when the Expedition or Stocks modules are not configured.
-SerialNumberOverridePlaceholder = Enter serial number manually...
+IssueDescriptionPlaceholder = Írd le részletesen a hibát, a tüneteket vagy az ügyfél panaszát...
+NotePublicPlaceholder = Az ügyfél számára is látható megjegyzés...
+TooltipSerialNumber = Az ügyfél hibás készülékének sorozat- vagy LOT-száma. A rendszer ezt használja a garancia automatikus kereséséhez.
+TooltipSvcWarranty = Opcionális — meglévő garanciarekord kapcsolása. Ha üres, a rendszer mentéskor megpróbál automatikusan párosítani.
+TooltipResolutionType = Meghatározza a folyamatot: alkatrészküldés, készülékcsere, helyszíni beavatkozás vagy csak útmutatás.
+TooltipIssueDescription = Az ügyfél által bejelentett hiba vagy panasz leírása. A szervizdokumentumon is megjelenhet.
+TooltipCustomerSite = A készülék telepítési helye vagy az ügyfél telephelye. Helyszíni munkánál hasznos.
+TooltipBillable = Bekapcsolva az igény számlázható. A rendszer a garancia állapota alapján automatikusan állítja, de felülbírálható.
+TooltipResolutionNotes = Belső megjegyzés a probléma megoldásáról. A lezárt ügyben és szervizösszesítőkben használható.
+TooltipReportedVia = Az a csatorna, amelyen az ügyfél a hibát bejelentette.
+TooltipIssueDate = Az a dátum, amikor az ügyfél a hibát bejelentette; nem feltétlenül a mai nap.
+TooltipSerialOut = Az ügyfélnek küldött csere- vagy alkatrészegység sorozatszáma.
+TooltipSerialIn = Az ügyféltől javításra vagy bevizsgálásra visszaérkező egység sorozatszáma.
+TooltipWarrantySerial = A garanciával fedett egység egyedi sorozatszáma. Meg kell egyeznie az eredeti kiszállításon rögzített sorozatszámmal.
+TooltipWarrantyType = Garanciális feltételprofil. Product-field módban ez nem módosítja a garancia időtartamát.
+TooltipCoverageDays = A garancia napokban tárolt technikai megfelelője. Product-field módban a lejárat naptári hónapokból számítódik, a napszám ebből származtatott.
+CoverageFromProductMonths = Termék garanciaideje: %s naptári hónap
+ExpiryDateOverride = Lejárati dátum felülbírálása
+ExpiryAutoComputed = (automatikusan számítva a kezdő dátum és az időtartam alapján)
+TooltipExpiryDateOverride = Opcionálisan pontos lejárati dátum adható meg. Üresen hagyva a rendszer automatikusan számítja.
+TooltipCoverageTerms = Annak leírása, hogy mire terjed ki a garancia — például alkatrészre, munkadíjra vagy helyszíni szervizre.
+TooltipExclusions = A garanciából kizárt esetek felsorolása — például fizikai sérülés, fogyóeszköz, helytelen használat.
+OriginOrder = Forrásrendelés
+TooltipOriginOrder = A Dolibarr-rendelés, amelyből a garancia származik. Opcionális nyomonkövetési adat.
+TooltipNotePublic = Az ügyfél számára látható megjegyzés. Értesítés esetén a garanciaregisztrációs kommunikációban is használható.
+TooltipWTypeCode = Rövid, géppel feldolgozható azonosító, például „standard” vagy „extended_2yr”. Szóköz nem használható.
+TooltipWTypeLabel = A garanciatípus ember számára olvasható megnevezése.
+TooltipWTypeDescription = Opcionális leírás arról, hogy ez a garanciatípus mit jelent.
+TooltipWTypeCoverageTerms = A garanciatípus alapértelmezett feltételei.
+TooltipWTypeExclusions = A garanciatípus alapértelmezett kizárásai.
+TooltipWTypeDefaultDays = Örökölt időtartam, csak akkor használatos, ha nincs Product garanciahónap-mező konfigurálva.
+TooltipWTypePosition = A legördülő listában való sorrendet szabályozza. Az alacsonyabb szám előrébb jelenik meg.
+CoverageTermsPlaceholder = pl. Normál használat mellett az anyag- és gyártási hibákra terjed ki...
+ExclusionsPlaceholder = pl. Fizikai sérülés, fogyóeszközök, tartozékok, helytelen használatból eredő kár...
+TroubleshootSummaryPlaceholder = Foglald össze, mit ellenőriztetek, milyen tünetek jelentkeztek és milyen lépést javasoltál...
+TooltipTroubleshootSummary = A diagnosztikai munkamenet összefoglalója: mi lett ellenőrizve, mi derült ki és mi a javasolt következő lépés.
+TooltipTroubleshootOutcome = A munkamenet eredménye. A „Nem találtunk hibát” választás a garanciális igény megoldástípusát Tájékoztató értékre állítja.
+SelectProductFirst = Előbb válassz terméket
+NoSerialsAvailable = Nincs ismert sorozatszám ehhez a termékhez
+SelectCustomerFirst = Előbb válassz ügyfelet
+SelectProject = Válassz projektet...
+NoProjectForCustomer = Nincs nyitott projekt ehhez az ügyfélhez
+NoProductForCustomer = Nincs kiszállított termék ehhez az ügyfélhez
+NoProductsWithUnassignedSerials = Minden regisztrált sorozatszámhoz tartozik már garancia. Rögzíts új szállítmányt vagy adj hozzá sorozatszámot a Készlet modulban.
+WarrantyModeStandard = Normál
+WarrantyModeOverride = Felülbírálás / különleges eset
+WarrantyModeManual = Kézi bevitel
+WarrantyOverrideWarning = Felülbírálási mód — csak hitelesített szállítmánnyal rendelkező termékek jelennek meg. A sorozatszám kézzel adható meg és nem kerül készletadat alapján ellenőrzésre.
+WarrantyManualWarning = Kézi bevitel — a modul nem használ forrásadatokat. A termék és a sorozatszám szabadon megadható. Csak különleges esetben használd.
+SerialNumberOverridePlaceholder = Sorozatszám kézi megadása...
 
 #
 # Product default warranty attributes
 #
-WarrantyDefaultType = Default Warranty Terms
-WarrantyDefaultDays = Default Coverage Days
-WarrantyDefaultDaysPlaceholder = Leave blank to use type default
-WarrantyDefaultDaysFromType = days from type default
-WarrantyNoDefault = Not defined
-WarrantyInheritParent = Inherit from parent: %s
-WarrantyBlankInherits = Blank = inherit parent default (%s)
-WarrantyInheritDays = Inherit %d days from parent
-WarrantyInheritedFromParent = inherited from parent
-WarrantyVariantOverride = variant override
+WarrantyDefaultType = Alapértelmezett garanciális feltétel
+WarrantyDefaultDays = Alapértelmezett garanciaidő napban
+WarrantyDefaultDaysPlaceholder = Üresen hagyva a típus alapértéke érvényes
+WarrantyDefaultDaysFromType = nap a típus alapértékéből
+WarrantyNoDefault = Nincs megadva
+WarrantyInheritParent = Öröklés a szülőtől: %s
+WarrantyBlankInherits = Üresen = szülő alapértékének öröklése (%s)
+WarrantyInheritDays = %d nap öröklése a szülőtől
+WarrantyInheritedFromParent = a szülőtől örökölve
+WarrantyVariantOverride = változat saját felülbírálása
 
 # Unit Service History
-UnitServiceHistory = Unit Service History
+UnitServiceHistory = Eszköz szervizelőzményei
 ServiceCount = Szervizelések száma
 ServiceHours = Szervizórák
 ConditionStatus = Állapot
 ConditionScore = Állapot pontszáma
-ConditionNotes = Condition Notes
+ConditionNotes = Állapotmegjegyzés
 LastServiceDate = Utolsó szerviz dátuma
-LowerIsBetter = lower is better
-NoServiceHistory = No service history recorded for this serial.
+LowerIsBetter = az alacsonyabb jobb
+NoServiceHistory = Ehhez a sorozatszámhoz még nincs rögzített szervizelőzmény.
 ConditionGood = Jó
 ConditionFair = Közepes
 ConditionPoor = Gyenge
 ConditionScrap = Selejt / leírandó
 
 # Debug
-DebugMode = Debug Mode
-DebugModeDesc = Exposes diagnostic endpoints at /custom/warrantysvc/ajax/debug.php for troubleshooting linked objects, element properties, triggers, hooks, and module configuration. Admin-only access.
+DebugMode = Hibakeresési mód
+DebugModeDesc = Hibakeresési végpontokat engedélyez a /custom/warrantysvc/ajax/debug.php alatt. Csak rendszergazdák számára.
 
 # Admin / Extrafields
-WarrantySvcSetup = Warranty & Service Setup
-ServiceRequestExtraFields = Claim Extra Fields
-WarrantyExtraFields = Warranty Extra Fields
+WarrantySvcSetup = Garancia és szerviz beállításai
+ServiceRequestExtraFields = Garanciális igény kiegészítő mezői
+WarrantyExtraFields = Garancia kiegészítő mezői
 
-ErrorWarrantyCalendarExpiry = Unable to calculate the warranty expiry date from the configured Product warranty period.
+ErrorWarrantyCalendarExpiry = Nem sikerült kiszámítani a garancia lejáratát a terméken megadott garanciaidőből.
 
-ProductWarrantyPeriodMissing = No warranty period is configured for this Product.
-ErrorProductWarrantyPeriodMissing = No warranty period is configured for this Product. Set the configured Product warranty-duration field before creating the warranty.
+ProductWarrantyPeriodMissing = Ehhez a termékhez nincs garanciaidő beállítva.
+ErrorProductWarrantyPeriodMissing = Ehhez a termékhez nincs garanciaidő beállítva. Garancia létrehozása előtt töltsd ki a konfigurált Termék garanciaidő mezőt.
 
-WarrantyDurationSource = Warranty duration source
-WarrantyDurationSourceDesc = Choose how warranty duration is determined.
-WarrantyDurationSourceProductField = Product field (calendar months)
-WarrantyDurationSourceWarrantyType = Warranty Type / upstream logic
-WarrantyDuration = Warranty duration
-WarrantyDurationFromProductField = Calculated from the configured Product warranty-duration field when saved.
-SelectSerialForWarrantyPeriod = Select a serial number to load the Product warranty period.
-ErrorProductWarrantyFieldNotConfigured = Product-field duration mode is active, but no Product warranty-duration field is configured.
+WarrantyDurationSource = Garancia időtartamának forrása
+WarrantyDurationSourceDesc = Válaszd ki, hogy a garancia időtartamát a Termék mezője vagy az örökölt Warranty Type logika határozza meg.
+WarrantyDurationSourceProductField = Termék mezője (naptári hónap)
+WarrantyDurationSourceWarrantyType = Warranty Type / örökölt logika
+WarrantyDuration = Garancia időtartama
+WarrantyDurationFromProductField = Mentéskor a konfigurált Termék garanciaidő mezőből számítódik.
+SelectSerialForWarrantyPeriod = Válassz sorozatszámot a termék garanciaidejének betöltéséhez.
+ErrorProductWarrantyFieldNotConfigured = Product-field mód aktív, de nincs Termék garanciaidő mező konfigurálva.
 
-SvcMonths = months
-WarrantyDurationLegacyUnknown = Legacy record: calendar-month snapshot not stored
+SvcMonths = hónap
+WarrantyDurationLegacyUnknown = Örökölt rekord: a naptári hónapok száma nincs külön eltárolva
 
-ShipmentItem = Shipment item
-TooltipShipmentItem = Select a shipped serial/lot allocation or a non-serialized shipment line to create a warranty for.
-SelectShipmentItem = Select a shipment item
-AutoFilledFromShipmentItem = Auto-filled from shipment item
-SelectShipmentItemForWarrantyPeriod = Select a shipment item to load the Product warranty period.
-NoUncoveredItemsInShipment = All eligible items in this shipment already have warranty coverage.
-NoSerialShipmentItem = no serial, qty %s
+ShipmentItem = Szállítmánytételelem
+TooltipShipmentItem = Válassz kiszállított sorozat-/LOT-egységet vagy nem sorozatszámos szállítmánytételt a garancia létrehozásához.
+SelectShipmentItem = Válassz szállítmánytételt
+AutoFilledFromShipmentItem = A szállítmánytételből automatikusan kitöltve
+SelectShipmentItemForWarrantyPeriod = Válassz szállítmánytételt a termék garanciaidejének betöltéséhez.
+NoUncoveredItemsInShipment = A szállítmány minden jogosult tételéhez tartozik már garancia.
+NoSerialShipmentItem = nincs sorozatszám, mennyiség: %s
 
-ErrorInvalidShipmentItem = The selected shipment item is invalid.
-ErrorShipmentWarrantyStartDateMissing = The shipment has no usable shipment date, so warranty start cannot be determined.
+ErrorInvalidShipmentItem = A kiválasztott szállítmánytétel érvénytelen.
+ErrorShipmentWarrantyStartDateMissing = A szállítmányhoz nincs használható szállítási dátum, ezért a garancia kezdete nem határozható meg.
 
-ErrorWarrantyDoesNotMatchClaim = The selected warranty does not match the claim customer, Product or serial number.
-ErrorWarrantyNotFound = The selected warranty could not be found.
-ErrorVoidedWarrantyClaim = A voided warranty cannot be linked to a new claim.
+ErrorWarrantyDoesNotMatchClaim = A kiválasztott garancia nem egyezik a garanciális igény ügyfelével, termékével vagy sorozatszámával.
+ErrorWarrantyNotFound = A kiválasztott garancia nem található.
+ErrorVoidedWarrantyClaim = Érvénytelenített garancia nem kapcsolható új garanciális igényhez.
 
-WarrantyStartFromShipment = From shipment date
+WarrantyStartFromShipment = A szállítmány dátumából
 
 #
 # Additional module metadata, permissions and validation messages
 #
-ModuleWarrantySvcDesc = RMA (Return Merchandise Authorization), customer warranty and service workflow management.
-CheckOverdueRMAReturns = Check overdue warranty returns
-CheckOverdueRMAReturnsDesc = Check for overdue warranty/RMA unit returns and send reminders.
-PermissionReadSvcRequests = Read warranty claims
-PermissionWriteSvcRequests = Create and edit warranty claims
-PermissionDeleteSvcRequests = Delete warranty claims
-PermissionValidateSvcRequests = Validate warranty claims
-PermissionCloseSvcRequests = Close warranty claims
-PermissionReadWarranties = Read warranties
-PermissionWriteWarranties = Create and edit warranties
-PermissionDeleteWarranties = Delete warranties
-SvcRequestPdfStandardDesc = Standard warranty claim authorization slip
-ErrorWarrantySvcOutputDirNotConfigured = Warranty & Service output directory is not configured.
-CustomerSitePlaceholder = e.g. Main warehouse, Building A
-WarrantyTypeCodePlaceholder = e.g. standard
-WarrantyTypeDescriptionPlaceholder = e.g. Covers parts and labour for standard equipment
-ErrorCreatingReplacementShipment = Unable to create the replacement shipment.
-ErrorInvalidProductWarrantyMonthsFieldName = Invalid Product warranty-duration field name: %s
-ErrorProductWarrantyMonthsFieldMissingOrInvalid = Configured Product warranty-duration field does not exist or is not an integer extra field: %s
-ErrorShipmentItemNotInShipment = Shipment item not found or does not belong to the selected shipment.
-ErrorShipmentItemQuantityInvalid = Shipment item quantity is invalid.
-ErrorWarrantyStartDateMissing = Warranty start date is missing or invalid.
-ErrorWarrantyCoverageDaysCalculation = Unable to calculate the equivalent warranty coverage in days.
-ErrorDuplicateShipmentWarranty = A non-voided warranty already exists for this shipment item (warranty ID %s).
+ModuleWarrantySvcDesc = RMA, ügyfélgarancia és szervizfolyamatok kezelése.
+CheckOverdueRMAReturns = Lejárt RMA-visszaküldések ellenőrzése
+CheckOverdueRMAReturnsDesc = Lejárt garanciális/RMA visszaküldések ellenőrzése és emlékeztetők küldése.
+PermissionReadSvcRequests = Garanciális igények olvasása
+PermissionWriteSvcRequests = Garanciális igények létrehozása és szerkesztése
+PermissionDeleteSvcRequests = Garanciális igények törlése
+PermissionValidateSvcRequests = Garanciális igények hitelesítése
+PermissionCloseSvcRequests = Garanciális igények lezárása
+PermissionReadWarranties = Garanciák olvasása
+PermissionWriteWarranties = Garanciák létrehozása és szerkesztése
+PermissionDeleteWarranties = Garanciák törlése
+SvcRequestPdfStandardDesc = Szabványos garanciális igény engedélyezőlap
+ErrorWarrantySvcOutputDirNotConfigured = A Garancia és szerviz kimeneti könyvtára nincs beállítva.
+CustomerSitePlaceholder = pl. Főraktár, A épület
+WarrantyTypeCodePlaceholder = pl. standard
+WarrantyTypeDescriptionPlaceholder = pl. Normál készülékek alkatrész- és munkadíj-fedezete
+ErrorCreatingReplacementShipment = Nem sikerült létrehozni a cserekészülék szállítmányát.
+ErrorInvalidProductWarrantyMonthsFieldName = Érvénytelen Termék garanciaidő-mezőnév: %s
+ErrorProductWarrantyMonthsFieldMissingOrInvalid = A konfigurált Termék garanciaidő mező nem létezik vagy nem egész szám típusú kiegészítő mező: %s
+ErrorShipmentItemNotInShipment = A szállítmánytétel nem található vagy nem a kiválasztott szállítmányhoz tartozik.
+ErrorShipmentItemQuantityInvalid = A szállítmánytétel mennyisége érvénytelen.
+ErrorWarrantyStartDateMissing = A garancia kezdő dátuma hiányzik vagy érvénytelen.
+ErrorWarrantyCoverageDaysCalculation = Nem sikerült kiszámítani a garancia napokban kifejezett technikai időtartamát.
+ErrorDuplicateShipmentWarranty = Ehhez a szállítmánytételhez már tartozik nem érvénytelenített garancia (garanciaazonosító: %s).
