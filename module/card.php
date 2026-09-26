@@ -82,9 +82,12 @@ if ($cancel) {
 }
 
 if ($action == 'add' && $permwrite) {
+	$claim_source              = GETPOST('claim_source', 'alpha');
+	if ($claim_source !== 'manual') {
+		$claim_source = 'warranty';
+	}
+
 	$object->fk_soc            = GETPOST('fk_soc', 'int');
-	$object->fk_product        = GETPOST('fk_product', 'int');
-	$object->serial_number     = GETPOST('serial_number', 'alpha');
 	$object->fk_contact        = GETPOST('fk_contact', 'int');
 	$object->customer_site     = GETPOST('customer_site', 'alphanohtml');
 	$object->fk_project        = GETPOST('fk_project', 'int');
@@ -95,41 +98,47 @@ if ($action == 'add' && $permwrite) {
 	$object->fk_user_assigned  = GETPOST('fk_user_assigned', 'int');
 	// resolution_type is not set at intake — chosen during the Diagnosing stage
 
-	// Manual warranty pairing. Warranty eligibility is evaluated at the
-	// claim issue date, not at page-render time or from the stored status value.
-	$fk_warranty_posted = GETPOST('fk_warranty', 'int');
-	if ($fk_warranty_posted > 0) {
-		$w = new SvcWarranty($db);
-		if ($w->fetch($fk_warranty_posted) > 0) {
-			$warranty_matches = ((int) $w->entity === (int) $conf->entity)
-				&& ((int) $w->fk_soc === (int) $object->fk_soc)
-				&& ((int) $w->fk_product === (int) $object->fk_product);
+	if ($claim_source === 'manual') {
+		// Explicit warranty-less/service intake. Product and serial are entered
+		// manually and the case starts as billable.
+		$object->fk_product      = GETPOST('fk_product', 'int');
+		$object->serial_number   = GETPOST('serial_number', 'alpha');
+		$object->fk_warranty     = null;
+		$object->warranty_status = 'none';
+		$object->billable        = 1;
 
-			$warranty_serial = trim((string) $w->serial_number);
-			$claim_serial = trim((string) $object->serial_number);
-			if ($warranty_matches) {
-				if ($warranty_serial !== '') {
-					$warranty_matches = ($warranty_serial === $claim_serial);
-				} elseif ($claim_serial !== '') {
-					$warranty_matches = false;
-				}
-			}
-
-			if (!$warranty_matches) {
-				$error++;
-				setEventMessages($langs->trans('ErrorWarrantyDoesNotMatchClaim'), null, 'errors');
-			} elseif ($w->status === SvcWarranty::STATUS_VOIDED) {
-				$error++;
-				setEventMessages($langs->trans('ErrorVoidedWarrantyClaim'), null, 'errors');
-			} else {
-				$effective_warranty_status = $w->getStatusAt($object->issue_date);
-				$object->fk_warranty     = $w->id;
-				$object->warranty_status = $effective_warranty_status;
-				$object->billable        = ($effective_warranty_status === SvcWarranty::STATUS_ACTIVE) ? 0 : 1;
-			}
-		} else {
+		if ($object->fk_product <= 0) {
 			$error++;
-			setEventMessages($langs->trans('ErrorWarrantyNotFound'), null, 'errors');
+			setEventMessages($langs->trans('ErrorFieldRequired', $langs->trans('Product')), null, 'errors');
+		}
+	} else {
+		// Warranty-backed intake. The selected Warranty row is authoritative for
+		// customer, Product and serial identity; do not trust hidden duplicates.
+		$fk_warranty_posted = GETPOST('fk_warranty', 'int');
+		if ($fk_warranty_posted <= 0) {
+			$error++;
+			setEventMessages($langs->trans('ErrorWarrantyRequiredForClaim'), null, 'errors');
+		} else {
+			$w = new SvcWarranty($db);
+			if ($w->fetch($fk_warranty_posted) > 0) {
+				if ((int) $w->entity !== (int) $conf->entity || (int) $w->fk_soc !== (int) $object->fk_soc) {
+					$error++;
+					setEventMessages($langs->trans('ErrorWarrantyDoesNotMatchClaim'), null, 'errors');
+				} elseif ($w->status === SvcWarranty::STATUS_VOIDED) {
+					$error++;
+					setEventMessages($langs->trans('ErrorVoidedWarrantyClaim'), null, 'errors');
+				} else {
+					$effective_warranty_status = $w->getStatusAt($object->issue_date);
+					$object->fk_product      = (int) $w->fk_product;
+					$object->serial_number   = (string) $w->serial_number;
+					$object->fk_warranty     = (int) $w->id;
+					$object->warranty_status = $effective_warranty_status;
+					$object->billable        = ($effective_warranty_status === SvcWarranty::STATUS_ACTIVE) ? 0 : 1;
+				}
+			} else {
+				$error++;
+				setEventMessages($langs->trans('ErrorWarrantyNotFound'), null, 'errors');
+			}
 		}
 	}
 
