@@ -124,6 +124,8 @@ class ActionsWarrantySvc
 		// ----------------------------------------------------------------
 		if (isset($object->element) && $object->element === 'product' && !empty($object->id)) {
 			if (!$user->hasRight('warrantysvc', 'svcwarranty', 'read')) return 0;
+			$duration_source = getDolGlobalString('WARRANTYSVC_DURATION_SOURCE', getDolGlobalString('WARRANTYSVC_PRODUCT_WARRANTY_MONTHS_FIELD') !== '' ? 'product_field' : 'warranty_type');
+			if ($duration_source !== 'warranty_type') return 0;
 			$langs->load('warrantysvc@warrantysvc');
 			require_once DOL_DOCUMENT_ROOT.'/custom/warrantysvc/class/svcwarrantytype.class.php';
 
