@@ -155,7 +155,8 @@ class SvcWarranty extends CommonObject
 	 */
 	public function create($user, $notrigger = 0)
 	{
-		global $conf;
+		global $conf, $langs;
+		$langs->loadLangs(array('warrantysvc@warrantysvc'));
 
 		$this->db->begin();
 
@@ -174,7 +175,7 @@ class SvcWarranty extends CommonObject
 			return -1;
 		}
 		if ($existingShipmentWarranty > 0) {
-			$this->error = 'A non-voided warranty already exists for this shipment item (warranty id '.$existingShipmentWarranty.').';
+			$this->error = $langs->trans('ErrorDuplicateShipmentWarranty', $existingShipmentWarranty);
 			$this->db->rollback();
 			return -1;
 		}
