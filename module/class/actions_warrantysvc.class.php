@@ -128,6 +128,7 @@ class ActionsWarrantySvc
 			require_once DOL_DOCUMENT_ROOT.'/custom/warrantysvc/class/svcwarrantytype.class.php';
 
 			$colspan = isset($parameters['colspan']) ? $parameters['colspan'] : '';
+			$uses_product_months = trim(getDolGlobalString('WARRANTYSVC_PRODUCT_WARRANTY_MONTHS_FIELD')) !== '';
 
 			// 1. Detect variant + fetch parent's warranty default
 			$is_variant       = false;
@@ -205,27 +206,29 @@ class ActionsWarrantySvc
 				}
 				print '</td></tr>';
 
-				$days_placeholder = ($is_variant && $parent_days !== null)
-					? $langs->trans('WarrantyInheritDays', (int) $parent_days)
-					: $langs->trans('WarrantyDefaultDaysPlaceholder');
-				print '<tr>';
-				print '<td>'.$langs->trans('WarrantyDefaultDays').'</td>';
-				print '<td'.$colspan.'>';
-				print '<input type="number" name="warrantysvc_days" id="warrantysvc_days"';
-				print ' value="'.($current_days !== null ? (int) $current_days : '').'"';
-				print ' class="flat width75" min="1" max="3650"';
-				print ' placeholder="'.dol_escape_htmltag($days_placeholder).'">';
-				print '</td></tr>';
+				if (!$uses_product_months) {
+					$days_placeholder = ($is_variant && $parent_days !== null)
+						? $langs->trans('WarrantyInheritDays', (int) $parent_days)
+						: $langs->trans('WarrantyDefaultDaysPlaceholder');
+					print '<tr>';
+					print '<td>'.$langs->trans('WarrantyDefaultDays').'</td>';
+					print '<td'.$colspan.'>';
+					print '<input type="number" name="warrantysvc_days" id="warrantysvc_days"';
+					print ' value="'.($current_days !== null ? (int) $current_days : '').'"';
+					print ' class="flat width75" min="1" max="3650"';
+					print ' placeholder="'.dol_escape_htmltag($days_placeholder).'">';
+					print '</td></tr>';
 
-				// Auto-suggest type's default days when type changes and days field is blank
-				print '<script>(function(){';
-				print 'var td='.$type_days_js.';';
-				print 'var ts=document.getElementById("warrantysvc_type");';
-				print 'var td2=document.getElementById("warrantysvc_days");';
-				print 'if(ts&&td2){ts.addEventListener("change",function(){';
-				print 'if(!td2.value&&td[this.value])td2.value=td[this.value];';
-				print '});}';
-				print '})();</script>';
+					// Auto-suggest type's default days when type changes and days field is blank.
+					print '<script>(function(){';
+					print 'var td='.$type_days_js.';';
+					print 'var ts=document.getElementById("warrantysvc_type");';
+					print 'var td2=document.getElementById("warrantysvc_days");';
+					print 'if(ts&&td2){ts.addEventListener("change",function(){';
+					print 'if(!td2.value&&td[this.value])td2.value=td[this.value];';
+					print '});}';
+					print '})();</script>';
+				}
 			} else {
 				// View mode
 				print '<tr>';
@@ -235,10 +238,12 @@ class ActionsWarrantySvc
 					$lbl = SvcWarrantyType::getLabelByCode($this->db, $effective_wtype);
 					if (empty($lbl)) $lbl = $effective_wtype;
 					print dol_escape_htmltag($lbl);
-					if ($effective_days !== null) {
-						print ' / '.(int) $effective_days.' '.$langs->trans('SvcDays');
-					} else {
-						print ' <span class="opacitymedium">('.$langs->trans('WarrantyDefaultDaysFromType').')</span>';
+					if (!$uses_product_months) {
+						if ($effective_days !== null) {
+							print ' / '.(int) $effective_days.' '.$langs->trans('SvcDays');
+						} else {
+							print ' <span class="opacitymedium">('.$langs->trans('WarrantyDefaultDaysFromType').')</span>';
+						}
 					}
 					if ($is_variant && $current_wtype === '') {
 						print ' <span class="opacitymedium small">('.$langs->trans('WarrantyInheritedFromParent').')</span>';
@@ -364,7 +369,8 @@ class ActionsWarrantySvc
 		if (!$user->hasRight('warrantysvc', 'svcwarranty', 'write')) return 0;
 
 		$wtype = GETPOST('warrantysvc_type', 'alpha');
-		$days  = GETPOSTINT('warrantysvc_days'); // returns 0 when blank
+		$uses_product_months = trim(getDolGlobalString('WARRANTYSVC_PRODUCT_WARRANTY_MONTHS_FIELD')) !== '';
+		$days  = $uses_product_months ? 0 : GETPOSTINT('warrantysvc_days'); // product extrafield is authoritative when configured
 
 		// Clean slate — delete any existing default for this product+entity
 		$this->db->query(
@@ -372,7 +378,7 @@ class ActionsWarrantySvc
 		);
 
 		if (!empty($wtype)) {
-			$days_val = ($days > 0) ? ((int) $days) : 'NULL';
+			$days_val = (!$uses_product_months && $days > 0) ? ((int) $days) : 'NULL';
 			$this->db->query(
 				"INSERT INTO ".MAIN_DB_PREFIX."warrantysvc_product_default (fk_product, entity, warranty_type, coverage_days, date_creation, fk_user_creat) VALUES (".((int) $object->id).", ".((int) $conf->entity).", '".$this->db->escape($wtype)."', ".$days_val.", '".$this->db->idate(dol_now())."', ".((int) $user->id).")"
 			);
