@@ -294,6 +294,68 @@ class modWarrantySvc extends DolibarrModules
 	}
 
 	/**
+	 * Upgrade an existing upstream WarrantySvc schema to the fork schema.
+	 *
+	 * Fresh installs already contain these fields in the base SQL files.
+	 * Existing installs are upgraded here before _load_tables() runs so that
+	 * subsequent key creation never references missing columns.
+	 *
+	 * @return int 1 if OK, -1 on a required schema change failure
+	 */
+	private function upgradeForkSchema()
+	{
+		$warrantyTable = MAIN_DB_PREFIX.'svc_warranty';
+		$typeTable = MAIN_DB_PREFIX.'svc_warranty_type';
+
+		$warrantyDesc = $this->db->DDLDescTable($warrantyTable);
+		if ($warrantyDesc && $this->db->num_rows($warrantyDesc) > 0) {
+			$fields = array(
+				'covered_qty' => array('type' => 'double', 'value' => '24,8', 'default' => '1'),
+				'fk_expeditiondet' => array('type' => 'int'),
+				'coverage_months' => array('type' => 'int'),
+			);
+			foreach ($fields as $fieldName => $fieldDesc) {
+				$res = $this->db->DDLDescTable($warrantyTable, $fieldName);
+				$exists = $res && $this->db->fetch_object($res);
+				if (!$exists && $this->db->DDLAddField($warrantyTable, $fieldName, $fieldDesc) < 0) {
+					return -1;
+				}
+			}
+
+			// Upstream required a serial number; the fork also supports line-level
+			// warranties for products without LOT/SN tracking.
+			$serialDesc = array('type' => 'varchar', 'value' => '128');
+			if ($this->db->DDLUpdateField($warrantyTable, 'serial_number', $serialDesc) < 0) {
+				return -1;
+			}
+
+			// Upstream used a unique serial index. A returned unit can legitimately
+			// be sold again, so uniqueness is enforced by shipment origin instead.
+			if ($this->db->type === 'mysqli') {
+				$resIndex = $this->db->query("SHOW INDEX FROM ".$warrantyTable." WHERE Key_name = 'uk_svc_warranty_serial'");
+				if ($resIndex && $this->db->fetch_object($resIndex)) {
+					if (!$this->db->query("ALTER TABLE ".$warrantyTable." DROP INDEX uk_svc_warranty_serial")) {
+						return -1;
+					}
+				}
+			}
+		}
+
+		$typeDesc = $this->db->DDLDescTable($typeTable);
+		if ($typeDesc && $this->db->num_rows($typeDesc) > 0) {
+			foreach (array('coverage_terms', 'exclusions') as $fieldName) {
+				$res = $this->db->DDLDescTable($typeTable, $fieldName);
+				$exists = $res && $this->db->fetch_object($res);
+				if (!$exists && $this->db->DDLAddField($typeTable, $fieldName, array('type' => 'text')) < 0) {
+					return -1;
+				}
+			}
+		}
+
+		return 1;
+	}
+
+	/**
 	 * Function called when module is enabled.
 	 * Loads SQL tables from sql/ directory using standard Dolibarr mechanism.
 	 *
@@ -302,6 +364,10 @@ class modWarrantySvc extends DolibarrModules
 	 */
 	public function init($options = '')
 	{
+		if ($this->upgradeForkSchema() < 0) {
+			return -1;
+		}
+
 		$result = $this->_load_tables('/warrantysvc/sql/');
 		if ($result < 0) {
 			return -1;
