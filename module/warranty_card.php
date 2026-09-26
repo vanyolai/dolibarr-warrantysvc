@@ -317,31 +317,36 @@ if ($action == 'create_from_shipment') {
 		$presoc     = ($expedition->fetch($fk_expedition_src) > 0) ? (int) $expedition->socid : 0;
 		$shipment_start_date = warrantysvc_resolve_shipment_start_date($db, $expedition);
 		if ($shipment_start_date === null) {
-			$shipment_start_date = dol_now();
+			setEventMessages($langs->trans('ErrorShipmentWarrantyStartDateMissing'), null, 'errors');
 		}
 
 		// Build one selectable warranty candidate for each physical shipment item:
 		// one row per serial/lot allocation, or one row per ordinary shipment line.
 		// Keep core shipment serials and module warranty serials in separate SQL
 		// queries to avoid cross-collation comparisons on existing databases.
-		$sql_items  = "SELECT ed.rowid AS fk_expeditiondet, ed.fk_product, ed.qty AS line_qty,";
-		$sql_items .= " edl.rowid AS fk_expeditiondet_batch, edl.batch AS serial_number, edl.qty AS batch_qty,";
-		$sql_items .= " p.ref AS product_ref, p.label AS product_label";
-		$sql_items .= " FROM ".MAIN_DB_PREFIX."expeditiondet ed";
-		$sql_items .= " LEFT JOIN ".MAIN_DB_PREFIX."expeditiondet_batch edl ON edl.fk_expeditiondet = ed.rowid";
-		$sql_items .= " JOIN ".MAIN_DB_PREFIX."product p ON p.rowid = ed.fk_product";
-		$sql_items .= " WHERE ed.fk_expedition = ".((int) $fk_expedition_src);
-		$sql_items .= " AND p.fk_product_type = 0";
-		$sql_items .= " ORDER BY ed.rowid ASC, edl.rowid ASC";
-		$res_items = $db->query($sql_items);
-
 		$item_options = array('' => '— '.$langs->trans('SelectShipmentItem').' —');
 		$item_map = array();
-		$item_query_error = false;
+		$item_query_error = ($shipment_start_date === null);
+		$res_items = false;
+
+		if (!$item_query_error) {
+			$sql_items  = "SELECT ed.rowid AS fk_expeditiondet, ed.fk_product, ed.qty AS line_qty,";
+			$sql_items .= " edl.rowid AS fk_expeditiondet_batch, edl.batch AS serial_number, edl.qty AS batch_qty,";
+			$sql_items .= " p.ref AS product_ref, p.label AS product_label";
+			$sql_items .= " FROM ".MAIN_DB_PREFIX."expeditiondet ed";
+			$sql_items .= " LEFT JOIN ".MAIN_DB_PREFIX."expeditiondet_batch edl ON edl.fk_expeditiondet = ed.rowid";
+			$sql_items .= " JOIN ".MAIN_DB_PREFIX."product p ON p.rowid = ed.fk_product";
+			$sql_items .= " WHERE ed.fk_expedition = ".((int) $fk_expedition_src);
+			$sql_items .= " AND p.fk_product_type = 0";
+			$sql_items .= " ORDER BY ed.rowid ASC, edl.rowid ASC";
+			$res_items = $db->query($sql_items);
+		}
 		$covered_serials = array();
 		$covered_lines = array();
 
-		if (!$res_items) {
+		if ($item_query_error) {
+			// The specific error message has already been queued above.
+		} elseif (!$res_items) {
 			$item_query_error = true;
 			setEventMessages($db->lasterror(), null, 'errors');
 		} else {
