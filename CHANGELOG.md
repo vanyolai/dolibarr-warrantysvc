@@ -6,6 +6,7 @@
 - Selectable warranty-duration source: Product integer extrafield in calendar months, or the original Warranty Type/day-based workflow.
 - Calendar-month warranty calculation with end-of-month clamping and an immutable `coverage_months` snapshot on each Product-field warranty.
 - Line-level warranties for ordinary non-serialized shipment lines, including originating shipment-line and covered-quantity tracking.
+- Shipment-based manual warranty creation now supports both serial/lot allocations and ordinary non-serialized shipment lines.
 - Dolibarr 23 shipment serial lookup based on `llx_expeditiondet_batch.batch`.
 - PHP syntax-lint workflow for the fork branch.
 
@@ -19,6 +20,9 @@
 - Dolibarr 23 queries that referenced the removed/nonexistent `expeditiondet_batch.fk_lot` relationship.
 - Misleading "all serials already covered" behaviour caused by failed cross-collation serial comparisons.
 - Unique-serial schema assumptions that prevented legitimate resale/re-warranty workflows.
+- Shipment-origin warranty creation now revalidates the selected physical item server-side and enforces the shipment date as the warranty start.
+- Prior active warranties for a resold serialized unit are superseded transactionally only after the replacement warranty row is created.
+- Duplicate non-voided warranties for the same shipment item are rejected centrally by the warranty model.
 
 ## [1.36.0] - 2026-09-01
 
