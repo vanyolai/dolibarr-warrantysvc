@@ -1410,6 +1410,7 @@ if ($action == 'create') {
 		$tmparray = $form->showLinkToObjectBlock($object, array(), array('svcrequest'), 1);
 		$linktoelem = isset($tmparray['linktoelem']) ? $tmparray['linktoelem'] : '';
 		$htmltoenteralink = isset($tmparray['htmltoenteralink']) ? $tmparray['htmltoenteralink'] : '';
+		$htmltoenteralink = warrantysvc_fix_orphan_linkto_labels($htmltoenteralink);
 		print $htmltoenteralink;
 		$somethingshown = $form->showLinkedObjectBlock($object, $linktoelem);
 	}

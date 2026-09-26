@@ -616,3 +616,37 @@ function warrantysvc_calendar_days_between($start, $end)
 	$b = new DateTimeImmutable(dol_print_date((int) $end, '%Y-%m-%d', 'tzserver'));
 	return (int) $a->diff($b)->days;
 }
+
+
+/**
+ * Remove orphaned label associations from Dolibarr's native "Link to" HTML.
+ *
+ * Dolibarr 23 Form::showLinkToObjectBlock() replaces the checkbox of an
+ * already-linked object with a link icon, but still renders the reference as
+ * <label for="...">. The referenced input therefore does not exist and modern
+ * browsers report an accessibility warning. Convert only those orphaned
+ * labels to neutral spans; labels that still target an actual checkbox remain
+ * untouched.
+ *
+ * @param string $html HTML returned in showLinkToObjectBlock()['htmltoenteralink']
+ * @return string Sanitized HTML
+ */
+function warrantysvc_fix_orphan_linkto_labels($html)
+{
+	if ($html === '') {
+		return '';
+	}
+
+	return preg_replace_callback(
+		'/<label\\s+for="([^"]+)"([^>]*)>(.*?)<\\/label>/is',
+		static function ($matches) use ($html) {
+			$targetId = $matches[1];
+			if (strpos($html, 'id="'.$targetId.'"') !== false) {
+				return $matches[0];
+			}
+
+			return '<span'.$matches[2].'>'.$matches[3].'</span>';
+		},
+		$html
+	);
+}
