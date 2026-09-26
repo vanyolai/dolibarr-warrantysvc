@@ -540,3 +540,31 @@ ErrorWarrantyNotFound = The selected warranty could not be found.
 ErrorVoidedWarrantyClaim = A voided warranty cannot be linked to a new claim.
 
 WarrantyStartFromShipment = From shipment date
+
+#
+# Additional module metadata, permissions and validation messages
+#
+ModuleWarrantySvcDesc = RMA (Return Merchandise Authorization), customer warranty and service workflow management.
+CheckOverdueRMAReturns = Check overdue warranty returns
+CheckOverdueRMAReturnsDesc = Check for overdue warranty/RMA unit returns and send reminders.
+PermissionReadSvcRequests = Read warranty claims
+PermissionWriteSvcRequests = Create and edit warranty claims
+PermissionDeleteSvcRequests = Delete warranty claims
+PermissionValidateSvcRequests = Validate warranty claims
+PermissionCloseSvcRequests = Close warranty claims
+PermissionReadWarranties = Read warranties
+PermissionWriteWarranties = Create and edit warranties
+PermissionDeleteWarranties = Delete warranties
+SvcRequestPdfStandardDesc = Standard warranty claim authorization slip
+ErrorWarrantySvcOutputDirNotConfigured = Warranty & Service output directory is not configured.
+CustomerSitePlaceholder = e.g. Main warehouse, Building A
+WarrantyTypeCodePlaceholder = e.g. standard
+WarrantyTypeDescriptionPlaceholder = e.g. Covers parts and labour for standard equipment
+ErrorCreatingReplacementShipment = Unable to create the replacement shipment.
+ErrorInvalidProductWarrantyMonthsFieldName = Invalid Product warranty-duration field name: %s
+ErrorProductWarrantyMonthsFieldMissingOrInvalid = Configured Product warranty-duration field does not exist or is not an integer extra field: %s
+ErrorShipmentItemNotInShipment = Shipment item not found or does not belong to the selected shipment.
+ErrorShipmentItemQuantityInvalid = Shipment item quantity is invalid.
+ErrorWarrantyStartDateMissing = Warranty start date is missing or invalid.
+ErrorWarrantyCoverageDaysCalculation = Unable to calculate the equivalent warranty coverage in days.
+ErrorDuplicateShipmentWarranty = A non-voided warranty already exists for this shipment item (warranty ID %s).
