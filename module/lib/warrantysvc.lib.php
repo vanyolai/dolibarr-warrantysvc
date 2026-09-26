@@ -254,6 +254,43 @@ function warrantysvc_admin_prepare_head()
 
 
 /**
+ * Return the active warranty-duration policy.
+ *
+ * product_field: duration comes exclusively from the configured Product
+ * integer extrafield and is interpreted as calendar months.
+ *
+ * warranty_type: retain the upstream Warranty Type/day-based behaviour.
+ *
+ * For installations upgraded from an earlier fork revision, infer Product
+ * field mode when a Product month field is already configured.
+ *
+ * @return string product_field|warranty_type
+ */
+function warrantysvc_get_duration_source()
+{
+	$source = trim(getDolGlobalString('WARRANTYSVC_DURATION_SOURCE'));
+	if (in_array($source, array('product_field', 'warranty_type'), true)) {
+		return $source;
+	}
+
+	return trim(getDolGlobalString('WARRANTYSVC_PRODUCT_WARRANTY_MONTHS_FIELD')) !== ''
+		? 'product_field'
+		: 'warranty_type';
+}
+
+
+/**
+ * Whether Product calendar months are the authoritative duration source.
+ *
+ * @return bool
+ */
+function warrantysvc_uses_product_months()
+{
+	return warrantysvc_get_duration_source() === 'product_field';
+}
+
+
+/**
  * Return Product integer extrafields that can act as the customer warranty
  * duration source (value expressed in calendar months).
  *
@@ -328,8 +365,9 @@ function warrantysvc_get_product_month_field($db, $entity, &$error = '')
 /**
  * Read the configured warranty duration in calendar months for a Product.
  *
- * A blank/zero Product value returns null so callers may use their documented
- * fallback policy. Product variants inherit the configured field value from
+ * A blank/zero Product value returns null. In Product-field mode callers must
+ * treat that as no configured customer warranty; there is no Warranty Type
+ * fallback. Product variants inherit the configured field value from
  * their parent when the child has no positive value.
  *
  * @param DoliDB $db Database handler
@@ -388,6 +426,56 @@ function warrantysvc_get_product_warranty_months($db, $productId, $entity, &$err
 	}
 
 	return null;
+}
+
+
+/**
+ * Compute the Product-field warranty period for one concrete warranty.
+ *
+ * @param DoliDB $db Database handler
+ * @param int $productId Product id
+ * @param int $entity Current entity
+ * @param int $startDate Warranty start timestamp
+ * @param string $error Output error message
+ * @return array<string,int>|null Keys: months, expiry, days; null if unavailable
+ */
+function warrantysvc_compute_product_warranty_period($db, $productId, $entity, $startDate, &$error = '')
+{
+	$error = '';
+	if (!warrantysvc_uses_product_months()) {
+		return null;
+	}
+
+	if ((int) $startDate <= 0) {
+		$error = 'Warranty start date is missing or invalid.';
+		return null;
+	}
+
+	$months = warrantysvc_get_product_warranty_months($db, (int) $productId, (int) $entity, $error);
+	if ($error !== '') {
+		return null;
+	}
+	if ($months === null || $months <= 0) {
+		return null;
+	}
+
+	$expiry = warrantysvc_add_months_clamped((int) $startDate, (int) $months);
+	if ($expiry === null) {
+		$error = 'Unable to calculate warranty expiry from Product calendar months.';
+		return null;
+	}
+
+	$days = warrantysvc_calendar_days_between((int) $startDate, (int) $expiry);
+	if ($days === null) {
+		$error = 'Unable to calculate warranty coverage days.';
+		return null;
+	}
+
+	return array(
+		'months' => (int) $months,
+		'expiry' => (int) $expiry,
+		'days' => (int) $days,
+	);
 }
 
 
