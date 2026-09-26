@@ -481,143 +481,68 @@ if ($action == 'create') {
 	print '<tr><td class="fieldrequired">'.$langs->trans('Company').'</td>';
 	print '<td>'.$form->select_company($prefill_soc, 'fk_soc', '(s.client:IN:1,3)', 1, 0, 0, array(), 0, 'minwidth300').'</td></tr>';
 
-	// Product — disabled until customer is selected; populated via AJAX (ajax/sr_products.php).
-	// When arriving from warranty card with fk_product prefilled, JS re-enables and sets value after customer loads.
-	print '<tr><td class="fieldrequired">'.$langs->trans('Product').'</td>';
+	$prefill_warranty = (int) GETPOST('fk_warranty', 'int');
+	$prefill_source = GETPOST('claim_source', 'alpha') === 'manual' ? 'manual' : 'warranty';
+
+	print '<input type="hidden" name="claim_source" id="claim_source" value="'.dol_escape_htmltag($prefill_source).'">';
+	print '<input type="hidden" name="fk_warranty" id="fk_warranty" value="'.((int) $prefill_warranty).'">';
+
+	// Issue date comes before warranty selection because warranty status is
+	// evaluated against the date the customer reported the issue.
+	$prefill_issue_date = GETPOST('issue_date', 'int') ? GETPOST('issue_date', 'int') : dol_now();
+	print '<tr><td>'.$form->textwithpicto($langs->trans('IssueDate'), $langs->trans('TooltipIssueDate')).'</td>';
+	print '<td>'.$form->selectDate($prefill_issue_date, 'issue_date', 0, 0, 0, '', 1, 1).'</td></tr>';
+
+	// Warranty/device picker. The selected Warranty record is the authoritative
+	// identity of Product + serial/LOT for normal intake.
+	print '<tr><td class="tdtop fieldrequired">'.$langs->trans('WarrantyCoveredUnit').'</td>';
+	print '<td>';
+	print '<div id="warranty_picker">';
+	print '<div class="tagtable" style="margin-bottom:8px">';
+	print '<input type="text" id="warranty_search" class="flat minwidth300"'
+		.' placeholder="'.dol_escape_htmltag($langs->trans('SearchWarrantyUnitPlaceholder')).'" disabled>';
+	print '</div>';
+	print '<div id="warranty_picker_message" class="opacitymedium">'.$langs->trans('SelectCustomerForWarrantyUnits').'</div>';
+	print '<div id="warranty_picker_table_wrap" class="div-table-responsive" style="display:none">';
+	print '<table class="noborder centpercent">';
+	print '<thead><tr class="liste_titre">';
+	print '<td class="center" style="width:32px"></td>';
+	print '<td>'.$langs->trans('Product').'</td>';
+	print '<td>'.$langs->trans('SerialOrLot').'</td>';
+	print '<td>'.$langs->trans('Warranty').'</td>';
+	print '<td class="center">'.$langs->trans('StartDate').'</td>';
+	print '<td class="center">'.$langs->trans('ExpiryDate').'</td>';
+	print '<td class="center">'.$langs->trans('Status').'</td>';
+	print '</tr></thead>';
+	print '<tbody id="warranty_picker_body"></tbody>';
+	print '</table>';
+	print '</div>';
+	print '<div style="margin-top:8px">';
+	print '<button type="button" class="button button-cancel" id="manual_claim_toggle">'
+		.$langs->trans('CreateClaimWithoutWarranty').'</button>';
+	print ' <span class="opacitymedium">'.$langs->trans('CreateClaimWithoutWarrantyDesc').'</span>';
+	print '</div>';
+	print '</div>';
+	print '</td></tr>';
+
+	// Explicit warranty-less/manual intake. Hidden by default so products without
+	// WarrantySvc coverage never clutter the normal warranty workflow.
+	$manual_style = ($prefill_source === 'manual') ? '' : ' style="display:none"';
+	print '<tr class="manual-claim-row"'.$manual_style.'><td colspan="2">';
+	print '<div class="warning">'.$langs->trans('ManualClaimEntryWarning').'</div>';
+	print '</td></tr>';
+
+	print '<tr class="manual-claim-row"'.$manual_style.'><td class="fieldrequired">'.$langs->trans('Product').'</td>';
 	print '<td>';
 	print '<select name="fk_product" id="fk_product" class="flat minwidth300" '.($prefill_soc > 0 ? '' : 'disabled').'>';
 	print '<option value="">'.dol_escape_htmltag($langs->trans('SelectCustomerFirst')).'</option>';
 	print '</select>';
 	print '</td></tr>';
 
-	// Serial number — select populated server-side when product is known, AJAX when changed interactively.
-	// No 'flat' class so Select2 does not own this element; native DOM updates work reliably.
-	// Serials for SRs come from registered warranties — not from shipment records.
-	// Override-mode warranties have serials typed manually; they exist in svc_warranty
-	// but not in expeditiondet_batch. Scope to customer if known.
-	$prefill_serials = array();
-	if ($prefill_product > 0) {
-		// Query 1: serials from warranty records (primary source for SRs)
-		$sql_ser  = "SELECT DISTINCT w.serial_number AS serial_number";
-		$sql_ser .= " FROM ".MAIN_DB_PREFIX."svc_warranty w";
-		$sql_ser .= " WHERE w.fk_product = ".((int) $prefill_product);
-		$sql_ser .= " AND w.serial_number IS NOT NULL AND w.serial_number != ''";
-		$sql_ser .= " AND w.status != 'voided'";
-		if ($prefill_soc > 0) {
-			$sql_ser .= " AND w.fk_soc = ".((int) $prefill_soc);
-		}
-		$sql_ser .= " AND w.entity IN (".getEntity('svcwarranty').")";
-		$sql_ser .= " ORDER BY serial_number ASC";
-		$res_ser = $db->query($sql_ser);
-		if ($res_ser) {
-			while ($oser = $db->fetch_object($res_ser)) {
-				$prefill_serials[] = $oser->serial_number;
-			}
-		}
-		// Query 2: serials from validated shipments.
-		// Dolibarr 23 stores the serial/lot string directly on expeditiondet_batch.batch.
-		$sql_ser2  = "SELECT DISTINCT edl.batch AS serial_number";
-		$sql_ser2 .= " FROM ".MAIN_DB_PREFIX."expeditiondet_batch edl";
-		$sql_ser2 .= " JOIN ".MAIN_DB_PREFIX."expeditiondet ed ON ed.rowid = edl.fk_expeditiondet";
-		$sql_ser2 .= " JOIN ".MAIN_DB_PREFIX."expedition e ON e.rowid = ed.fk_expedition";
-		$sql_ser2 .= " WHERE ed.fk_product = ".((int) $prefill_product);
-		$sql_ser2 .= " AND e.fk_statut >= 1";
-		if ($prefill_soc > 0) {
-			$sql_ser2 .= " AND e.fk_soc = ".((int) $prefill_soc);
-		}
-		$sql_ser2 .= " AND e.entity IN (".getEntity('expedition').")";
-		$sql_ser2 .= " AND edl.batch IS NOT NULL AND edl.batch != ''";
-		$sql_ser2 .= " ORDER BY serial_number ASC";
-		$res_ser2 = $db->query($sql_ser2);
-		if ($res_ser2) {
-			while ($oser2 = $db->fetch_object($res_ser2)) {
-				$prefill_serials[] = $oser2->serial_number;
-			}
-		}
-		$prefill_serials = array_values(array_unique($prefill_serials));
-		sort($prefill_serials);
-	}
-	print '<tr><td>'.$form->textwithpicto($langs->trans('SvcSerialNumber'), $langs->trans('TooltipSerialNumber')).'</td>';
+	print '<tr class="manual-claim-row"'.$manual_style.'><td>'.$form->textwithpicto($langs->trans('SvcSerialNumber'), $langs->trans('TooltipSerialNumber')).'</td>';
 	print '<td>';
-	if ($prefill_product > 0) {
-		print '<select name="serial_number" id="serial_number" class="minwidth200">';
-		print '<option value="">— '.dol_escape_htmltag($langs->trans('SelectSerial')).' —</option>';
-		foreach ($prefill_serials as $s) {
-			$sel = ($s === $prefill_serial) ? ' selected' : '';
-			print '<option value="'.dol_escape_htmltag($s).'"'.$sel.'>'.dol_escape_htmltag($s).'</option>';
-		}
-		print '</select>';
-	} else {
-		print '<select name="serial_number" id="serial_number" class="minwidth200" disabled>';
-		print '<option value="">'.dol_escape_htmltag($langs->trans('SelectProductFirst')).'</option>';
-		print '</select>';
-	}
-	print '</td></tr>';
-
-	// Warranty — selecting one auto-fills product + serial; selecting a serial auto-fills this.
-	// Render manually so we can embed data-serial and data-product on each option.
-	print '<tr><td>'.$form->textwithpicto($langs->trans('SvcWarranty'), $langs->trans('TooltipSvcWarranty')).'</td>';
-	print '<td>';
-	$sql_w  = "SELECT rowid, ref, serial_number, fk_product, status, expiry_date FROM ".MAIN_DB_PREFIX."svc_warranty";
-	$sql_w .= " WHERE entity = ".((int) $conf->entity);
-	$sql_w .= " AND status != 'voided'";
-	if ($prefill_soc > 0) {
-		$sql_w .= " AND fk_soc = ".((int) $prefill_soc);
-	}
-	$sql_w .= " ORDER BY ref ASC";
-	$res_w = $db->query($sql_w);
-	$prefill_warranty = (int) GETPOST('fk_warranty', 'int');
-
-	// Auto-select only when there is exactly one warranty that is effectively
-	// active today for the selected Product/customer. Stored status alone is not
-	// sufficient because expiry is derived from expiry_date.
-	if ($prefill_warranty === 0 && $prefill_product > 0 && $prefill_soc > 0) {
-		$sql_aw  = "SELECT rowid, status, expiry_date FROM ".MAIN_DB_PREFIX."svc_warranty";
-		$sql_aw .= " WHERE fk_product = ".((int) $prefill_product);
-		$sql_aw .= " AND fk_soc = ".((int) $prefill_soc);
-		$sql_aw .= " AND status != 'voided'";
-		$sql_aw .= " AND entity IN (".getEntity('svcwarranty').")";
-		$res_aw = $db->query($sql_aw);
-		$active_warranty_ids = array();
-		if ($res_aw) {
-			while ($row_aw = $db->fetch_object($res_aw)) {
-				$tmpw = new SvcWarranty($db);
-				$tmpw->status = $row_aw->status;
-				$tmpw->expiry_date = !empty($row_aw->expiry_date) ? $db->jdate($row_aw->expiry_date) : null;
-				if ($tmpw->getStatusAt() === SvcWarranty::STATUS_ACTIVE) {
-					$active_warranty_ids[] = (int) $row_aw->rowid;
-				}
-			}
-		}
-		if (count($active_warranty_ids) === 1) {
-			$prefill_warranty = $active_warranty_ids[0];
-		}
-	}
-
-	print '<select name="fk_warranty" id="fk_warranty" class="minwidth300">';
-	print '<option value=""></option>';
-	if ($res_w) {
-		while ($ow = $db->fetch_object($res_w)) {
-			$tmpw = new SvcWarranty($db);
-			$tmpw->status = $ow->status;
-			$tmpw->expiry_date = !empty($ow->expiry_date) ? $db->jdate($ow->expiry_date) : null;
-			$effective_status = $tmpw->getStatusAt();
-
-			$status_label_key = $effective_status === SvcWarranty::STATUS_ACTIVE
-				? 'SvcActive'
-				: ($effective_status === SvcWarranty::STATUS_EXPIRED ? 'SvcExpired' : 'SvcVoided');
-
-			$label = dol_escape_htmltag($ow->ref);
-			if ($ow->serial_number) {
-				$label .= ' — '.dol_escape_htmltag($ow->serial_number);
-			}
-			$label .= ' ('.dol_escape_htmltag($langs->trans($status_label_key)).')';
-			$sel = ($prefill_warranty === (int) $ow->rowid) ? ' selected' : '';
-			print '<option value="'.(int) $ow->rowid.'" data-serial="'.dol_escape_htmltag($ow->serial_number).'" data-product="'.(int) $ow->fk_product.'"'
-				.' data-status="'.dol_escape_htmltag($effective_status).'"'
-				.$sel.'>'.$label.'</option>';
-		}
-	}
+	print '<select name="serial_number" id="serial_number" class="minwidth200" disabled>';
+	print '<option value="">'.dol_escape_htmltag($langs->trans('SelectProductFirst')).'</option>';
 	print '</select>';
 	print '</td></tr>';
 
@@ -635,10 +560,6 @@ if ($action == 'create') {
 	);
 	print Form::selectarray('reported_via', $via_options, 'phone', 0, 0, 0, '', 0, 0, 0, '', 'flat');
 	print '</td></tr>';
-
-	// Issue date
-	print '<tr><td>'.$form->textwithpicto($langs->trans('IssueDate'), $langs->trans('TooltipIssueDate')).'</td>';
-	print '<td>'.$form->selectDate(dol_now(), 'issue_date', 0, 0, 0, '', 1, 1).'</td></tr>';
 
 	// Issue description
 	print '<tr><td class="fieldrequired tdtop">'.$form->textwithpicto($langs->trans('IssueDescription'), $langs->trans('TooltipIssueDescription')).'</td>';
