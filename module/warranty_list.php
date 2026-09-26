@@ -70,6 +70,7 @@ $sortorder = GETPOST('sortorder', 'aZ09comma') ? GETPOST('sortorder', 'aZ09comma
 $limit     = $conf->liste_limit;
 $page      = GETPOSTISSET('pageplusone') ? (GETPOST('pageplusone') - 1) : max(0, GETPOST('page', 'int'));
 $offset    = $limit * $page;
+$today_date = dol_print_date(dol_now(), '%Y-%m-%d', 'tzserver');
 
 // Product-field mode stores expiry_date explicitly. Upstream mode retains the
 // historical fallback to the selected Warranty Type duration.
@@ -117,9 +118,9 @@ if ($use_warranty_types && $search_wtype) {
 }
 if ($search_status && $search_status != '-1') {
 	if ($search_status == 'active') {
-		$sql .= " AND t.status != 'voided' AND (".$eff_exp." IS NULL OR ".$eff_exp." >= '".$db->idate(dol_now())."')";
+		$sql .= " AND t.status != 'voided' AND (".$eff_exp." IS NULL OR ".$eff_exp." >= '".$db->escape($today_date)."')";
 	} elseif ($search_status == 'expired') {
-		$sql .= " AND t.status != 'voided' AND ".$eff_exp." < '".$db->idate(dol_now())."'";
+		$sql .= " AND t.status != 'voided' AND ".$eff_exp." < '".$db->escape($today_date)."'";
 	} elseif ($search_status == 'voided') {
 		$sql .= " AND t.status = 'voided'";
 	}
@@ -308,7 +309,7 @@ if ($resql) {
 		// Compute live status for display
 		if ($obj->status == 'voided') {
 			$display_status = 'voided';
-		} elseif ($expiry_ts && $expiry_ts < $now) {
+		} elseif ($expiry_ts && dol_print_date($expiry_ts, '%Y-%m-%d', 'tzserver') < $today_date) {
 			$display_status = 'expired';
 		} else {
 			$display_status = 'active';
