@@ -54,6 +54,8 @@ if (!$resql) {
 
 $rows = array();
 while ($obj = $db->fetch_object($resql)) {
+	$startTs = !empty($obj->start_date) ? $db->jdate($obj->start_date) : null;
+	$expiryTs = !empty($obj->expiry_date) ? $db->jdate($obj->expiry_date) : null;
 	$rows[] = array(
 		'rowid' => (int) $obj->rowid,
 		'ref' => (string) $obj->ref,
@@ -62,8 +64,10 @@ while ($obj = $db->fetch_object($resql)) {
 		'product_label' => (string) $obj->product_label,
 		'serial_number' => !empty($obj->serial_number) ? (string) $obj->serial_number : '',
 		'covered_qty' => (float) $obj->covered_qty,
-		'start_date' => !empty($obj->start_date) ? dol_print_date($db->jdate($obj->start_date), '%Y-%m-%d', 'tzserver') : '',
-		'expiry_date' => !empty($obj->expiry_date) ? dol_print_date($db->jdate($obj->expiry_date), '%Y-%m-%d', 'tzserver') : '',
+		'start_date' => $startTs ? dol_print_date($startTs, '%Y-%m-%d', 'tzserver') : '',
+		'start_label' => $startTs ? dol_print_date($startTs, 'day') : '',
+		'expiry_date' => $expiryTs ? dol_print_date($expiryTs, '%Y-%m-%d', 'tzserver') : '',
+		'expiry_label' => $expiryTs ? dol_print_date($expiryTs, 'day') : '',
 		'coverage_months' => !empty($obj->coverage_months) ? (int) $obj->coverage_months : 0,
 	);
 }
