@@ -962,23 +962,26 @@ if (initMode === "standard") {
 	print ' - <button class="dpInvisibleButtons datenowlink" type="button" id="origin_date_link" style="display:none"></button>';
 	print '</td></tr>';
 
-	// Coverage months — disabled when a type is selected (auto-filled by JS)
-	$days_disabled = ($selected_wtype ? ' readonly style="opacity:0.5"' : '');
-	print '<tr><td>'.$form->textwithpicto($langs->trans('CoverageDays'), $langs->trans('TooltipCoverageDays')).'</td>';
-	print '<td>';
-	print '<input type="number" id="coverage_days" name="coverage_days" value="'.$initial_days.'" class="flat width75" min="1" max="3650"'.$days_disabled.'>';
-	print ' '.$langs->trans('SvcDays');
-	print ' &nbsp;<span id="coverage_auto_hint" class="opacitymedium"'.($selected_wtype ? '' : ' style="display:none"').'>'.$langs->trans('CoverageFromType').'</span>';
-	print ' <span id="coverage_manual_hint" class="opacitymedium"'.($selected_wtype ? ' style="display:none"' : '').'>'.$langs->trans('ExpiryAutoComputed').'</span>';
-	print '</td></tr>';
+	if ($duration_source === 'product_field') {
+		print '<tr><td>'.$langs->trans('WarrantyDuration').'</td>';
+		print '<td><input type="hidden" id="coverage_days" name="coverage_days" value="0">';
+		print '<span class="opacitymedium">'.$langs->trans('WarrantyDurationFromProductField').'</span></td></tr>';
+	} else {
+		$days_disabled = ($selected_wtype ? ' readonly style="opacity:0.5"' : '');
+		print '<tr><td>'.$form->textwithpicto($langs->trans('CoverageDays'), $langs->trans('TooltipCoverageDays')).'</td>';
+		print '<td>';
+		print '<input type="number" id="coverage_days" name="coverage_days" value="'.$initial_days.'" class="flat width75" min="1" max="3650"'.$days_disabled.'>';
+		print ' '.$langs->trans('SvcDays');
+		print ' &nbsp;<span id="coverage_auto_hint" class="opacitymedium"'.($selected_wtype ? '' : ' style="display:none"').'>'.$langs->trans('CoverageFromType').'</span>';
+		print ' <span id="coverage_manual_hint" class="opacitymedium"'.($selected_wtype ? ' style="display:none"' : '').'>'.$langs->trans('ExpiryAutoComputed').'</span>';
+		print '</td></tr>';
 
-	// Inline JS for coverage auto-fill + coverage terms / exclusions prefill
-	print '<script>
+		print '<script>
 (function(){
 	var defaults = '.$wtype_defaults_js.';
 	var sel = document.getElementById("warranty_type");
-	var cm  = document.getElementById("coverage_days");
-	var autoHint   = document.getElementById("coverage_auto_hint");
+	var cm = document.getElementById("coverage_days");
+	var autoHint = document.getElementById("coverage_auto_hint");
 	var manualHint = document.getElementById("coverage_manual_hint");
 	function setEditorValue(name, val){
 		if(typeof CKEDITOR !== "undefined" && CKEDITOR.instances[name]){
@@ -992,17 +995,17 @@ if (initMode === "standard") {
 		var code = sel ? sel.value : "";
 		if(code && defaults[code] !== undefined){
 			var d = defaults[code];
-			cm.value    = d.days;
+			cm.value = d.days;
 			cm.readOnly = true;
 			cm.style.opacity = "0.5";
-			if(autoHint)   autoHint.style.display   = "";
+			if(autoHint) autoHint.style.display = "";
 			if(manualHint) manualHint.style.display = "none";
 			setEditorValue("coverage_terms", d.terms || "");
-			setEditorValue("exclusions",     d.excl  || "");
+			setEditorValue("exclusions", d.excl || "");
 		} else {
 			cm.readOnly = false;
 			cm.style.opacity = "";
-			if(autoHint)   autoHint.style.display   = "none";
+			if(autoHint) autoHint.style.display = "none";
 			if(manualHint) manualHint.style.display = "";
 		}
 	}
@@ -1010,26 +1013,25 @@ if (initMode === "standard") {
 })();
 </script>';
 
-	// Manual expiry override
-	print '<tr><td>'.$form->textwithpicto($langs->trans('ExpiryDateOverride'), $langs->trans('TooltipExpiryDateOverride')).'</td>';
-	print '<td>';
-	print $form->selectDate('', 'expiry_date', 0, 0, 1, 'formcreate', 1, 0);
-	print '</td></tr>';
+		// Upstream mode keeps manual expiry, terms and exclusions.
+		print '<tr><td>'.$form->textwithpicto($langs->trans('ExpiryDateOverride'), $langs->trans('TooltipExpiryDateOverride')).'</td>';
+		print '<td>';
+		print $form->selectDate('', 'expiry_date', 0, 0, 1, 'formcreate', 1, 0);
+		print '</td></tr>';
 
-	// Coverage terms
-	print '<tr><td class="tdtop">'.$form->textwithpicto($langs->trans('CoverageTerms'), $langs->trans('TooltipCoverageTerms')).'</td>';
-	print '<td>';
-	require_once DOL_DOCUMENT_ROOT.'/core/class/doleditor.class.php';
-	$doleditor = new DolEditor('coverage_terms', (GETPOST('coverage_terms', 'restricthtml') ?: $default_coverage_terms), '', 100, 'dolibarr_notes', '', false, true, getDolGlobalInt('FCKEDITOR_ENABLE_DETAILS'), ROWS_4, '90%');
-	$doleditor->Create();
-	print '</td></tr>';
+		print '<tr><td class="tdtop">'.$form->textwithpicto($langs->trans('CoverageTerms'), $langs->trans('TooltipCoverageTerms')).'</td>';
+		print '<td>';
+		require_once DOL_DOCUMENT_ROOT.'/core/class/doleditor.class.php';
+		$doleditor = new DolEditor('coverage_terms', (GETPOST('coverage_terms', 'restricthtml') ?: $default_coverage_terms), '', 100, 'dolibarr_notes', '', false, true, getDolGlobalInt('FCKEDITOR_ENABLE_DETAILS'), ROWS_4, '90%');
+		$doleditor->Create();
+		print '</td></tr>';
 
-	// Exclusions
-	print '<tr><td class="tdtop">'.$form->textwithpicto($langs->trans('Exclusions'), $langs->trans('TooltipExclusions')).'</td>';
-	print '<td>';
-	$doleditor2 = new DolEditor('exclusions', (GETPOST('exclusions', 'restricthtml') ?: $default_exclusions), '', 100, 'dolibarr_notes', '', false, true, getDolGlobalInt('FCKEDITOR_ENABLE_DETAILS'), ROWS_3, '90%');
-	$doleditor2->Create();
-	print '</td></tr>';
+		print '<tr><td class="tdtop">'.$form->textwithpicto($langs->trans('Exclusions'), $langs->trans('TooltipExclusions')).'</td>';
+		print '<td>';
+		$doleditor2 = new DolEditor('exclusions', (GETPOST('exclusions', 'restricthtml') ?: $default_exclusions), '', 100, 'dolibarr_notes', '', false, true, getDolGlobalInt('FCKEDITOR_ENABLE_DETAILS'), ROWS_3, '90%');
+		$doleditor2->Create();
+		print '</td></tr>';
+	}
 
 	// Origin order — Standard: auto-detect display; Override: manual entry
 	$show_ord_manual = ($prev_mode === 'override');
