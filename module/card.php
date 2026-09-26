@@ -489,7 +489,15 @@ if ($action == 'create') {
 
 	// Issue date comes before warranty selection because warranty status is
 	// evaluated against the date the customer reported the issue.
-	$prefill_issue_date = GETPOST('issue_date', 'int') ? GETPOST('issue_date', 'int') : dol_now();
+	$posted_issue_date = dol_mktime(
+		12,
+		0,
+		0,
+		GETPOST('issue_datemonth', 'int'),
+		GETPOST('issue_dateday', 'int'),
+		GETPOST('issue_dateyear', 'int')
+	);
+	$prefill_issue_date = $posted_issue_date > 0 ? $posted_issue_date : dol_now();
 	print '<tr><td>'.$form->textwithpicto($langs->trans('IssueDate'), $langs->trans('TooltipIssueDate')).'</td>';
 	print '<td>'.$form->selectDate($prefill_issue_date, 'issue_date', 0, 0, 0, '', 1, 1).'</td></tr>';
 
