@@ -43,7 +43,7 @@ class modWarrantySvc extends DolibarrModules
 
 		// Module name (no spaces), used if translation string 'ModuleXXXName' not found
 		$this->name = preg_replace('/^mod/i', '', get_class($this));
-		$this->description = "RMA (Return Merchandise Authorization) and Warranty Management for serialized equipment";
+		$this->description = 'ModuleWarrantySvcDesc';
 		$this->version = '1.36.0';
 		$this->const_name = 'MAIN_MODULE_'.strtoupper($this->name);
 		$this->picto = 'technic';
@@ -100,7 +100,7 @@ class modWarrantySvc extends DolibarrModules
 				'objectname'    => 'SvcRequest',
 				'method'        => 'checkOverdueReturns',
 				'parameters'    => '',
-				'comment'       => 'Check for overdue RMA unit returns and send reminders',
+				'comment'       => 'CheckOverdueRMAReturnsDesc',
 				'frequency'     => 1,
 				'unitfrequency' => 86400,
 				'status'        => 0,
@@ -118,7 +118,7 @@ class modWarrantySvc extends DolibarrModules
 		// Service Request permissions — object = 'svcrequest'
 		$r++;
 		$this->rights[$r][0] = 510001;
-		$this->rights[$r][1] = 'Read service requests';
+		$this->rights[$r][1] = 'PermissionReadSvcRequests';
 		$this->rights[$r][2] = 'r';
 		$this->rights[$r][3] = 0;
 		$this->rights[$r][4] = 'svcrequest';
@@ -126,7 +126,7 @@ class modWarrantySvc extends DolibarrModules
 
 		$r++;
 		$this->rights[$r][0] = 510002;
-		$this->rights[$r][1] = 'Create and edit service requests';
+		$this->rights[$r][1] = 'PermissionWriteSvcRequests';
 		$this->rights[$r][2] = 'w';
 		$this->rights[$r][3] = 0;
 		$this->rights[$r][4] = 'svcrequest';
@@ -134,7 +134,7 @@ class modWarrantySvc extends DolibarrModules
 
 		$r++;
 		$this->rights[$r][0] = 510003;
-		$this->rights[$r][1] = 'Delete service requests';
+		$this->rights[$r][1] = 'PermissionDeleteSvcRequests';
 		$this->rights[$r][2] = 'd';
 		$this->rights[$r][3] = 0;
 		$this->rights[$r][4] = 'svcrequest';
@@ -142,7 +142,7 @@ class modWarrantySvc extends DolibarrModules
 
 		$r++;
 		$this->rights[$r][0] = 510004;
-		$this->rights[$r][1] = 'Validate service requests';
+		$this->rights[$r][1] = 'PermissionValidateSvcRequests';
 		$this->rights[$r][2] = 'w';
 		$this->rights[$r][3] = 0;
 		$this->rights[$r][4] = 'svcrequest';
@@ -150,7 +150,7 @@ class modWarrantySvc extends DolibarrModules
 
 		$r++;
 		$this->rights[$r][0] = 510005;
-		$this->rights[$r][1] = 'Close service requests';
+		$this->rights[$r][1] = 'PermissionCloseSvcRequests';
 		$this->rights[$r][2] = 'w';
 		$this->rights[$r][3] = 0;
 		$this->rights[$r][4] = 'svcrequest';
@@ -159,7 +159,7 @@ class modWarrantySvc extends DolibarrModules
 		// Warranty permissions
 		$r++;
 		$this->rights[$r][0] = 510011;
-		$this->rights[$r][1] = 'Read warranties';
+		$this->rights[$r][1] = 'PermissionReadWarranties';
 		$this->rights[$r][2] = 'r';
 		$this->rights[$r][3] = 0;
 		$this->rights[$r][4] = 'svcwarranty';
@@ -167,7 +167,7 @@ class modWarrantySvc extends DolibarrModules
 
 		$r++;
 		$this->rights[$r][0] = 510012;
-		$this->rights[$r][1] = 'Create and edit warranties';
+		$this->rights[$r][1] = 'PermissionWriteWarranties';
 		$this->rights[$r][2] = 'w';
 		$this->rights[$r][3] = 0;
 		$this->rights[$r][4] = 'svcwarranty';
@@ -175,7 +175,7 @@ class modWarrantySvc extends DolibarrModules
 
 		$r++;
 		$this->rights[$r][0] = 510013;
-		$this->rights[$r][1] = 'Delete warranties';
+		$this->rights[$r][1] = 'PermissionDeleteWarranties';
 		$this->rights[$r][2] = 'd';
 		$this->rights[$r][3] = 0;
 		$this->rights[$r][4] = 'svcwarranty';
