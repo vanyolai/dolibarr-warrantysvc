@@ -448,6 +448,9 @@ if ($action == 'create_from_shipment') {
 			print '<input type="hidden" name="fk_soc" value="'.((int) $presoc).'">';
 			print '<input type="hidden" name="fk_expedition" value="'.((int) $fk_expedition_src).'">';
 			print '<input type="hidden" id="fk_product" name="fk_product" value="">';
+			print '<input type="hidden" id="fk_expeditiondet" name="fk_expeditiondet" value="">';
+			print '<input type="hidden" id="serial_number" name="serial_number" value="">';
+			print '<input type="hidden" id="covered_qty" name="covered_qty" value="1">';
 
 			print dol_get_fiche_head(array(), '', '', -1);
 			print '<table class="border centpercent tableforfieldcreate">';
@@ -461,15 +464,18 @@ if ($action == 'create_from_shipment') {
 			}
 			print '</td></tr>';
 
-			// Serial number dropdown (only uncovered serials from this shipment)
-			print '<tr><td class="fieldrequired">'.$form->textwithpicto($langs->trans('SvcSerialNumber'), $langs->trans('TooltipWarrantySerial')).'</td>';
+			// Shipment item dropdown: serialized/lot allocations and ordinary lines.
+			print '<tr><td class="fieldrequired">'.$form->textwithpicto($langs->trans('ShipmentItem'), $langs->trans('TooltipShipmentItem')).'</td>';
 			print '<td>';
-			print Form::selectarray('serial_number', $serial_options, dol_escape_htmltag(GETPOST('serial_number', 'alpha')), 0, 0, 0, '', 0, 0, 0, '', 'flat minwidth300', 0, '', '', true);
+			print Form::selectarray('shipment_item', $item_options, GETPOST('shipment_item', 'alpha'), 0, 0, 0, '', 0, 0, 0, '', 'flat minwidth300', 0, '', '', true);
 			print '</td></tr>';
 
-			// Product — auto-filled by JS when serial is chosen
+			// Product — auto-filled by JS when the shipment item is chosen
 			print '<tr><td>'.$langs->trans('Product').'</td>';
-			print '<td><span id="product_label" class="opacitymedium">'.$langs->trans('AutoFilledFromSerial').'</span></td></tr>';
+			print '<td><span id="product_label" class="opacitymedium">'.$langs->trans('AutoFilledFromShipmentItem').'</span></td></tr>';
+
+			print '<tr id="serial_display_row" style="display:none"><td>'.$langs->trans('SvcSerialNumber').'</td>';
+			print '<td><span id="serial_display"></span></td></tr>';
 
 			// Warranty Type is upstream duration/policy UI and is hidden in Product-field mode.
 			if ($duration_source === 'warranty_type') {
@@ -488,7 +494,7 @@ if ($action == 'create_from_shipment') {
 			if ($duration_source === 'product_field') {
 				print '<tr><td>'.$langs->trans('WarrantyDuration').'</td>';
 				print '<td><input type="hidden" id="coverage_days" name="coverage_days" value="0">';
-				print '<span id="coverage_auto_hint" class="opacitymedium">'.$langs->trans('SelectSerialForWarrantyPeriod').'</span></td></tr>';
+				print '<span id="coverage_auto_hint" class="opacitymedium">'.$langs->trans('SelectShipmentItemForWarrantyPeriod').'</span></td></tr>';
 			} else {
 				print '<tr><td>'.$form->textwithpicto($langs->trans('CoverageDays'), $langs->trans('TooltipCoverageDays')).'</td>';
 				print '<td>';
