@@ -882,78 +882,78 @@ if (initMode === "standard") {
 }
 })();</script>';
 
-	// Warranty type — load from DB
-	$wtype_items   = SvcWarrantyType::fetchAllForForm($db);
-	$wtype_options = array('' => '— '.$langs->trans('NoPredefinedType').' —');
-	$wtype_defaults_js = '{';
-	foreach ($wtype_items as $wt) {
-		$wtype_options[$wt->code] = dol_escape_htmltag($wt->label);
-		$wtype_defaults_js .= '"'.dol_escape_js($wt->code).'":{"days":'.((int) $wt->default_coverage_days).',"terms":'.json_encode((string) $wt->coverage_terms).',"excl":'.json_encode((string) $wt->exclusions).'},';
-	}
-	$wtype_defaults_js = rtrim($wtype_defaults_js, ',').'}';
-
-	// Pre-fill from product (or parent product) warranty default.
-	// Only applies on first GET load (no token = not a POST resubmit).
-	$pre_wtype              = '';
-	$default_coverage_days  = 0;
+	$wtype_items = array();
+	$wtype_options = array();
+	$wtype_defaults_js = '{}';
+	$selected_wtype = '';
+	$initial_days = 0;
 	$default_coverage_terms = '';
-	$default_exclusions     = '';
-	if ($prev_product > 0 && !GETPOST('token', 'alpha')) {
-		$sql_pd  = "SELECT warranty_type, coverage_days FROM ".MAIN_DB_PREFIX."warrantysvc_product_default";
-		$sql_pd .= " WHERE fk_product = ".((int) $prev_product)." AND entity = ".((int) $conf->entity);
-		$res_pd  = $db->query($sql_pd);
-		$row_pd  = ($res_pd) ? $db->fetch_object($res_pd) : null;
+	$default_exclusions = '';
 
-		// If not found on this product, cascade to parent (if variants module active)
-		if (!$row_pd && isModEnabled('variants')) {
-			$sql_par  = "SELECT fk_product_parent FROM ".MAIN_DB_PREFIX."product_attribute_combination";
-			$sql_par .= " WHERE fk_product_child = ".((int) $prev_product);
-			$sql_par .= " AND entity IN (".getEntity('product').")";
-			$res_par  = $db->query($sql_par);
-			if ($res_par && ($row_par = $db->fetch_object($res_par))) {
-				$parent_id = (int) $row_par->fk_product_parent;
-				$sql_pd2   = "SELECT warranty_type, coverage_days FROM ".MAIN_DB_PREFIX."warrantysvc_product_default";
-				$sql_pd2  .= " WHERE fk_product = ".((int) $parent_id)." AND entity = ".((int) $conf->entity);
-				$res_pd2   = $db->query($sql_pd2);
-				$row_pd    = ($res_pd2) ? $db->fetch_object($res_pd2) : null;
-			}
+	if ($duration_source === 'warranty_type') {
+		// Preserve the upstream per-product Warranty Type/default-day behaviour.
+		$wtype_items = SvcWarrantyType::fetchAllForForm($db);
+		$wtype_options = array('' => '— '.$langs->trans('NoPredefinedType').' —');
+		$wtype_defaults_js = '{';
+		foreach ($wtype_items as $wt) {
+			$wtype_options[$wt->code] = dol_escape_htmltag($wt->label);
+			$wtype_defaults_js .= '"'.dol_escape_js($wt->code).'":{"days":'.((int) $wt->default_coverage_days).',"terms":'.json_encode((string) $wt->coverage_terms).',"excl":'.json_encode((string) $wt->exclusions).'},';
 		}
+		$wtype_defaults_js = rtrim($wtype_defaults_js, ',').'}';
 
-		if ($row_pd) {
-			$pre_wtype = $row_pd->warranty_type;
-			// Pull coverage terms + exclusions from the warranty type record ($wtype_items already loaded)
-			foreach ($wtype_items as $wt) {
-				if ($wt->code === $pre_wtype) {
-					$default_coverage_days  = ($row_pd->coverage_days > 0)
-						? (int) $row_pd->coverage_days
-						: (int) $wt->default_coverage_days;
-					$default_coverage_terms = (string) $wt->coverage_terms;
-					$default_exclusions     = (string) $wt->exclusions;
-					break;
+		$pre_wtype = '';
+		$default_coverage_days = 0;
+		if ($prev_product > 0 && !GETPOST('token', 'alpha')) {
+			$sql_pd  = "SELECT warranty_type, coverage_days FROM ".MAIN_DB_PREFIX."warrantysvc_product_default";
+			$sql_pd .= " WHERE fk_product = ".((int) $prev_product)." AND entity = ".((int) $conf->entity);
+			$res_pd  = $db->query($sql_pd);
+			$row_pd  = $res_pd ? $db->fetch_object($res_pd) : null;
+
+			if (!$row_pd && isModEnabled('variants')) {
+				$sql_par  = "SELECT fk_product_parent FROM ".MAIN_DB_PREFIX."product_attribute_combination";
+				$sql_par .= " WHERE fk_product_child = ".((int) $prev_product);
+				$sql_par .= " AND entity IN (".getEntity('product').")";
+				$res_par  = $db->query($sql_par);
+				if ($res_par && ($row_par = $db->fetch_object($res_par))) {
+					$sql_pd2  = "SELECT warranty_type, coverage_days FROM ".MAIN_DB_PREFIX."warrantysvc_product_default";
+					$sql_pd2 .= " WHERE fk_product = ".((int) $row_par->fk_product_parent)." AND entity = ".((int) $conf->entity);
+					$res_pd2  = $db->query($sql_pd2);
+					$row_pd   = $res_pd2 ? $db->fetch_object($res_pd2) : null;
+				}
+			}
+
+			if ($row_pd) {
+				$pre_wtype = $row_pd->warranty_type;
+				foreach ($wtype_items as $wt) {
+					if ($wt->code === $pre_wtype) {
+						$default_coverage_days = $row_pd->coverage_days > 0 ? (int) $row_pd->coverage_days : (int) $wt->default_coverage_days;
+						$default_coverage_terms = (string) $wt->coverage_terms;
+						$default_exclusions = (string) $wt->exclusions;
+						break;
+					}
 				}
 			}
 		}
-	}
 
-	// POST value wins; fall back to product default type if GET navigation
-	$selected_wtype    = GETPOST('warranty_type', 'alpha') ?: $pre_wtype;
-	$initial_days      = GETPOST('coverage_days', 'int');
-	if (!$initial_days) {
-		if ($default_coverage_days > 0) {
-			// Product-specific override: takes precedence over the type's default_coverage_days
-			$initial_days = $default_coverage_days;
-		} else {
-			$initial_days = 365;
-			foreach ($wtype_items as $wt) {
-				if ($wt->code === $selected_wtype) { $initial_days = (int) $wt->default_coverage_days; break; }
+		$selected_wtype = GETPOST('warranty_type', 'alpha') ?: $pre_wtype;
+		$initial_days = GETPOST('coverage_days', 'int');
+		if (!$initial_days) {
+			$initial_days = $default_coverage_days > 0 ? $default_coverage_days : 365;
+			if ($default_coverage_days <= 0) {
+				foreach ($wtype_items as $wt) {
+					if ($wt->code === $selected_wtype) {
+						$initial_days = (int) $wt->default_coverage_days;
+						break;
+					}
+				}
 			}
 		}
-	}
 
-	print '<tr><td>'.$form->textwithpicto($langs->trans('WarrantyType'), $langs->trans('TooltipWarrantyType')).'</td>';
-	print '<td>';
-	print Form::selectarray('warranty_type', $wtype_options, $selected_wtype, 0, 0, 0, '', 0, 0, 0, '', 'flat minwidth200', 0, '', '', true);
-	print '</td></tr>';
+		print '<tr><td>'.$form->textwithpicto($langs->trans('WarrantyType'), $langs->trans('TooltipWarrantyType')).'</td>';
+		print '<td>';
+		print Form::selectarray('warranty_type', $wtype_options, $selected_wtype, 0, 0, 0, '', 0, 0, 0, '', 'flat minwidth200', 0, 'id="warranty_type"', '', true);
+		print '</td></tr>';
+	}
 
 	// Start date
 	print '<tr><td class="fieldrequired">'.$langs->trans('StartDate').'</td>';
