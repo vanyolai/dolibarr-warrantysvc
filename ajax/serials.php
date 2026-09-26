@@ -98,7 +98,13 @@ if ($mode === 'svcrequest') {
 	$sql  = "SELECT DISTINCT edl.batch AS serial_number";
 	$sql .= " FROM ".MAIN_DB_PREFIX."expeditiondet_batch edl";
 	$sql .= " JOIN ".MAIN_DB_PREFIX."expeditiondet ed ON ed.rowid = edl.fk_expeditiondet";
+	$sql .= " JOIN ".MAIN_DB_PREFIX."expedition e ON e.rowid = ed.fk_expedition";
 	$sql .= " WHERE ed.fk_product = ".$fk_product;
+	$sql .= " AND e.fk_statut >= 1";
+	if ($fk_soc > 0) {
+		$sql .= " AND e.fk_soc = ".$fk_soc;
+	}
+	$sql .= " AND e.entity IN (".getEntity('expedition').")";
 	$sql .= " AND edl.batch IS NOT NULL AND edl.batch != ''";
 	$sql .= " ORDER BY edl.batch ASC";
 

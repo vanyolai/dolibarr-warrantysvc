@@ -520,3 +520,6 @@ WarrantyDuration = Warranty duration
 WarrantyDurationFromProductField = Calculated from the configured Product warranty-duration field when saved.
 SelectSerialForWarrantyPeriod = Select a serial number to load the Product warranty period.
 ErrorProductWarrantyFieldNotConfigured = Product-field duration mode is active, but no Product warranty-duration field is configured.
+
+SvcMonths = months
+WarrantyDurationLegacyUnknown = Legacy record: calendar-month snapshot not stored

@@ -30,6 +30,8 @@ $action      = GETPOST('action', 'aZ09');
 $optioncss   = GETPOST('optioncss', 'alpha');
 $socid       = GETPOSTINT('socid');
 $contextpage = GETPOST('contextpage', 'aZ') ? GETPOST('contextpage', 'aZ') : 'svcwarranty';
+$duration_source = warrantysvc_get_duration_source();
+$use_warranty_types = ($duration_source === 'warranty_type');
 
 // Search filters
 $search_ref         = GETPOST('search_ref', 'alpha');
@@ -68,25 +70,32 @@ $sortorder = GETPOST('sortorder', 'aZ09comma') ? GETPOST('sortorder', 'aZ09comma
 $limit     = $conf->liste_limit;
 $page      = GETPOSTISSET('pageplusone') ? (GETPOST('pageplusone') - 1) : max(0, GETPOST('page', 'int'));
 $offset    = $limit * $page;
+$today_date = dol_print_date(dol_now(), '%Y-%m-%d', 'tzserver');
 
-// Reusable SQL expression: effective expiry = stored date, or start_date + type duration if not stored.
-// This is the canonical end-date for all status logic, filters, and display.
-$eff_exp = "COALESCE(t.expiry_date, IF(t.start_date IS NOT NULL AND wt.default_coverage_days > 0, DATE_ADD(t.start_date, INTERVAL wt.default_coverage_days DAY), NULL))";
+// Product-field mode stores expiry_date explicitly. Upstream mode retains the
+// historical fallback to the selected Warranty Type duration.
+$eff_exp = $use_warranty_types
+	? "COALESCE(t.expiry_date, IF(t.start_date IS NOT NULL AND wt.default_coverage_days > 0, DATE_ADD(t.start_date, INTERVAL wt.default_coverage_days DAY), NULL))"
+	: "t.expiry_date";
 
 // Build query
 $sql  = "SELECT t.rowid, t.ref, t.fk_soc, t.fk_product, t.serial_number,";
-$sql .= " t.warranty_type, t.start_date, t.expiry_date, t.status,";
+$sql .= " t.warranty_type, t.start_date, t.expiry_date, t.coverage_months, t.status,";
 $sql .= " (SELECT COUNT(*) FROM ".MAIN_DB_PREFIX."svc_request sr WHERE sr.fk_warranty = t.rowid) AS claim_count,";
 $sql .= " t.total_claimed_value,";
 $sql .= " s.nom as company_name,";
 $sql .= " p.ref as product_ref, p.label as product_label,";
-$sql .= " wt.default_coverage_days,";
+if ($use_warranty_types) {
+	$sql .= " wt.default_coverage_days,";
+}
 $sql .= " ".$eff_exp." AS effective_expiry";
 $sql .= " FROM ".MAIN_DB_PREFIX."svc_warranty as t";
 $sql .= " LEFT JOIN ".MAIN_DB_PREFIX."societe as s ON s.rowid = t.fk_soc";
 $sql .= " LEFT JOIN ".MAIN_DB_PREFIX."product as p ON p.rowid = t.fk_product";
-$sql .= " LEFT JOIN ".MAIN_DB_PREFIX."svc_warranty_type as wt ON wt.code = t.warranty_type";
-$sql .= "  AND wt.entity IN (".getEntity('svcwarrantytype').")";
+if ($use_warranty_types) {
+	$sql .= " LEFT JOIN ".MAIN_DB_PREFIX."svc_warranty_type as wt ON wt.code = t.warranty_type";
+	$sql .= "  AND wt.entity IN (".getEntity('svcwarrantytype').")";
+}
 $sql .= " WHERE t.entity IN (".getEntity('svcwarranty').")";
 
 if ($socid > 0) {
@@ -104,14 +113,19 @@ if ($search_product) {
 if ($search_serial) {
 	$sql .= natural_search('t.serial_number', $search_serial);
 }
-if ($search_wtype) {
+if ($use_warranty_types && $search_wtype) {
 	$sql .= " AND t.warranty_type = '".$db->escape($search_wtype)."'";
 }
 if ($search_status && $search_status != '-1') {
 	if ($search_status == 'active') {
-		$sql .= " AND t.status != 'voided' AND (".$eff_exp." IS NULL OR ".$eff_exp." >= '".$db->idate(dol_now())."')";
+		$sql .= " AND t.status != 'voided' AND (".$eff_exp." IS NULL OR ".$eff_exp." >= '".$db->escape($today_date)."')";
+	} elseif ($search_status == 'expiring') {
+		$expiring_to = dol_print_date(dol_time_plus_duree(dol_now(), 30, 'd'), '%Y-%m-%d', 'tzserver');
+		$sql .= " AND t.status != 'voided'";
+		$sql .= " AND ".$eff_exp." >= '".$db->escape($today_date)."'";
+		$sql .= " AND ".$eff_exp." <= '".$db->escape($expiring_to)."'";
 	} elseif ($search_status == 'expired') {
-		$sql .= " AND t.status != 'voided' AND ".$eff_exp." < '".$db->idate(dol_now())."'";
+		$sql .= " AND t.status != 'voided' AND ".$eff_exp." < '".$db->escape($today_date)."'";
 	} elseif ($search_status == 'voided') {
 		$sql .= " AND t.status = 'voided'";
 	}
@@ -123,11 +137,10 @@ if ($search_expiry_to) {
 	$sql .= " AND ".$eff_exp." <= '".$db->idate($search_expiry_to)."'";
 }
 
-$sql .= $db->order($sortfield, $sortorder);
-
-// Count for pagination
-$sqlcount = preg_replace('/SELECT.*?FROM/s', 'SELECT COUNT(*) as nb FROM', $sql);
-$sqlcount = preg_replace('/ORDER BY.*$/s', '', $sqlcount);
+// Count before ordering/limiting. Wrap the filtered query instead of
+// rewriting SELECT with a regex: the warranty query itself contains a
+// correlated SELECT for claim_count, so regex rewriting can produce invalid SQL.
+$sqlcount = "SELECT COUNT(*) as nb FROM (".$sql.") AS warranty_count";
 $nbtotalofrecords = 0;
 $resqlcount = $db->query($sqlcount);
 if ($resqlcount) {
@@ -135,6 +148,7 @@ if ($resqlcount) {
 	$nbtotalofrecords = $objcount->nb;
 }
 
+$sql .= $db->order($sortfield, $sortorder);
 $sql .= $db->plimit($limit, $offset);
 
 /*
@@ -185,10 +199,12 @@ print_barre_liste(
 	1
 );
 
-// Build type label cache for display (avoids per-row DB queries)
+// Build type label cache only when upstream Warranty Type mode is active.
 $wtype_labels = array();
-foreach (SvcWarrantyType::fetchAllForForm($db) as $wt) {
-	$wtype_labels[$wt->code] = $wt->label;
+if ($use_warranty_types) {
+	foreach (SvcWarrantyType::fetchAllForForm($db) as $wt) {
+		$wtype_labels[$wt->code] = $wt->label;
+	}
 }
 
 print '<style>.warranty-row-expired { background-color: rgba(220,53,69,0.07) !important; }</style>';
@@ -219,14 +235,18 @@ print '<td class="liste_titre"><input type="text" class="flat maxwidth100imp" na
 print '<td class="liste_titre"><input type="text" class="flat maxwidth100imp" name="search_product" value="'.dol_escape_htmltag($search_product).'"></td>';
 print '<td class="liste_titre"><input type="text" class="flat maxwidth75imp" name="search_serial" value="'.dol_escape_htmltag($search_serial).'"></td>';
 
-// Warranty type filter — DB-driven
-$wtype_filter = array(-1 => '');
-foreach (SvcWarrantyType::fetchAllForForm($db) as $wt) {
-	$wtype_filter[$wt->code] = $wt->label;
+if ($use_warranty_types) {
+	$wtype_filter = array(-1 => '');
+	foreach (SvcWarrantyType::fetchAllForForm($db) as $wt) {
+		$wtype_filter[$wt->code] = $wt->label;
+	}
+	print '<td class="liste_titre">';
+	print Form::selectarray('search_wtype', $wtype_filter, $search_wtype, 0, 0, 0, '', 0, 0, 0, '', 'flat maxwidth100');
+	print '</td>';
 }
-print '<td class="liste_titre">';
-print Form::selectarray('search_wtype', $wtype_filter, $search_wtype, 0, 0, 0, '', 0, 0, 0, '', 'flat maxwidth100');
-print '</td>';
+if (!$use_warranty_types) {
+	print '<td class="liste_titre"></td>';
+}
 
 // Status filter
 $statuses = array(
@@ -262,7 +282,11 @@ print getTitleFieldOfList('Ref',           0, $_SERVER['PHP_SELF'], 't.ref',    
 print getTitleFieldOfList('Company',       0, $_SERVER['PHP_SELF'], 's.nom',          '', '', '',       '', $sortfield, $sortorder);
 print getTitleFieldOfList('Product',       0, $_SERVER['PHP_SELF'], 'p.ref',          '', '', '',       '', $sortfield, $sortorder);
 print getTitleFieldOfList('SerialNumber',  0, $_SERVER['PHP_SELF'], 't.serial_number', '', '', '',       '', $sortfield, $sortorder);
-print getTitleFieldOfList('WarrantyType',  0, $_SERVER['PHP_SELF'], 't.warranty_type', '', '', '',       '', $sortfield, $sortorder);
+if ($use_warranty_types) {
+	print getTitleFieldOfList('WarrantyType', 0, $_SERVER['PHP_SELF'], 't.warranty_type', '', '', '', '', $sortfield, $sortorder);
+} else {
+	print getTitleFieldOfList('WarrantyDuration', 0, $_SERVER['PHP_SELF'], 't.coverage_months', '', '', '', '', $sortfield, $sortorder);
+}
 print getTitleFieldOfList('Status',        0, $_SERVER['PHP_SELF'], 't.status',       '', '', 'center', '', $sortfield, $sortorder);
 print getTitleFieldOfList('StartDate',     0, $_SERVER['PHP_SELF'], 't.start_date',   '', '', '',       '', $sortfield, $sortorder);
 print getTitleFieldOfList('ExpiryDate',    0, $_SERVER['PHP_SELF'], 't.expiry_date',  '', '', '',       '', $sortfield, $sortorder);
@@ -277,7 +301,8 @@ if ($resql) {
 	$i   = 0;
 
 	if ($num == 0) {
-		print '<tr class="oddeven"><td colspan="10"><span class="opacitymedium">'.$langs->trans('NoRecordFound').'</span></td></tr>';
+		$column_count = 10;
+		print '<tr class="oddeven"><td colspan="'.$column_count.'"><span class="opacitymedium">'.$langs->trans('NoRecordFound').'</span></td></tr>';
 	}
 
 	$now = dol_now();
@@ -294,7 +319,7 @@ if ($resql) {
 		// Compute live status for display
 		if ($obj->status == 'voided') {
 			$display_status = 'voided';
-		} elseif ($expiry_ts && $expiry_ts < $now) {
+		} elseif ($expiry_ts && dol_print_date($expiry_ts, '%Y-%m-%d', 'tzserver') < $today_date) {
 			$display_status = 'expired';
 		} else {
 			$display_status = 'active';
@@ -313,8 +338,12 @@ if ($resql) {
 		print '<td>'.dol_escape_htmltag($obj->company_name).'</td>';
 		print '<td>'.dol_escape_htmltag($obj->product_ref ? $obj->product_ref : '').'</td>';
 		print '<td>'.dol_escape_htmltag($obj->serial_number).'</td>';
-		$wtype_label = $obj->warranty_type ? ($wtype_labels[$obj->warranty_type] ?? dol_escape_htmltag($obj->warranty_type)) : '';
-		print '<td>'.($wtype_label ? dol_escape_htmltag($wtype_label) : '<span class="opacitymedium">&mdash;</span>').'</td>';
+		if ($use_warranty_types) {
+			$wtype_label = $obj->warranty_type ? ($wtype_labels[$obj->warranty_type] ?? $obj->warranty_type) : '';
+			print '<td>'.($wtype_label ? dol_escape_htmltag($wtype_label) : '<span class="opacitymedium">&mdash;</span>').'</td>';
+		} else {
+			print '<td>'.((int) $obj->coverage_months > 0 ? ((int) $obj->coverage_months).' '.$langs->trans('SvcMonths') : '<span class="opacitymedium">&mdash;</span>').'</td>';
+		}
 		print '<td class="center">'.svcwarranty_status_badge($display_status).'</td>';
 		print '<td>'.dol_print_date($db->jdate($obj->start_date), 'day').'</td>';
 		print '<td>';

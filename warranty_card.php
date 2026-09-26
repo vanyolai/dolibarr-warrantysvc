@@ -28,7 +28,7 @@ $id     = GETPOST('id', 'int');
 $ref    = GETPOST('ref', 'alpha');
 $action = GETPOST('action', 'aZ09');
 $cancel = GETPOST('cancel', 'alpha');
-$duration_source = getDolGlobalString('WARRANTYSVC_DURATION_SOURCE', getDolGlobalString('WARRANTYSVC_PRODUCT_WARRANTY_MONTHS_FIELD') !== '' ? 'product_field' : 'warranty_type');
+$duration_source = warrantysvc_get_duration_source();
 
 $object = new SvcWarranty($db);
 $extrafields = new ExtraFields($db);
@@ -75,39 +75,33 @@ if ($action == 'add' && $permwrite) {
 	$object->note_public    = GETPOST('note_public', 'restricthtml');
 	$object->note_private   = GETPOST('note_private', 'restricthtml');
 
-	// Manual expiry overrides all automatic duration policies.
-	$manual_expiry = dol_mktime(12, 0, 0, GETPOST('expiry_datemonth', 'int'), GETPOST('expiry_dateday', 'int'), GETPOST('expiry_dateyear', 'int'));
-	if ($manual_expiry) {
-		$object->expiry_date = $manual_expiry;
+	if ($duration_source === 'product_field') {
+		$period_error = '';
+		$period = warrantysvc_compute_product_warranty_period(
+			$db,
+			(int) $object->fk_product,
+			(int) $conf->entity,
+			(int) $object->start_date,
+			$period_error
+		);
+		if ($period_error !== '') {
+			$object->error = $period_error;
+		} elseif ($period === null) {
+			$object->error = $langs->trans('ErrorProductWarrantyPeriodMissing');
+		} else {
+			$object->coverage_months = $period['months'];
+			$object->coverage_days = $period['days'];
+			$object->expiry_date = $period['expiry'];
+		}
 	} else {
-		// When configured, the Product warranty-month field is the single source
-		// of truth for duration. Warranty type is a terms/exclusions profile only.
-		$product_month_field = $duration_source === 'product_field' ? trim(getDolGlobalString('WARRANTYSVC_PRODUCT_WARRANTY_MONTHS_FIELD')) : '';
-		if ($duration_source === 'product_field') {
-			if ($product_month_field === '') {
-				$object->error = $langs->trans('ErrorProductWarrantyFieldNotConfigured');
-			} else {
-			$month_error = '';
-			$product_months = warrantysvc_get_product_warranty_months($db, (int) $object->fk_product, (int) $conf->entity, $month_error);
-			if ($month_error !== '') {
-				$object->error = $month_error;
-			} elseif ($product_months === null || $product_months <= 0) {
-				$object->error = $langs->trans('ErrorProductWarrantyPeriodMissing');
-			} else {
-				$calendar_expiry = warrantysvc_add_months_clamped($object->start_date, $product_months);
-				if ($calendar_expiry === null) {
-					$object->error = $langs->trans('ErrorWarrantyCalendarExpiry');
-				} else {
-					$object->expiry_date = $calendar_expiry;
-					$object->coverage_days = warrantysvc_calendar_days_between($object->start_date, $calendar_expiry);
-				}
-			}
-			}
+		// Preserve upstream behaviour: an explicit expiry date overrides day-based coverage.
+		$manual_expiry = dol_mktime(12, 0, 0, GETPOST('expiry_datemonth', 'int'), GETPOST('expiry_dateday', 'int'), GETPOST('expiry_dateyear', 'int'));
+		if ($manual_expiry) {
+			$object->expiry_date = $manual_expiry;
 		}
 	}
 
-	// Warranty type defines terms/exclusions. Its default duration is only a
-	// fallback when no Product month value applies.
+	// Warranty Type mode keeps the upstream terms/exclusions template behaviour.
 	if ($duration_source === 'warranty_type' && !empty($object->warranty_type)) {
 		$type = new SvcWarrantyType($db);
 		if ($type->fetch(0, $object->warranty_type) > 0) {
@@ -149,40 +143,62 @@ if ($action == 'add' && $permwrite) {
 
 // ---- UPDATE ----
 if ($action == 'update' && $permwrite) {
+	$existing_warranty_type = $object->warranty_type;
+	$existing_coverage_terms = $object->coverage_terms;
+	$existing_exclusions = $object->exclusions;
+	$existing_coverage_months = (int) $object->coverage_months;
+	$existing_product_id = (int) $object->fk_product;
 	$object->fk_soc         = GETPOST('fk_soc', 'int');
 	$object->fk_product     = GETPOST('fk_product', 'int');
 	$object->serial_number  = GETPOST('serial_number', 'alpha');
-	$object->warranty_type  = $duration_source === 'warranty_type' ? GETPOST('warranty_type', 'alpha') : '';
+	$object->warranty_type  = $duration_source === 'warranty_type' ? GETPOST('warranty_type', 'alpha') : $existing_warranty_type;
 	$object->start_date     = dol_mktime(12, 0, 0, GETPOST('start_datemonth', 'int'), GETPOST('start_dateday', 'int'), GETPOST('start_dateyear', 'int'));
-	$object->coverage_days= GETPOST('coverage_days', 'int');
-	$object->coverage_terms = $duration_source === 'warranty_type' ? GETPOST('coverage_terms', 'restricthtml') : '';
-	$object->exclusions     = $duration_source === 'warranty_type' ? GETPOST('exclusions', 'restricthtml') : '';
+	$object->coverage_days  = $duration_source === 'warranty_type' ? GETPOST('coverage_days', 'int') : $object->coverage_days;
+	$object->coverage_terms = $duration_source === 'warranty_type' ? GETPOST('coverage_terms', 'restricthtml') : $existing_coverage_terms;
+	$object->exclusions     = $duration_source === 'warranty_type' ? GETPOST('exclusions', 'restricthtml') : $existing_exclusions;
 	$object->fk_commande    = GETPOST('fk_commande', 'int');
 	$object->fk_expedition  = GETPOST('fk_expedition', 'int');
 	$object->note_public    = GETPOST('note_public', 'restricthtml');
 	$object->note_private   = GETPOST('note_private', 'restricthtml');
 
-	$manual_expiry = dol_mktime(12, 0, 0, GETPOST('expiry_datemonth', 'int'), GETPOST('expiry_dateday', 'int'), GETPOST('expiry_dateyear', 'int'));
-	if ($manual_expiry) {
-		$object->expiry_date = $manual_expiry;
-	} elseif ($duration_source === 'product_field') {
-		$product_month_field = $duration_source === 'product_field' ? trim(getDolGlobalString('WARRANTYSVC_PRODUCT_WARRANTY_MONTHS_FIELD')) : '';
-		if ($product_month_field === '') {
-			$object->error = $langs->trans('ErrorProductWarrantyFieldNotConfigured');
-		} else {
-			$month_error = '';
-			$product_months = warrantysvc_get_product_warranty_months($db, (int) $object->fk_product, (int) $conf->entity, $month_error);
-			if ($month_error !== '') {
-				$object->error = $month_error;
-			} elseif ($product_months === null || $product_months <= 0) {
+	if ($duration_source === 'product_field') {
+		$months = ($existing_product_id === (int) $object->fk_product) ? $existing_coverage_months : 0;
+		if ($months <= 0) {
+			$period_error = '';
+			$period = warrantysvc_compute_product_warranty_period(
+				$db,
+				(int) $object->fk_product,
+				(int) $conf->entity,
+				(int) $object->start_date,
+				$period_error
+			);
+			if ($period_error !== '') {
+				$object->error = $period_error;
+			} elseif ($period === null) {
 				$object->error = $langs->trans('ErrorProductWarrantyPeriodMissing');
 			} else {
-				$object->expiry_date = warrantysvc_add_months_clamped($object->start_date, $product_months);
-				$object->coverage_days = warrantysvc_calendar_days_between($object->start_date, $object->expiry_date);
+				$months = $period['months'];
 			}
 		}
-	} elseif ($object->coverage_days && $object->start_date) {
-		$object->expiry_date = dol_time_plus_duree($object->start_date, $object->coverage_days, 'd');
+		if (empty($object->error) && $months > 0) {
+			$expiry = warrantysvc_add_months_clamped((int) $object->start_date, $months);
+			$days = $expiry ? warrantysvc_calendar_days_between((int) $object->start_date, (int) $expiry) : null;
+			if ($expiry === null || $days === null) {
+				$object->error = $langs->trans('ErrorWarrantyCalendarExpiry');
+			} else {
+				$object->coverage_months = $months;
+				$object->coverage_days = $days;
+				$object->expiry_date = $expiry;
+			}
+		}
+	} else {
+		$object->coverage_months = null;
+		$manual_expiry = dol_mktime(12, 0, 0, GETPOST('expiry_datemonth', 'int'), GETPOST('expiry_dateday', 'int'), GETPOST('expiry_dateyear', 'int'));
+		if ($manual_expiry) {
+			$object->expiry_date = $manual_expiry;
+		} elseif ($object->coverage_days && $object->start_date) {
+			$object->expiry_date = dol_time_plus_duree($object->start_date, $object->coverage_days, 'd');
+		}
 	}
 
 	// Retrieve extrafields from POST
@@ -275,7 +291,6 @@ if ($action == 'create_from_shipment') {
 		if ($shipment_start_date === null) {
 			$shipment_start_date = dol_now();
 		}
-		$product_month_field = trim(getDolGlobalString('WARRANTYSVC_PRODUCT_WARRANTY_MONTHS_FIELD'));
 
 		// Serials in this shipment that don't yet have a warranty.
 		// Candidate serials and module warranty rows are queried separately: comparing
@@ -321,17 +336,23 @@ if ($action == 'create_from_shipment') {
 
 					$product_months = null;
 					$product_coverage_days = 0;
-					if ($product_month_field !== '') {
-						$month_error = '';
-						$product_months = warrantysvc_get_product_warranty_months($db, (int) $obj_ser->fk_product, (int) $conf->entity, $month_error);
-						if ($month_error !== '') {
+					if ($duration_source === 'product_field') {
+						$period_error = '';
+						$period = warrantysvc_compute_product_warranty_period(
+							$db,
+							(int) $obj_ser->fk_product,
+							(int) $conf->entity,
+							(int) $shipment_start_date,
+							$period_error
+						);
+						if ($period_error !== '') {
 							$serial_query_error = true;
-							setEventMessages($month_error, null, 'errors');
+							setEventMessages($period_error, null, 'errors');
 							break;
 						}
-						if ($product_months !== null && $product_months > 0) {
-							$product_expiry = warrantysvc_add_months_clamped($shipment_start_date, $product_months);
-							$product_coverage_days = $product_expiry ? (int) warrantysvc_calendar_days_between($shipment_start_date, $product_expiry) : 0;
+						if ($period !== null) {
+							$product_months = $period['months'];
+							$product_coverage_days = $period['days'];
 						}
 					}
 
@@ -867,78 +888,78 @@ if (initMode === "standard") {
 }
 })();</script>';
 
-	// Warranty type — load from DB
-	$wtype_items   = SvcWarrantyType::fetchAllForForm($db);
-	$wtype_options = array('' => '— '.$langs->trans('NoPredefinedType').' —');
-	$wtype_defaults_js = '{';
-	foreach ($wtype_items as $wt) {
-		$wtype_options[$wt->code] = dol_escape_htmltag($wt->label);
-		$wtype_defaults_js .= '"'.dol_escape_js($wt->code).'":{"days":'.((int) $wt->default_coverage_days).',"terms":'.json_encode((string) $wt->coverage_terms).',"excl":'.json_encode((string) $wt->exclusions).'},';
-	}
-	$wtype_defaults_js = rtrim($wtype_defaults_js, ',').'}';
-
-	// Pre-fill from product (or parent product) warranty default.
-	// Only applies on first GET load (no token = not a POST resubmit).
-	$pre_wtype              = '';
-	$default_coverage_days  = 0;
+	$wtype_items = array();
+	$wtype_options = array();
+	$wtype_defaults_js = '{}';
+	$selected_wtype = '';
+	$initial_days = 0;
 	$default_coverage_terms = '';
-	$default_exclusions     = '';
-	if ($prev_product > 0 && !GETPOST('token', 'alpha')) {
-		$sql_pd  = "SELECT warranty_type, coverage_days FROM ".MAIN_DB_PREFIX."warrantysvc_product_default";
-		$sql_pd .= " WHERE fk_product = ".((int) $prev_product)." AND entity = ".((int) $conf->entity);
-		$res_pd  = $db->query($sql_pd);
-		$row_pd  = ($res_pd) ? $db->fetch_object($res_pd) : null;
+	$default_exclusions = '';
 
-		// If not found on this product, cascade to parent (if variants module active)
-		if (!$row_pd && isModEnabled('variants')) {
-			$sql_par  = "SELECT fk_product_parent FROM ".MAIN_DB_PREFIX."product_attribute_combination";
-			$sql_par .= " WHERE fk_product_child = ".((int) $prev_product);
-			$sql_par .= " AND entity IN (".getEntity('product').")";
-			$res_par  = $db->query($sql_par);
-			if ($res_par && ($row_par = $db->fetch_object($res_par))) {
-				$parent_id = (int) $row_par->fk_product_parent;
-				$sql_pd2   = "SELECT warranty_type, coverage_days FROM ".MAIN_DB_PREFIX."warrantysvc_product_default";
-				$sql_pd2  .= " WHERE fk_product = ".((int) $parent_id)." AND entity = ".((int) $conf->entity);
-				$res_pd2   = $db->query($sql_pd2);
-				$row_pd    = ($res_pd2) ? $db->fetch_object($res_pd2) : null;
-			}
+	if ($duration_source === 'warranty_type') {
+		// Preserve the upstream per-product Warranty Type/default-day behaviour.
+		$wtype_items = SvcWarrantyType::fetchAllForForm($db);
+		$wtype_options = array('' => '— '.$langs->trans('NoPredefinedType').' —');
+		$wtype_defaults_js = '{';
+		foreach ($wtype_items as $wt) {
+			$wtype_options[$wt->code] = dol_escape_htmltag($wt->label);
+			$wtype_defaults_js .= '"'.dol_escape_js($wt->code).'":{"days":'.((int) $wt->default_coverage_days).',"terms":'.json_encode((string) $wt->coverage_terms).',"excl":'.json_encode((string) $wt->exclusions).'},';
 		}
+		$wtype_defaults_js = rtrim($wtype_defaults_js, ',').'}';
 
-		if ($row_pd) {
-			$pre_wtype = $row_pd->warranty_type;
-			// Pull coverage terms + exclusions from the warranty type record ($wtype_items already loaded)
-			foreach ($wtype_items as $wt) {
-				if ($wt->code === $pre_wtype) {
-					$default_coverage_days  = ($row_pd->coverage_days > 0)
-						? (int) $row_pd->coverage_days
-						: (int) $wt->default_coverage_days;
-					$default_coverage_terms = (string) $wt->coverage_terms;
-					$default_exclusions     = (string) $wt->exclusions;
-					break;
+		$pre_wtype = '';
+		$default_coverage_days = 0;
+		if ($prev_product > 0 && !GETPOST('token', 'alpha')) {
+			$sql_pd  = "SELECT warranty_type, coverage_days FROM ".MAIN_DB_PREFIX."warrantysvc_product_default";
+			$sql_pd .= " WHERE fk_product = ".((int) $prev_product)." AND entity = ".((int) $conf->entity);
+			$res_pd  = $db->query($sql_pd);
+			$row_pd  = $res_pd ? $db->fetch_object($res_pd) : null;
+
+			if (!$row_pd && isModEnabled('variants')) {
+				$sql_par  = "SELECT fk_product_parent FROM ".MAIN_DB_PREFIX."product_attribute_combination";
+				$sql_par .= " WHERE fk_product_child = ".((int) $prev_product);
+				$sql_par .= " AND entity IN (".getEntity('product').")";
+				$res_par  = $db->query($sql_par);
+				if ($res_par && ($row_par = $db->fetch_object($res_par))) {
+					$sql_pd2  = "SELECT warranty_type, coverage_days FROM ".MAIN_DB_PREFIX."warrantysvc_product_default";
+					$sql_pd2 .= " WHERE fk_product = ".((int) $row_par->fk_product_parent)." AND entity = ".((int) $conf->entity);
+					$res_pd2  = $db->query($sql_pd2);
+					$row_pd   = $res_pd2 ? $db->fetch_object($res_pd2) : null;
+				}
+			}
+
+			if ($row_pd) {
+				$pre_wtype = $row_pd->warranty_type;
+				foreach ($wtype_items as $wt) {
+					if ($wt->code === $pre_wtype) {
+						$default_coverage_days = $row_pd->coverage_days > 0 ? (int) $row_pd->coverage_days : (int) $wt->default_coverage_days;
+						$default_coverage_terms = (string) $wt->coverage_terms;
+						$default_exclusions = (string) $wt->exclusions;
+						break;
+					}
 				}
 			}
 		}
-	}
 
-	// POST value wins; fall back to product default type if GET navigation
-	$selected_wtype    = GETPOST('warranty_type', 'alpha') ?: $pre_wtype;
-	$initial_days      = GETPOST('coverage_days', 'int');
-	if (!$initial_days) {
-		if ($default_coverage_days > 0) {
-			// Product-specific override: takes precedence over the type's default_coverage_days
-			$initial_days = $default_coverage_days;
-		} else {
-			$initial_days = 365;
-			foreach ($wtype_items as $wt) {
-				if ($wt->code === $selected_wtype) { $initial_days = (int) $wt->default_coverage_days; break; }
+		$selected_wtype = GETPOST('warranty_type', 'alpha') ?: $pre_wtype;
+		$initial_days = GETPOST('coverage_days', 'int');
+		if (!$initial_days) {
+			$initial_days = $default_coverage_days > 0 ? $default_coverage_days : 365;
+			if ($default_coverage_days <= 0) {
+				foreach ($wtype_items as $wt) {
+					if ($wt->code === $selected_wtype) {
+						$initial_days = (int) $wt->default_coverage_days;
+						break;
+					}
+				}
 			}
 		}
-	}
 
-	print '<tr><td>'.$form->textwithpicto($langs->trans('WarrantyType'), $langs->trans('TooltipWarrantyType')).'</td>';
-	print '<td>';
-	print Form::selectarray('warranty_type', $wtype_options, $selected_wtype, 0, 0, 0, '', 0, 0, 0, '', 'flat minwidth200', 0, '', '', true);
-	print '</td></tr>';
+		print '<tr><td>'.$form->textwithpicto($langs->trans('WarrantyType'), $langs->trans('TooltipWarrantyType')).'</td>';
+		print '<td>';
+		print Form::selectarray('warranty_type', $wtype_options, $selected_wtype, 0, 0, 0, '', 0, 0, 0, '', 'flat minwidth200', 0, 'id="warranty_type"', '', true);
+		print '</td></tr>';
+	}
 
 	// Start date
 	print '<tr><td class="fieldrequired">'.$langs->trans('StartDate').'</td>';
@@ -947,23 +968,26 @@ if (initMode === "standard") {
 	print ' - <button class="dpInvisibleButtons datenowlink" type="button" id="origin_date_link" style="display:none"></button>';
 	print '</td></tr>';
 
-	// Coverage months — disabled when a type is selected (auto-filled by JS)
-	$days_disabled = ($selected_wtype ? ' readonly style="opacity:0.5"' : '');
-	print '<tr><td>'.$form->textwithpicto($langs->trans('CoverageDays'), $langs->trans('TooltipCoverageDays')).'</td>';
-	print '<td>';
-	print '<input type="number" id="coverage_days" name="coverage_days" value="'.$initial_days.'" class="flat width75" min="1" max="3650"'.$days_disabled.'>';
-	print ' '.$langs->trans('SvcDays');
-	print ' &nbsp;<span id="coverage_auto_hint" class="opacitymedium"'.($selected_wtype ? '' : ' style="display:none"').'>'.$langs->trans('CoverageFromType').'</span>';
-	print ' <span id="coverage_manual_hint" class="opacitymedium"'.($selected_wtype ? ' style="display:none"' : '').'>'.$langs->trans('ExpiryAutoComputed').'</span>';
-	print '</td></tr>';
+	if ($duration_source === 'product_field') {
+		print '<tr><td>'.$langs->trans('WarrantyDuration').'</td>';
+		print '<td><input type="hidden" id="coverage_days" name="coverage_days" value="0">';
+		print '<span class="opacitymedium">'.$langs->trans('WarrantyDurationFromProductField').'</span></td></tr>';
+	} else {
+		$days_disabled = ($selected_wtype ? ' readonly style="opacity:0.5"' : '');
+		print '<tr><td>'.$form->textwithpicto($langs->trans('CoverageDays'), $langs->trans('TooltipCoverageDays')).'</td>';
+		print '<td>';
+		print '<input type="number" id="coverage_days" name="coverage_days" value="'.$initial_days.'" class="flat width75" min="1" max="3650"'.$days_disabled.'>';
+		print ' '.$langs->trans('SvcDays');
+		print ' &nbsp;<span id="coverage_auto_hint" class="opacitymedium"'.($selected_wtype ? '' : ' style="display:none"').'>'.$langs->trans('CoverageFromType').'</span>';
+		print ' <span id="coverage_manual_hint" class="opacitymedium"'.($selected_wtype ? ' style="display:none"' : '').'>'.$langs->trans('ExpiryAutoComputed').'</span>';
+		print '</td></tr>';
 
-	// Inline JS for coverage auto-fill + coverage terms / exclusions prefill
-	print '<script>
+		print '<script>
 (function(){
 	var defaults = '.$wtype_defaults_js.';
 	var sel = document.getElementById("warranty_type");
-	var cm  = document.getElementById("coverage_days");
-	var autoHint   = document.getElementById("coverage_auto_hint");
+	var cm = document.getElementById("coverage_days");
+	var autoHint = document.getElementById("coverage_auto_hint");
 	var manualHint = document.getElementById("coverage_manual_hint");
 	function setEditorValue(name, val){
 		if(typeof CKEDITOR !== "undefined" && CKEDITOR.instances[name]){
@@ -977,17 +1001,17 @@ if (initMode === "standard") {
 		var code = sel ? sel.value : "";
 		if(code && defaults[code] !== undefined){
 			var d = defaults[code];
-			cm.value    = d.days;
+			cm.value = d.days;
 			cm.readOnly = true;
 			cm.style.opacity = "0.5";
-			if(autoHint)   autoHint.style.display   = "";
+			if(autoHint) autoHint.style.display = "";
 			if(manualHint) manualHint.style.display = "none";
 			setEditorValue("coverage_terms", d.terms || "");
-			setEditorValue("exclusions",     d.excl  || "");
+			setEditorValue("exclusions", d.excl || "");
 		} else {
 			cm.readOnly = false;
 			cm.style.opacity = "";
-			if(autoHint)   autoHint.style.display   = "none";
+			if(autoHint) autoHint.style.display = "none";
 			if(manualHint) manualHint.style.display = "";
 		}
 	}
@@ -995,26 +1019,25 @@ if (initMode === "standard") {
 })();
 </script>';
 
-	// Manual expiry override
-	print '<tr><td>'.$form->textwithpicto($langs->trans('ExpiryDateOverride'), $langs->trans('TooltipExpiryDateOverride')).'</td>';
-	print '<td>';
-	print $form->selectDate('', 'expiry_date', 0, 0, 1, 'formcreate', 1, 0);
-	print '</td></tr>';
+		// Upstream mode keeps manual expiry, terms and exclusions.
+		print '<tr><td>'.$form->textwithpicto($langs->trans('ExpiryDateOverride'), $langs->trans('TooltipExpiryDateOverride')).'</td>';
+		print '<td>';
+		print $form->selectDate('', 'expiry_date', 0, 0, 1, 'formcreate', 1, 0);
+		print '</td></tr>';
 
-	// Coverage terms
-	print '<tr><td class="tdtop">'.$form->textwithpicto($langs->trans('CoverageTerms'), $langs->trans('TooltipCoverageTerms')).'</td>';
-	print '<td>';
-	require_once DOL_DOCUMENT_ROOT.'/core/class/doleditor.class.php';
-	$doleditor = new DolEditor('coverage_terms', (GETPOST('coverage_terms', 'restricthtml') ?: $default_coverage_terms), '', 100, 'dolibarr_notes', '', false, true, getDolGlobalInt('FCKEDITOR_ENABLE_DETAILS'), ROWS_4, '90%');
-	$doleditor->Create();
-	print '</td></tr>';
+		print '<tr><td class="tdtop">'.$form->textwithpicto($langs->trans('CoverageTerms'), $langs->trans('TooltipCoverageTerms')).'</td>';
+		print '<td>';
+		require_once DOL_DOCUMENT_ROOT.'/core/class/doleditor.class.php';
+		$doleditor = new DolEditor('coverage_terms', (GETPOST('coverage_terms', 'restricthtml') ?: $default_coverage_terms), '', 100, 'dolibarr_notes', '', false, true, getDolGlobalInt('FCKEDITOR_ENABLE_DETAILS'), ROWS_4, '90%');
+		$doleditor->Create();
+		print '</td></tr>';
 
-	// Exclusions
-	print '<tr><td class="tdtop">'.$form->textwithpicto($langs->trans('Exclusions'), $langs->trans('TooltipExclusions')).'</td>';
-	print '<td>';
-	$doleditor2 = new DolEditor('exclusions', (GETPOST('exclusions', 'restricthtml') ?: $default_exclusions), '', 100, 'dolibarr_notes', '', false, true, getDolGlobalInt('FCKEDITOR_ENABLE_DETAILS'), ROWS_3, '90%');
-	$doleditor2->Create();
-	print '</td></tr>';
+		print '<tr><td class="tdtop">'.$form->textwithpicto($langs->trans('Exclusions'), $langs->trans('TooltipExclusions')).'</td>';
+		print '<td>';
+		$doleditor2 = new DolEditor('exclusions', (GETPOST('exclusions', 'restricthtml') ?: $default_exclusions), '', 100, 'dolibarr_notes', '', false, true, getDolGlobalInt('FCKEDITOR_ENABLE_DETAILS'), ROWS_3, '90%');
+		$doleditor2->Create();
+		print '</td></tr>';
+	}
 
 	// Origin order — Standard: auto-detect display; Override: manual entry
 	$show_ord_manual = ($prev_mode === 'override');
@@ -1061,10 +1084,12 @@ if (empty($object->id)) {
 $head = svcwarranty_prepare_head($object);
 
 // Determine live status
-$now           = dol_now();
+$now = dol_now();
+$today = dol_print_date($now, '%Y-%m-%d', 'tzserver');
 $display_status = $object->status;
 if ($object->status != SvcWarranty::STATUS_VOIDED) {
-	if (!empty($object->expiry_date) && $object->expiry_date < $now) {
+	$expiry_day = !empty($object->expiry_date) ? dol_print_date($object->expiry_date, '%Y-%m-%d', 'tzserver') : '';
+	if ($expiry_day !== '' && $expiry_day < $today) {
 		$display_status = SvcWarranty::STATUS_EXPIRED;
 	} else {
 		$display_status = SvcWarranty::STATUS_ACTIVE;
@@ -1150,56 +1175,60 @@ if ($action == 'edit') {
 }
 print '</td></tr>';
 
-// Warranty type
-print '<tr><td>'.$form->textwithpicto($langs->trans('WarrantyType'), $langs->trans('TooltipWarrantyType')).'</td>';
-print '<td>';
-if ($action == 'edit') {
-	$wtype_items_edit   = SvcWarrantyType::fetchAllForForm($db);
-	$wtype_options_edit = array('' => '— '.$langs->trans('NoPredefinedType').' —');
-	$wtype_defaults_edit_js = '{';
-	foreach ($wtype_items_edit as $wt) {
-		$wtype_options_edit[$wt->code] = dol_escape_htmltag($wt->label);
-		$wtype_defaults_edit_js .= '"'.dol_escape_js($wt->code).'":{"days":'.((int) $wt->default_coverage_days).',"terms":'.json_encode((string) $wt->coverage_terms).',"excl":'.json_encode((string) $wt->exclusions).'},';
-	}
-	$wtype_defaults_edit_js = rtrim($wtype_defaults_edit_js, ',').'}';
-	print Form::selectarray('warranty_type', $wtype_options_edit, $object->warranty_type, 0, 0, 0, '', 0, 0, 0, '', 'flat minwidth200', 0, '', '', true);
-	print '<script>
-(function(){
-	var defaults = '.$wtype_defaults_edit_js.';
-	var sel = document.getElementById("warranty_type");
-	var cm  = document.getElementById("coverage_days");
-	function setEditorValue(name, val){
-		if(typeof CKEDITOR !== "undefined" && CKEDITOR.instances[name]){
-			CKEDITOR.instances[name].setData(val);
-		} else {
-			var el = document.getElementById(name);
-			if(el) el.value = val;
+// Warranty Type is part of upstream mode only.
+if ($duration_source === 'warranty_type') {
+	// Warranty type
+	print '<tr><td>'.$form->textwithpicto($langs->trans('WarrantyType'), $langs->trans('TooltipWarrantyType')).'</td>';
+	print '<td>';
+	if ($action == 'edit') {
+		$wtype_items_edit   = SvcWarrantyType::fetchAllForForm($db);
+		$wtype_options_edit = array('' => '— '.$langs->trans('NoPredefinedType').' —');
+		$wtype_defaults_edit_js = '{';
+		foreach ($wtype_items_edit as $wt) {
+			$wtype_options_edit[$wt->code] = dol_escape_htmltag($wt->label);
+			$wtype_defaults_edit_js .= '"'.dol_escape_js($wt->code).'":{"days":'.((int) $wt->default_coverage_days).',"terms":'.json_encode((string) $wt->coverage_terms).',"excl":'.json_encode((string) $wt->exclusions).'},';
 		}
-	}
-	var userChanged = false;
-	function sync(){
-		var code = sel ? sel.value : "";
-		if(code && defaults[code] !== undefined){
-			var d = defaults[code];
-			cm.value = d.days; cm.disabled = true; cm.style.opacity = "0.5";
-			if(userChanged){
-				setEditorValue("coverage_terms", d.terms || "");
-				setEditorValue("exclusions",     d.excl  || "");
+		$wtype_defaults_edit_js = rtrim($wtype_defaults_edit_js, ',').'}';
+		print Form::selectarray('warranty_type', $wtype_options_edit, $object->warranty_type, 0, 0, 0, '', 0, 0, 0, '', 'flat minwidth200', 0, '', '', true);
+		print '<script>
+	(function(){
+		var defaults = '.$wtype_defaults_edit_js.';
+		var sel = document.getElementById("warranty_type");
+		var cm  = document.getElementById("coverage_days");
+		function setEditorValue(name, val){
+			if(typeof CKEDITOR !== "undefined" && CKEDITOR.instances[name]){
+				CKEDITOR.instances[name].setData(val);
+			} else {
+				var el = document.getElementById(name);
+				if(el) el.value = val;
 			}
-		} else { cm.disabled = false; cm.style.opacity = ""; }
+		}
+		var userChanged = false;
+		function sync(){
+			var code = sel ? sel.value : "";
+			if(code && defaults[code] !== undefined){
+				var d = defaults[code];
+				cm.value = d.days; cm.disabled = true; cm.style.opacity = "0.5";
+				if(userChanged){
+					setEditorValue("coverage_terms", d.terms || "");
+					setEditorValue("exclusions",     d.excl  || "");
+				}
+			} else { cm.disabled = false; cm.style.opacity = ""; }
+		}
+		if(sel){
+			sel.addEventListener("change", function(){ userChanged = true; sync(); });
+			sync();
+		}
+	})();
+	</script>';
+	} else {
+		print $object->warranty_type
+			? dol_escape_htmltag(SvcWarrantyType::getLabelByCode($db, $object->warranty_type))
+			: '<span class="opacitymedium">&mdash;</span>';
 	}
-	if(sel){
-		sel.addEventListener("change", function(){ userChanged = true; sync(); });
-		sync();
-	}
-})();
-</script>';
-} else {
-	print $object->warranty_type
-		? dol_escape_htmltag(SvcWarrantyType::getLabelByCode($db, $object->warranty_type))
-		: '<span class="opacitymedium">&mdash;</span>';
+	print '</td></tr>';
+	
 }
-print '</td></tr>';
 
 // Status
 print '<tr><td>'.$langs->trans('Status').'</td>';
@@ -1236,23 +1265,34 @@ if ($action == 'edit') {
 }
 print '</td></tr>';
 
-// Coverage months
-print '<tr><td>'.$form->textwithpicto($langs->trans('CoverageDays'), $langs->trans('TooltipCoverageDays')).'</td>';
-print '<td>';
-if ($action == 'edit') {
-	$edit_days_disabled = ($object->warranty_type ? ' disabled style="opacity:0.5"' : '');
-	print '<input type="number" id="coverage_days" name="coverage_days" value="'.((int) $object->coverage_days).'" class="flat width75" min="0" max="3650"'.$edit_days_disabled.'>';
-	print ' '.$langs->trans('SvcDays');
-	print ' &nbsp;<span class="opacitymedium" id="coverage_type_hint"'.($object->warranty_type ? '' : ' style="display:none"').'>'.$langs->trans('CoverageFromType').'</span>';
+// Warranty duration
+if ($duration_source === 'product_field') {
+	print '<tr><td>'.$langs->trans('WarrantyDuration').'</td>';
+	print '<td>';
+	if ((int) $object->coverage_months > 0) {
+		print ((int) $object->coverage_months).' '.$langs->trans('SvcMonths');
+	} else {
+		print '<span class="opacitymedium">'.$langs->trans('WarrantyDurationLegacyUnknown').'</span>';
+	}
+	print '</td></tr>';
 } else {
-	print $object->coverage_days ? ((int) $object->coverage_days).' '.$langs->trans('SvcDays') : '<span class="opacitymedium">&mdash;</span>';
+	print '<tr><td>'.$form->textwithpicto($langs->trans('CoverageDays'), $langs->trans('TooltipCoverageDays')).'</td>';
+	print '<td>';
+	if ($action == 'edit') {
+		$edit_days_disabled = ($object->warranty_type ? ' disabled style="opacity:0.5"' : '');
+		print '<input type="number" id="coverage_days" name="coverage_days" value="'.((int) $object->coverage_days).'" class="flat width75" min="0" max="3650"'.$edit_days_disabled.'>';
+		print ' '.$langs->trans('SvcDays');
+		print ' &nbsp;<span class="opacitymedium" id="coverage_type_hint"'.($object->warranty_type ? '' : ' style="display:none"').'>'.$langs->trans('CoverageFromType').'</span>';
+	} else {
+		print $object->coverage_days ? ((int) $object->coverage_days).' '.$langs->trans('SvcDays') : '<span class="opacitymedium">&mdash;</span>';
+	}
+	print '</td></tr>';
 }
-print '</td></tr>';
 
 // Expiry date
 print '<tr><td>'.$langs->trans('ExpiryDate').'</td>';
 print '<td>';
-if ($action == 'edit') {
+if ($action == 'edit' && $duration_source === 'warranty_type') {
 	print $form->selectDate($object->expiry_date, 'expiry_date', 0, 0, 1, 'cardform', 1, 0);
 	print ' <span class="opacitymedium">'.$langs->trans('ExpiryAutoComputed').'</span>';
 } else {
@@ -1316,43 +1356,47 @@ print '</table>';
 print '</div>'; // fichehalfright
 print '</div>'; // fichecenter
 
-// Coverage terms & exclusions
-print '<div class="clearboth"></div>';
-print '<div class="fichecenter">';
-
-print '<div class="fichehalfleft">';
-print '<div class="underbanner clearboth"></div>';
-print '<table class="border centpercent tableforfield">';
-print '<tr><td class="titlefield tdtop">'.$langs->trans('CoverageTerms').'</td>';
-print '<td>';
-if ($action == 'edit') {
-	require_once DOL_DOCUMENT_ROOT.'/core/class/doleditor.class.php';
-	$doleditor = new DolEditor('coverage_terms', $object->coverage_terms, '', 120, 'dolibarr_notes', '', false, true, getDolGlobalInt('FCKEDITOR_ENABLE_DETAILS'), ROWS_4, '95%');
-	$doleditor->Create();
-} else {
-	print dol_htmlentitiesbr($object->coverage_terms);
+// Coverage terms & exclusions are part of upstream Warranty Type mode.
+if ($duration_source === 'warranty_type') {
+	// Coverage terms & exclusions
+	print '<div class="clearboth"></div>';
+	print '<div class="fichecenter">';
+	
+	print '<div class="fichehalfleft">';
+	print '<div class="underbanner clearboth"></div>';
+	print '<table class="border centpercent tableforfield">';
+	print '<tr><td class="titlefield tdtop">'.$langs->trans('CoverageTerms').'</td>';
+	print '<td>';
+	if ($action == 'edit') {
+		require_once DOL_DOCUMENT_ROOT.'/core/class/doleditor.class.php';
+		$doleditor = new DolEditor('coverage_terms', $object->coverage_terms, '', 120, 'dolibarr_notes', '', false, true, getDolGlobalInt('FCKEDITOR_ENABLE_DETAILS'), ROWS_4, '95%');
+		$doleditor->Create();
+	} else {
+		print dol_htmlentitiesbr($object->coverage_terms);
+	}
+	print '</td></tr>';
+	print '</table>';
+	print '</div>';
+	
+	print '<div class="fichehalfright">';
+	print '<table class="border centpercent tableforfield">';
+	print '<tr><td class="titlefield tdtop">'.$langs->trans('Exclusions').'</td>';
+	print '<td>';
+	if ($action == 'edit') {
+		require_once DOL_DOCUMENT_ROOT.'/core/class/doleditor.class.php';
+		$doleditor3 = new DolEditor('exclusions', $object->exclusions, '', 120, 'dolibarr_notes', '', false, true, getDolGlobalInt('FCKEDITOR_ENABLE_DETAILS'), ROWS_4, '95%');
+		$doleditor3->Create();
+	} else {
+		print dol_htmlentitiesbr($object->exclusions);
+	}
+	print '</td></tr>';
+	print '</table>';
+	print '</div>';
+	
+	print '</div>'; // fichecenter
+	print '<div class="clearboth"></div>';
+	
 }
-print '</td></tr>';
-print '</table>';
-print '</div>';
-
-print '<div class="fichehalfright">';
-print '<table class="border centpercent tableforfield">';
-print '<tr><td class="titlefield tdtop">'.$langs->trans('Exclusions').'</td>';
-print '<td>';
-if ($action == 'edit') {
-	require_once DOL_DOCUMENT_ROOT.'/core/class/doleditor.class.php';
-	$doleditor3 = new DolEditor('exclusions', $object->exclusions, '', 120, 'dolibarr_notes', '', false, true, getDolGlobalInt('FCKEDITOR_ENABLE_DETAILS'), ROWS_4, '95%');
-	$doleditor3->Create();
-} else {
-	print dol_htmlentitiesbr($object->exclusions);
-}
-print '</td></tr>';
-print '</table>';
-print '</div>';
-
-print '</div>'; // fichecenter
-print '<div class="clearboth"></div>';
 
 // ---- Unit Service History ----
 if ($action != 'edit' && !empty($object->serial_number)) {

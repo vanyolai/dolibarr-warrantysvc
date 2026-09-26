@@ -596,10 +596,7 @@ class InterfaceWarrantySvcTrigger extends DolibarrTriggers
 		require_once DOL_DOCUMENT_ROOT.'/custom/warrantysvc/class/svcwarrantytype.class.php';
 
 		$global_coverage_days = getDolGlobalInt('WARRANTYSVC_DEFAULT_COVERAGE_DAYS', 365);
-		$duration_source = getDolGlobalString(
-			'WARRANTYSVC_DURATION_SOURCE',
-			getDolGlobalString('WARRANTYSVC_PRODUCT_WARRANTY_MONTHS_FIELD') !== '' ? 'product_field' : 'warranty_type'
-		);
+		$duration_source = warrantysvc_get_duration_source();
 
 		// Resolve the contractual warranty start from the shipment, not from the
 		// time this trigger happens to run.
@@ -609,21 +606,15 @@ class InterfaceWarrantySvcTrigger extends DolibarrTriggers
 			return;
 		}
 
-		// Validate the optional Product integer extrafield used as warranty months.
-		// If an administrator configured a field that later disappears or changes
-		// type, stop rather than silently issuing warranties with the wrong period.
-		$product_month_field = $duration_source === 'product_field'
-			? trim(getDolGlobalString('WARRANTYSVC_PRODUCT_WARRANTY_MONTHS_FIELD'))
-			: '';
-		$product_month_field_error = '';
+		// Validate Product-field mode once before iterating shipment lines.
 		if ($duration_source === 'product_field') {
-			if ($product_month_field === '') {
-				dol_syslog('WarrantySvcTrigger: Product-field duration mode is active but no Product warranty-duration field is configured', LOG_ERR);
-				return;
-			}
-			warrantysvc_get_product_month_field($this->db, (int) $conf->entity, $product_month_field_error);
-			if ($product_month_field_error !== '') {
-				dol_syslog('WarrantySvcTrigger: '.$product_month_field_error, LOG_ERR);
+			$product_month_field_error = '';
+			$product_month_field = warrantysvc_get_product_month_field($this->db, (int) $conf->entity, $product_month_field_error);
+			if ($product_month_field === '' || $product_month_field_error !== '') {
+				dol_syslog(
+					'WarrantySvcTrigger: '.($product_month_field_error !== '' ? $product_month_field_error : 'Product warranty-duration field is not configured'),
+					LOG_ERR
+				);
 				return;
 			}
 		}
@@ -753,31 +744,30 @@ class InterfaceWarrantySvcTrigger extends DolibarrTriggers
 			$warranty->exclusions      = ($duration_source === 'warranty_type' && $matched_type) ? $matched_type->exclusions : '';
 			$warranty->start_date      = $warranty_start;
 
-			$product_months = null;
-			if ($product_month_field !== '') {
-				$month_error = '';
-				$product_months = warrantysvc_get_product_warranty_months($this->db, (int) $line->fk_product, (int) $conf->entity, $month_error);
-				if ($month_error !== '') {
-					dol_syslog('WarrantySvcTrigger: unable to read Product warranty months for product '.$line->fk_product.': '.$month_error, LOG_ERR);
-					continue;
-				}
-			}
-
 			if ($duration_source === 'product_field') {
-				// The configured Product month field is the single source of truth for
-				// automatic customer-warranty duration. Warranty type never overrides it.
-				if ($product_months === null || $product_months <= 0) {
-					dol_syslog('WarrantySvcTrigger: skipped automatic warranty for product '.$line->fk_product.' because the configured Product warranty period is blank/zero', LOG_WARNING);
+				$period_error = '';
+				$period = warrantysvc_compute_product_warranty_period(
+					$this->db,
+					(int) $line->fk_product,
+					(int) $conf->entity,
+					(int) $warranty_start,
+					$period_error
+				);
+				if ($period_error !== '') {
+					dol_syslog('WarrantySvcTrigger: '.$period_error.' Product '.$line->fk_product, LOG_ERR);
 					continue;
 				}
-				$warranty->expiry_date = warrantysvc_add_months_clamped($warranty_start, $product_months);
-				if ($warranty->expiry_date === null) {
-					dol_syslog('WarrantySvcTrigger: failed to calculate calendar-month expiry for product '.$line->fk_product, LOG_ERR);
+				if ($period === null) {
+					dol_syslog(
+						'WarrantySvcTrigger: skipped automatic warranty for product '.$line->fk_product.' because its configured warranty period is blank or zero',
+						LOG_WARNING
+					);
 					continue;
 				}
-				$warranty->coverage_days = warrantysvc_calendar_days_between($warranty_start, $warranty->expiry_date);
+				$warranty->coverage_months = $period['months'];
+				$warranty->expiry_date = $period['expiry'];
+				$warranty->coverage_days = $period['days'];
 			} elseif ($product_coverage_days > 0) {
-				// Legacy mode only, for installations that do not configure Product months.
 				$warranty->coverage_days = $product_coverage_days;
 			} elseif ($matched_type && $matched_type->default_coverage_days > 0) {
 				$warranty->coverage_days = (int) $matched_type->default_coverage_days;

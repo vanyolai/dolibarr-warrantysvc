@@ -23,7 +23,7 @@ $id     = GETPOST('id', 'int');
 $cancel = GETPOST('cancel', 'alpha');
 
 $permwrite = $user->hasRight('warrantysvc', 'svcwarranty', 'write');
-$uses_product_months = trim(getDolGlobalString('WARRANTYSVC_PRODUCT_WARRANTY_MONTHS_FIELD')) !== '';
+$uses_product_months = warrantysvc_uses_product_months();
 if (!$user->hasRight('warrantysvc', 'svcwarranty', 'read')) {
 	accessforbidden();
 }

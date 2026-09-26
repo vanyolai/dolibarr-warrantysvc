@@ -35,41 +35,65 @@ if (!$user->admin) {
 $action = GETPOST('action', 'aZ09');
 
 $product_month_fields = warrantysvc_get_product_month_field_options($db, (int) $conf->entity);
+$current_duration_source = warrantysvc_get_duration_source();
 
 // Save settings
 if ($action == 'update') {
-	$settings = array(
-		'WARRANTYSVC_WAREHOUSE_REFURB',
-		'WARRANTYSVC_WAREHOUSE_RETURN',
-		'WARRANTYSVC_RETURN_GRACE_DAYS',
-		'WARRANTYSVC_RETURN_INVOICE_DAYS',
-		'WARRANTYSVC_REPLACEMENT_STRATEGY',
-		'WARRANTYSVC_AUTO_WARRANTY_CHECK',
-		'WARRANTYSVC_AUTO_WARRANTY_ON_SHIPMENT',
-		'WARRANTYSVC_WARRANTY_TRIGGER_EVENT',
-		'WARRANTYSVC_AUTO_WARRANTY_ON_ORDER_CLOSE',
-		'WARRANTYSVC_DURATION_SOURCE',
-		'WARRANTYSVC_PRODUCT_WARRANTY_MONTHS_FIELD',
-		'WARRANTYSVC_DEFAULT_COVERAGE_DAYS',
-		'WARRANTYSVC_NOTIFY_WARRANTY_CREATED',
-		'WARRANTYSVC_WARRANTY_REQUIRES_LOTS',
-		'WARRANTYSVC_USE_CUSTOMERRETURN',
-		'WARRANTYSVC_DEBUG_MODE',
-	);
-
-	foreach ($settings as $key) {
-		$val = GETPOST($key, 'alpha');
-		if ($key === 'WARRANTYSVC_DURATION_SOURCE' && !in_array($val, array('product_field', 'warranty_type'), true)) {
-			$val = 'product_field';
-		}
-		if ($key === 'WARRANTYSVC_PRODUCT_WARRANTY_MONTHS_FIELD' && $val !== '' && !isset($product_month_fields[$val])) {
-			setEventMessages($langs->trans('ErrorInvalidProductWarrantyMonthsField'), null, 'errors');
-			continue;
-		}
-		dolibarr_set_const($db, $key, $val, 'chaine', 0, '', $conf->entity);
+	$posted_duration_source = GETPOST('WARRANTYSVC_DURATION_SOURCE', 'alpha');
+	if (!in_array($posted_duration_source, array('product_field', 'warranty_type'), true)) {
+		$posted_duration_source = $current_duration_source;
 	}
 
-	setEventMessages($langs->trans('SvcSetupSaved'), null, 'mesgs');
+	$posted_month_field = GETPOST('WARRANTYSVC_PRODUCT_WARRANTY_MONTHS_FIELD', 'alpha');
+	$settings_valid = true;
+	if ($posted_duration_source === 'product_field') {
+		if ($posted_month_field === '') {
+			setEventMessages($langs->trans('ErrorProductWarrantyFieldNotConfigured'), null, 'errors');
+			$settings_valid = false;
+		} elseif (!isset($product_month_fields[$posted_month_field])) {
+			setEventMessages($langs->trans('ErrorInvalidProductWarrantyMonthsField'), null, 'errors');
+			$settings_valid = false;
+		}
+	}
+
+	if ($settings_valid) {
+		$common_settings = array(
+			'WARRANTYSVC_WAREHOUSE_REFURB',
+			'WARRANTYSVC_WAREHOUSE_RETURN',
+			'WARRANTYSVC_RETURN_GRACE_DAYS',
+			'WARRANTYSVC_RETURN_INVOICE_DAYS',
+			'WARRANTYSVC_REPLACEMENT_STRATEGY',
+			'WARRANTYSVC_AUTO_WARRANTY_CHECK',
+			'WARRANTYSVC_AUTO_WARRANTY_ON_SHIPMENT',
+			'WARRANTYSVC_WARRANTY_TRIGGER_EVENT',
+			'WARRANTYSVC_AUTO_WARRANTY_ON_ORDER_CLOSE',
+			'WARRANTYSVC_NOTIFY_WARRANTY_CREATED',
+			'WARRANTYSVC_WARRANTY_REQUIRES_LOTS',
+			'WARRANTYSVC_USE_CUSTOMERRETURN',
+			'WARRANTYSVC_DEBUG_MODE',
+		);
+
+		foreach ($common_settings as $key) {
+			dolibarr_set_const($db, $key, GETPOST($key, 'alpha'), 'chaine', 0, '', $conf->entity);
+		}
+
+		dolibarr_set_const($db, 'WARRANTYSVC_DURATION_SOURCE', $posted_duration_source, 'chaine', 0, '', $conf->entity);
+
+		// Keep the inactive mode's settings intact so administrators can switch
+		// between the fork policy and upstream behaviour without losing config.
+		if ($posted_duration_source === 'product_field') {
+			dolibarr_set_const($db, 'WARRANTYSVC_PRODUCT_WARRANTY_MONTHS_FIELD', $posted_month_field, 'chaine', 0, '', $conf->entity);
+		} else {
+			$default_days = GETPOSTINT('WARRANTYSVC_DEFAULT_COVERAGE_DAYS');
+			if ($default_days <= 0) {
+				$default_days = 365;
+			}
+			dolibarr_set_const($db, 'WARRANTYSVC_DEFAULT_COVERAGE_DAYS', $default_days, 'chaine', 0, '', $conf->entity);
+		}
+
+		$current_duration_source = $posted_duration_source;
+		setEventMessages($langs->trans('SvcSetupSaved'), null, 'mesgs');
+	}
 }
 
 // Load warehouses for selectors
@@ -208,10 +232,7 @@ print '<input type="checkbox" name="WARRANTYSVC_AUTO_WARRANTY_ON_ORDER_CLOSE" va
 print '</td></tr>';
 
 // Warranty duration source
-$duration_source = getDolGlobalString(
-	'WARRANTYSVC_DURATION_SOURCE',
-	getDolGlobalString('WARRANTYSVC_PRODUCT_WARRANTY_MONTHS_FIELD') !== '' ? 'product_field' : 'warranty_type'
-);
+$duration_source = $current_duration_source;
 print '<tr class="oddeven">';
 print '<td>'.$langs->trans('WarrantyDurationSource').'<br><span class="opacitymedium">'
 	.$langs->trans('WarrantyDurationSourceDesc').'</span></td>';
