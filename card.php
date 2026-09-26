@@ -82,9 +82,12 @@ if ($cancel) {
 }
 
 if ($action == 'add' && $permwrite) {
+	$claim_source              = GETPOST('claim_source', 'alpha');
+	if ($claim_source !== 'manual') {
+		$claim_source = 'warranty';
+	}
+
 	$object->fk_soc            = GETPOST('fk_soc', 'int');
-	$object->fk_product        = GETPOST('fk_product', 'int');
-	$object->serial_number     = GETPOST('serial_number', 'alpha');
 	$object->fk_contact        = GETPOST('fk_contact', 'int');
 	$object->customer_site     = GETPOST('customer_site', 'alphanohtml');
 	$object->fk_project        = GETPOST('fk_project', 'int');
@@ -95,41 +98,47 @@ if ($action == 'add' && $permwrite) {
 	$object->fk_user_assigned  = GETPOST('fk_user_assigned', 'int');
 	// resolution_type is not set at intake — chosen during the Diagnosing stage
 
-	// Manual warranty pairing. Warranty eligibility is evaluated at the
-	// claim issue date, not at page-render time or from the stored status value.
-	$fk_warranty_posted = GETPOST('fk_warranty', 'int');
-	if ($fk_warranty_posted > 0) {
-		$w = new SvcWarranty($db);
-		if ($w->fetch($fk_warranty_posted) > 0) {
-			$warranty_matches = ((int) $w->entity === (int) $conf->entity)
-				&& ((int) $w->fk_soc === (int) $object->fk_soc)
-				&& ((int) $w->fk_product === (int) $object->fk_product);
+	if ($claim_source === 'manual') {
+		// Explicit warranty-less/service intake. Product and serial are entered
+		// manually and the case starts as billable.
+		$object->fk_product      = GETPOST('fk_product', 'int');
+		$object->serial_number   = GETPOST('serial_number', 'alpha');
+		$object->fk_warranty     = null;
+		$object->warranty_status = 'none';
+		$object->billable        = 1;
 
-			$warranty_serial = trim((string) $w->serial_number);
-			$claim_serial = trim((string) $object->serial_number);
-			if ($warranty_matches) {
-				if ($warranty_serial !== '') {
-					$warranty_matches = ($warranty_serial === $claim_serial);
-				} elseif ($claim_serial !== '') {
-					$warranty_matches = false;
-				}
-			}
-
-			if (!$warranty_matches) {
-				$error++;
-				setEventMessages($langs->trans('ErrorWarrantyDoesNotMatchClaim'), null, 'errors');
-			} elseif ($w->status === SvcWarranty::STATUS_VOIDED) {
-				$error++;
-				setEventMessages($langs->trans('ErrorVoidedWarrantyClaim'), null, 'errors');
-			} else {
-				$effective_warranty_status = $w->getStatusAt($object->issue_date);
-				$object->fk_warranty     = $w->id;
-				$object->warranty_status = $effective_warranty_status;
-				$object->billable        = ($effective_warranty_status === SvcWarranty::STATUS_ACTIVE) ? 0 : 1;
-			}
-		} else {
+		if ($object->fk_product <= 0) {
 			$error++;
-			setEventMessages($langs->trans('ErrorWarrantyNotFound'), null, 'errors');
+			setEventMessages($langs->trans('ErrorFieldRequired', $langs->trans('Product')), null, 'errors');
+		}
+	} else {
+		// Warranty-backed intake. The selected Warranty row is authoritative for
+		// customer, Product and serial identity; do not trust hidden duplicates.
+		$fk_warranty_posted = GETPOST('fk_warranty', 'int');
+		if ($fk_warranty_posted <= 0) {
+			$error++;
+			setEventMessages($langs->trans('ErrorWarrantyRequiredForClaim'), null, 'errors');
+		} else {
+			$w = new SvcWarranty($db);
+			if ($w->fetch($fk_warranty_posted) > 0) {
+				if ((int) $w->entity !== (int) $conf->entity || (int) $w->fk_soc !== (int) $object->fk_soc) {
+					$error++;
+					setEventMessages($langs->trans('ErrorWarrantyDoesNotMatchClaim'), null, 'errors');
+				} elseif ($w->status === SvcWarranty::STATUS_VOIDED) {
+					$error++;
+					setEventMessages($langs->trans('ErrorVoidedWarrantyClaim'), null, 'errors');
+				} else {
+					$effective_warranty_status = $w->getStatusAt($object->issue_date);
+					$object->fk_product      = (int) $w->fk_product;
+					$object->serial_number   = (string) $w->serial_number;
+					$object->fk_warranty     = (int) $w->id;
+					$object->warranty_status = $effective_warranty_status;
+					$object->billable        = ($effective_warranty_status === SvcWarranty::STATUS_ACTIVE) ? 0 : 1;
+				}
+			} else {
+				$error++;
+				setEventMessages($langs->trans('ErrorWarrantyNotFound'), null, 'errors');
+			}
 		}
 	}
 
@@ -472,143 +481,76 @@ if ($action == 'create') {
 	print '<tr><td class="fieldrequired">'.$langs->trans('Company').'</td>';
 	print '<td>'.$form->select_company($prefill_soc, 'fk_soc', '(s.client:IN:1,3)', 1, 0, 0, array(), 0, 'minwidth300').'</td></tr>';
 
-	// Product — disabled until customer is selected; populated via AJAX (ajax/sr_products.php).
-	// When arriving from warranty card with fk_product prefilled, JS re-enables and sets value after customer loads.
-	print '<tr><td class="fieldrequired">'.$langs->trans('Product').'</td>';
+	$prefill_warranty = (int) GETPOST('fk_warranty', 'int');
+	$prefill_source = GETPOST('claim_source', 'alpha') === 'manual' ? 'manual' : 'warranty';
+
+	print '<input type="hidden" name="claim_source" id="claim_source" value="'.dol_escape_htmltag($prefill_source).'">';
+	print '<input type="hidden" name="fk_warranty" id="fk_warranty" value="'.((int) $prefill_warranty).'">';
+
+	// Issue date comes before warranty selection because warranty status is
+	// evaluated against the date the customer reported the issue.
+	$posted_issue_date = dol_mktime(
+		12,
+		0,
+		0,
+		GETPOST('issue_datemonth', 'int'),
+		GETPOST('issue_dateday', 'int'),
+		GETPOST('issue_dateyear', 'int')
+	);
+	$prefill_issue_date = $posted_issue_date > 0 ? $posted_issue_date : dol_now();
+	print '<tr><td>'.$form->textwithpicto($langs->trans('IssueDate'), $langs->trans('TooltipIssueDate')).'</td>';
+	print '<td>'.$form->selectDate($prefill_issue_date, 'issue_date', 0, 0, 0, '', 1, 1).'</td></tr>';
+
+	// Warranty/device picker. The selected Warranty record is the authoritative
+	// identity of Product + serial/LOT for normal intake.
+	print '<tr><td class="tdtop fieldrequired">'.$langs->trans('WarrantyCoveredUnit').'</td>';
+	print '<td>';
+	print '<div id="warranty_picker">';
+	print '<div class="tagtable" style="margin-bottom:8px">';
+	print '<input type="text" id="warranty_search" class="flat minwidth300"'
+		.' placeholder="'.dol_escape_htmltag($langs->trans('SearchWarrantyUnitPlaceholder')).'" disabled>';
+	print '</div>';
+	print '<div id="warranty_picker_message" class="opacitymedium">'.$langs->trans('SelectCustomerForWarrantyUnits').'</div>';
+	print '<div id="warranty_picker_table_wrap" class="div-table-responsive" style="display:none">';
+	print '<table class="noborder centpercent">';
+	print '<thead><tr class="liste_titre">';
+	print '<td class="center" style="width:32px"></td>';
+	print '<td>'.$langs->trans('Product').'</td>';
+	print '<td>'.$langs->trans('SerialOrLot').'</td>';
+	print '<td>'.$langs->trans('Warranty').'</td>';
+	print '<td class="center">'.$langs->trans('StartDate').'</td>';
+	print '<td class="center">'.$langs->trans('ExpiryDate').'</td>';
+	print '<td class="center">'.$langs->trans('Status').'</td>';
+	print '</tr></thead>';
+	print '<tbody id="warranty_picker_body"></tbody>';
+	print '</table>';
+	print '</div>';
+	print '<div style="margin-top:8px">';
+	print '<button type="button" class="button button-cancel" id="manual_claim_toggle">'
+		.$langs->trans('CreateClaimWithoutWarranty').'</button>';
+	print ' <span class="opacitymedium">'.$langs->trans('CreateClaimWithoutWarrantyDesc').'</span>';
+	print '</div>';
+	print '</div>';
+	print '</td></tr>';
+
+	// Explicit warranty-less/manual intake. Hidden by default so products without
+	// WarrantySvc coverage never clutter the normal warranty workflow.
+	$manual_style = ($prefill_source === 'manual') ? '' : ' style="display:none"';
+	print '<tr class="manual-claim-row"'.$manual_style.'><td colspan="2">';
+	print '<div class="warning">'.$langs->trans('ManualClaimEntryWarning').'</div>';
+	print '</td></tr>';
+
+	print '<tr class="manual-claim-row"'.$manual_style.'><td class="fieldrequired">'.$langs->trans('Product').'</td>';
 	print '<td>';
 	print '<select name="fk_product" id="fk_product" class="flat minwidth300" '.($prefill_soc > 0 ? '' : 'disabled').'>';
 	print '<option value="">'.dol_escape_htmltag($langs->trans('SelectCustomerFirst')).'</option>';
 	print '</select>';
 	print '</td></tr>';
 
-	// Serial number — select populated server-side when product is known, AJAX when changed interactively.
-	// No 'flat' class so Select2 does not own this element; native DOM updates work reliably.
-	// Serials for SRs come from registered warranties — not from shipment records.
-	// Override-mode warranties have serials typed manually; they exist in svc_warranty
-	// but not in expeditiondet_batch. Scope to customer if known.
-	$prefill_serials = array();
-	if ($prefill_product > 0) {
-		// Query 1: serials from warranty records (primary source for SRs)
-		$sql_ser  = "SELECT DISTINCT w.serial_number AS serial_number";
-		$sql_ser .= " FROM ".MAIN_DB_PREFIX."svc_warranty w";
-		$sql_ser .= " WHERE w.fk_product = ".((int) $prefill_product);
-		$sql_ser .= " AND w.serial_number IS NOT NULL AND w.serial_number != ''";
-		$sql_ser .= " AND w.status != 'voided'";
-		if ($prefill_soc > 0) {
-			$sql_ser .= " AND w.fk_soc = ".((int) $prefill_soc);
-		}
-		$sql_ser .= " AND w.entity IN (".getEntity('svcwarranty').")";
-		$sql_ser .= " ORDER BY serial_number ASC";
-		$res_ser = $db->query($sql_ser);
-		if ($res_ser) {
-			while ($oser = $db->fetch_object($res_ser)) {
-				$prefill_serials[] = $oser->serial_number;
-			}
-		}
-		// Query 2: serials from validated shipments.
-		// Dolibarr 23 stores the serial/lot string directly on expeditiondet_batch.batch.
-		$sql_ser2  = "SELECT DISTINCT edl.batch AS serial_number";
-		$sql_ser2 .= " FROM ".MAIN_DB_PREFIX."expeditiondet_batch edl";
-		$sql_ser2 .= " JOIN ".MAIN_DB_PREFIX."expeditiondet ed ON ed.rowid = edl.fk_expeditiondet";
-		$sql_ser2 .= " JOIN ".MAIN_DB_PREFIX."expedition e ON e.rowid = ed.fk_expedition";
-		$sql_ser2 .= " WHERE ed.fk_product = ".((int) $prefill_product);
-		$sql_ser2 .= " AND e.fk_statut >= 1";
-		if ($prefill_soc > 0) {
-			$sql_ser2 .= " AND e.fk_soc = ".((int) $prefill_soc);
-		}
-		$sql_ser2 .= " AND e.entity IN (".getEntity('expedition').")";
-		$sql_ser2 .= " AND edl.batch IS NOT NULL AND edl.batch != ''";
-		$sql_ser2 .= " ORDER BY serial_number ASC";
-		$res_ser2 = $db->query($sql_ser2);
-		if ($res_ser2) {
-			while ($oser2 = $db->fetch_object($res_ser2)) {
-				$prefill_serials[] = $oser2->serial_number;
-			}
-		}
-		$prefill_serials = array_values(array_unique($prefill_serials));
-		sort($prefill_serials);
-	}
-	print '<tr><td>'.$form->textwithpicto($langs->trans('SvcSerialNumber'), $langs->trans('TooltipSerialNumber')).'</td>';
+	print '<tr class="manual-claim-row"'.$manual_style.'><td>'.$form->textwithpicto($langs->trans('SvcSerialNumber'), $langs->trans('TooltipSerialNumber')).'</td>';
 	print '<td>';
-	if ($prefill_product > 0) {
-		print '<select name="serial_number" id="serial_number" class="minwidth200">';
-		print '<option value="">— '.dol_escape_htmltag($langs->trans('SelectSerial')).' —</option>';
-		foreach ($prefill_serials as $s) {
-			$sel = ($s === $prefill_serial) ? ' selected' : '';
-			print '<option value="'.dol_escape_htmltag($s).'"'.$sel.'>'.dol_escape_htmltag($s).'</option>';
-		}
-		print '</select>';
-	} else {
-		print '<select name="serial_number" id="serial_number" class="minwidth200" disabled>';
-		print '<option value="">'.dol_escape_htmltag($langs->trans('SelectProductFirst')).'</option>';
-		print '</select>';
-	}
-	print '</td></tr>';
-
-	// Warranty — selecting one auto-fills product + serial; selecting a serial auto-fills this.
-	// Render manually so we can embed data-serial and data-product on each option.
-	print '<tr><td>'.$form->textwithpicto($langs->trans('SvcWarranty'), $langs->trans('TooltipSvcWarranty')).'</td>';
-	print '<td>';
-	$sql_w  = "SELECT rowid, ref, serial_number, fk_product, status, expiry_date FROM ".MAIN_DB_PREFIX."svc_warranty";
-	$sql_w .= " WHERE entity = ".((int) $conf->entity);
-	$sql_w .= " AND status != 'voided'";
-	if ($prefill_soc > 0) {
-		$sql_w .= " AND fk_soc = ".((int) $prefill_soc);
-	}
-	$sql_w .= " ORDER BY ref ASC";
-	$res_w = $db->query($sql_w);
-	$prefill_warranty = (int) GETPOST('fk_warranty', 'int');
-
-	// Auto-select only when there is exactly one warranty that is effectively
-	// active today for the selected Product/customer. Stored status alone is not
-	// sufficient because expiry is derived from expiry_date.
-	if ($prefill_warranty === 0 && $prefill_product > 0 && $prefill_soc > 0) {
-		$sql_aw  = "SELECT rowid, status, expiry_date FROM ".MAIN_DB_PREFIX."svc_warranty";
-		$sql_aw .= " WHERE fk_product = ".((int) $prefill_product);
-		$sql_aw .= " AND fk_soc = ".((int) $prefill_soc);
-		$sql_aw .= " AND status != 'voided'";
-		$sql_aw .= " AND entity IN (".getEntity('svcwarranty').")";
-		$res_aw = $db->query($sql_aw);
-		$active_warranty_ids = array();
-		if ($res_aw) {
-			while ($row_aw = $db->fetch_object($res_aw)) {
-				$tmpw = new SvcWarranty($db);
-				$tmpw->status = $row_aw->status;
-				$tmpw->expiry_date = !empty($row_aw->expiry_date) ? $db->jdate($row_aw->expiry_date) : null;
-				if ($tmpw->getStatusAt() === SvcWarranty::STATUS_ACTIVE) {
-					$active_warranty_ids[] = (int) $row_aw->rowid;
-				}
-			}
-		}
-		if (count($active_warranty_ids) === 1) {
-			$prefill_warranty = $active_warranty_ids[0];
-		}
-	}
-
-	print '<select name="fk_warranty" id="fk_warranty" class="minwidth300">';
-	print '<option value=""></option>';
-	if ($res_w) {
-		while ($ow = $db->fetch_object($res_w)) {
-			$tmpw = new SvcWarranty($db);
-			$tmpw->status = $ow->status;
-			$tmpw->expiry_date = !empty($ow->expiry_date) ? $db->jdate($ow->expiry_date) : null;
-			$effective_status = $tmpw->getStatusAt();
-
-			$status_label_key = $effective_status === SvcWarranty::STATUS_ACTIVE
-				? 'SvcActive'
-				: ($effective_status === SvcWarranty::STATUS_EXPIRED ? 'SvcExpired' : 'SvcVoided');
-
-			$label = dol_escape_htmltag($ow->ref);
-			if ($ow->serial_number) {
-				$label .= ' — '.dol_escape_htmltag($ow->serial_number);
-			}
-			$label .= ' ('.dol_escape_htmltag($langs->trans($status_label_key)).')';
-			$sel = ($prefill_warranty === (int) $ow->rowid) ? ' selected' : '';
-			print '<option value="'.(int) $ow->rowid.'" data-serial="'.dol_escape_htmltag($ow->serial_number).'" data-product="'.(int) $ow->fk_product.'"'
-				.' data-status="'.dol_escape_htmltag($effective_status).'"'
-				.$sel.'>'.$label.'</option>';
-		}
-	}
+	print '<select name="serial_number" id="serial_number" class="minwidth200" disabled>';
+	print '<option value="">'.dol_escape_htmltag($langs->trans('SelectProductFirst')).'</option>';
 	print '</select>';
 	print '</td></tr>';
 
@@ -626,10 +568,6 @@ if ($action == 'create') {
 	);
 	print Form::selectarray('reported_via', $via_options, 'phone', 0, 0, 0, '', 0, 0, 0, '', 'flat');
 	print '</td></tr>';
-
-	// Issue date
-	print '<tr><td>'.$form->textwithpicto($langs->trans('IssueDate'), $langs->trans('TooltipIssueDate')).'</td>';
-	print '<td>'.$form->selectDate(dol_now(), 'issue_date', 0, 0, 0, '', 1, 1).'</td></tr>';
 
 	// Issue description
 	print '<tr><td class="fieldrequired tdtop">'.$form->textwithpicto($langs->trans('IssueDescription'), $langs->trans('TooltipIssueDescription')).'</td>';
@@ -668,44 +606,222 @@ if ($action == 'create') {
 	print '</form>';
 
 	print '<script>(function(){
-	var serialAjaxUrl    = "'.DOL_URL_ROOT.'/custom/warrantysvc/ajax/serials.php?mode=svcrequest"';
-	print ';
+	var warrantyAjaxUrl = "'.DOL_URL_ROOT.'/custom/warrantysvc/ajax/customer_warranties.php";
+	var serialAjaxUrl = "'.DOL_URL_ROOT.'/custom/warrantysvc/ajax/serials.php?mode=svcrequest";
 	var srProductAjaxUrl = "'.DOL_URL_ROOT.'/custom/warrantysvc/ajax/sr_products.php";
-	var projectAjaxUrl   = "'.DOL_URL_ROOT.'/custom/warrantysvc/ajax/projects.php";
-	var selSer  = document.getElementById("serial_number");
+	var projectAjaxUrl = "'.DOL_URL_ROOT.'/custom/warrantysvc/ajax/projects.php";
+
+	var warrantyInput = document.getElementById("fk_warranty");
+	var sourceInput = document.getElementById("claim_source");
+	var warrantyBody = document.getElementById("warranty_picker_body");
+	var warrantyWrap = document.getElementById("warranty_picker_table_wrap");
+	var warrantyMessage = document.getElementById("warranty_picker_message");
+	var warrantySearch = document.getElementById("warranty_search");
+	var manualToggle = document.getElementById("manual_claim_toggle");
+	var manualRows = Array.prototype.slice.call(document.querySelectorAll(".manual-claim-row"));
+	var selSer = document.getElementById("serial_number");
 	var selProj = document.getElementById("fk_project");
-	var noSerial  = "'.dol_escape_js($langs->trans('NoSerialsAvailable')).'";
-	var pickProd  = "'.dol_escape_js($langs->trans('SelectProductFirst')).'";
-	var pickSel   = "'.dol_escape_js($langs->trans('SelectProduct')).'";
-	var noProd    = "'.dol_escape_js($langs->trans('NoProductForCustomer')).'";
-	var pickSer   = "\u2014 '.dol_escape_js($langs->trans('SelectSerial')).' \u2014";
-	var pickCust  = "'.dol_escape_js($langs->trans('SelectCustomerFirst')).'";
-	var noProj    = "'.dol_escape_js($langs->trans('NoProjectForCustomer')).'";
-	var pickProj  = "\u2014 '.dol_escape_js($langs->trans('SelectProject')).' \u2014";
-	// pending* vars are consumed after an async product/serial load
-	var pendingProduct  = '.((int) $prefill_product).';
-	var pendingSerial   = "'.dol_escape_js($prefill_serial).'";
-	var selWar = document.getElementById("fk_warranty");
+	var submitButton = document.querySelector("input.button-save[type=submit]");
+	var pendingWarranty = '.((int) $prefill_warranty).';
+	var pendingProduct = '.((int) $prefill_product).';
+	var pendingSerial = "'.dol_escape_js($prefill_serial).'";
+	var warrantyRows = [];
+
+	var txt = {
+		selectCustomer: "'.dol_escape_js($langs->trans('SelectCustomerForWarrantyUnits')).'",
+		noWarranties: "'.dol_escape_js($langs->trans('NoWarrantiesForCustomer')).'",
+		noMatches: "'.dol_escape_js($langs->trans('NoWarrantiesMatchFilter')).'",
+		active: "'.dol_escape_js($langs->trans('SvcActive')).'",
+		expired: "'.dol_escape_js($langs->trans('SvcExpired')).'",
+		noSerial: "'.dol_escape_js($langs->trans('NoSerialNumber')).'",
+		coveredQty: "'.dol_escape_js($langs->trans('WarrantyCoveredQuantity', '__QTY__')).'",
+		manual: "'.dol_escape_js($langs->trans('CreateClaimWithoutWarranty')).'",
+		back: "'.dol_escape_js($langs->trans('BackToWarrantySelection')).'",
+		pickCust: "'.dol_escape_js($langs->trans('SelectCustomerFirst')).'",
+		pickProd: "'.dol_escape_js($langs->trans('SelectProductFirst')).'",
+		pickSel: "'.dol_escape_js($langs->trans('SelectProduct')).'",
+		noProd: "'.dol_escape_js($langs->trans('NoProductForCustomer')).'",
+		pickSer: "\u2014 '.dol_escape_js($langs->trans('SelectSerial')).' \u2014",
+		noSerialAvail: "'.dol_escape_js($langs->trans('NoSerialsAvailable')).'",
+		noProj: "'.dol_escape_js($langs->trans('NoProjectForCustomer')).'",
+		pickProj: "\u2014 '.dol_escape_js($langs->trans('SelectProject')).' \u2014"
+	};
 
 	function notifySelect2(el){
-		if(typeof jQuery !== "undefined" && jQuery.fn.select2){
+		if(typeof jQuery !== "undefined" && jQuery.fn.select2 && el){
 			jQuery(el).trigger("change.select2");
 		}
 	}
 
+	function esc(value){
+		return String(value == null ? "" : value)
+			.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+			.replace(/"/g, "&quot;").replace(/\x27/g, "&#039;");
+	}
+
+	function getIssueDateIso(){
+		var y = document.querySelector("[name=issue_dateyear]");
+		var m = document.querySelector("[name=issue_datemonth]");
+		var d = document.querySelector("[name=issue_dateday]");
+		if(!y || !m || !d || !y.value || !m.value || !d.value) return "";
+		return String(y.value).padStart(4, "0") + "-" + String(m.value).padStart(2, "0") + "-" + String(d.value).padStart(2, "0");
+	}
+
+	function effectiveStatus(row){
+		var issue = getIssueDateIso();
+		if(row.expiry_date && issue && row.expiry_date < issue) return "expired";
+		return "active";
+	}
+
+	function statusBadge(row){
+		var status = effectiveStatus(row);
+		var label = status === "active" ? txt.active : txt.expired;
+		var cls = status === "active" ? "status1" : "status8";
+		return "<span class=\"badge " + cls + "\">" + esc(label) + "</span>";
+	}
+
+	function selectWarranty(id){
+		id = parseInt(id, 10) || 0;
+		warrantyInput.value = id ? String(id) : "";
+		warrantyBody.querySelectorAll("tr[data-warranty-id]").forEach(function(tr){
+			var selected = parseInt(tr.dataset.warrantyId, 10) === id;
+			tr.classList.toggle("highlight", selected);
+			var radio = tr.querySelector("input[type=radio]");
+			if(radio) radio.checked = selected;
+		});
+		updateSubmitState();
+	}
+
+	function updateSubmitState(){
+		if(!submitButton) return;
+		if(sourceInput.value === "manual"){
+			submitButton.disabled = false;
+		} else {
+			submitButton.disabled = !(parseInt(warrantyInput.value, 10) > 0);
+		}
+	}
+
+	function renderWarrantyRows(){
+		if(!warrantyBody) return;
+		var query = warrantySearch ? warrantySearch.value.trim().toLowerCase() : "";
+		var html = "";
+		var visible = 0;
+		warrantyRows.forEach(function(row){
+			var product = row.product_ref + (row.product_label ? " — " + row.product_label : "");
+			var serial = row.serial_number || txt.noSerial;
+			if(!row.serial_number && parseFloat(row.covered_qty || 0) > 0){
+				serial += " · " + txt.coveredQty.replace("__QTY__", row.covered_qty);
+			}
+			var haystack = (product + " " + serial + " " + row.ref + " " + row.start_label + " " + row.expiry_label).toLowerCase();
+			if(query && haystack.indexOf(query) === -1) return;
+			visible++;
+			var checked = parseInt(warrantyInput.value, 10) === parseInt(row.rowid, 10);
+			html += "<tr class=\"oddeven warrantysvc-warranty-choice" + (checked ? " highlight" : "") + "\" data-warranty-id=\"" + parseInt(row.rowid,10) + "\" style=\"cursor:pointer\">";
+			html += "<td class=\"center\"><input type=\"radio\" name=\"warranty_choice\" value=\"" + parseInt(row.rowid,10) + "\"" + (checked ? " checked" : "") + "></td>";
+			html += "<td>" + esc(product) + "</td>";
+			html += "<td>" + esc(serial) + "</td>";
+			html += "<td><strong>" + esc(row.ref) + "</strong></td>";
+			html += "<td class=\"center\">" + esc(row.start_label || "—") + "</td>";
+			html += "<td class=\"center\">" + esc(row.expiry_label || "—") + "</td>";
+			html += "<td class=\"center warranty-status-cell\">" + statusBadge(row) + "</td>";
+			html += "</tr>";
+		});
+		warrantyBody.innerHTML = html;
+		if(warrantyRows.length && visible === 0){
+			warrantyWrap.style.display = "none";
+			warrantyMessage.textContent = txt.noMatches;
+			warrantyMessage.style.display = "";
+		} else if(visible > 0){
+			warrantyWrap.style.display = sourceInput.value === "manual" ? "none" : "";
+			warrantyMessage.style.display = "none";
+		} else {
+			warrantyWrap.style.display = "none";
+		}
+	}
+
+	function refreshWarrantyStatuses(){
+		renderWarrantyRows();
+	}
+
+	function loadWarranties(){
+		var socEl = document.querySelector("[name=fk_soc]");
+		var sid = socEl ? parseInt(socEl.value, 10) || 0 : 0;
+		warrantyRows = [];
+		selectWarranty(0);
+		if(!sid){
+			warrantySearch.disabled = true;
+			warrantySearch.value = "";
+			warrantyWrap.style.display = "none";
+			warrantyMessage.textContent = txt.selectCustomer;
+			warrantyMessage.style.display = "";
+			return;
+		}
+		warrantyMessage.textContent = "…";
+		warrantyMessage.style.display = "";
+		warrantyWrap.style.display = "none";
+		warrantySearch.disabled = true;
+		fetch(warrantyAjaxUrl + "?socid=" + sid, {credentials:"same-origin"})
+			.then(function(r){ if(!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
+			.then(function(data){
+				warrantyRows = Array.isArray(data) ? data : [];
+				warrantySearch.disabled = false;
+				if(!warrantyRows.length){
+					warrantyMessage.textContent = txt.noWarranties;
+					warrantyMessage.style.display = "";
+					warrantyWrap.style.display = "none";
+				} else {
+					warrantyMessage.style.display = "none";
+					renderWarrantyRows();
+					if(pendingWarranty){
+						var found = warrantyRows.some(function(row){ return parseInt(row.rowid,10) === pendingWarranty; });
+						if(found) selectWarranty(pendingWarranty);
+						pendingWarranty = 0;
+					}
+				}
+				updateSubmitState();
+			})
+			.catch(function(){
+				warrantyRows = [];
+				warrantySearch.disabled = true;
+				warrantyMessage.textContent = "'.dol_escape_js($langs->trans('ErrorLoadingWarrantyUnits')).'";
+				warrantyMessage.style.display = "";
+				warrantyWrap.style.display = "none";
+				updateSubmitState();
+			});
+	}
+
+	function setManualMode(enabled){
+		sourceInput.value = enabled ? "manual" : "warranty";
+		manualRows.forEach(function(row){ row.style.display = enabled ? "" : "none"; });
+		manualToggle.textContent = enabled ? txt.back : txt.manual;
+		if(enabled){
+			selectWarranty(0);
+			warrantyWrap.style.display = "none";
+			warrantyMessage.style.display = "none";
+			warrantySearch.parentElement.style.display = "none";
+			loadSrProducts();
+		} else {
+			warrantySearch.parentElement.style.display = "";
+			if(warrantyRows.length) renderWarrantyRows();
+			else warrantyMessage.style.display = "";
+		}
+		updateSubmitState();
+	}
+
 	function setSerialOptions(serials){
+		if(!selSer) return;
 		selSer.innerHTML = "";
 		if(!serials || !serials.length){
 			selSer.disabled = true;
 			var opt = document.createElement("option");
 			opt.value = "";
-			opt.textContent = noSerial;
+			opt.textContent = txt.noSerialAvail;
 			selSer.appendChild(opt);
 		} else {
 			selSer.disabled = false;
 			var blank = document.createElement("option");
 			blank.value = "";
-			blank.textContent = pickSer;
+			blank.textContent = txt.pickSer;
 			selSer.appendChild(blank);
 			serials.forEach(function(s){
 				var opt = document.createElement("option");
@@ -714,66 +830,22 @@ if ($action == 'create') {
 				selSer.appendChild(opt);
 			});
 		}
-		// Auto-select serial requested by warranty sync
 		if(pendingSerial){
 			selSer.value = pendingSerial;
 			pendingSerial = "";
 		}
 	}
 
-	// Warranty → serial + product sync
-	function onWarrantyChange(){
-		if(!selWar) return;
-		var opt = selWar.options[selWar.selectedIndex];
-		if(!opt || !opt.value) return;
-		var serial  = opt.dataset.serial  || "";
-		var product = parseInt(opt.dataset.product, 10) || 0;
-		var prodEl = document.getElementById("fk_product") || document.querySelector("[name=fk_product]");
-		if(!product || !prodEl) return;
-		// Check if the product option exists in the current list
-		var hasOption = prodEl.querySelector("option[value=\"" + product + "\"]");
-		if(!hasOption){
-			// Product options not yet loaded — queue and trigger a product load
-			pendingProduct = product;
-			pendingSerial  = serial;
-			loadSrProducts();
-			return;
-		}
-		if(parseInt(prodEl.value, 10) !== product){
-			// Product is in list but not selected — set it (triggers loadSerials via change event)
-			pendingSerial = serial;
-			prodEl.value  = product;
-			prodEl.dispatchEvent(new Event("change", {bubbles:true}));
-		} else if(serial && selSer){
-			// Product already correct — just set the serial directly
-			selSer.value = serial;
-		}
-	}
-
-	// Serial → warranty sync
-	function onSerialChange(){
-		if(!selWar || !selSer) return;
-		var serial = selSer.value;
-		for(var i = 0; i < selWar.options.length; i++){
-			if(selWar.options[i].dataset.serial === serial){
-				selWar.selectedIndex = i;
-				return;
-			}
-		}
-		// No matching warranty found — clear the warranty field
-		selWar.selectedIndex = 0;
-	}
-
 	function loadSerials(){
-		var el  = document.getElementById("fk_product");
+		if(sourceInput.value !== "manual") return;
+		var el = document.getElementById("fk_product");
 		var pid = el ? parseInt(el.value, 10) || 0 : 0;
 		if(!pid){
-			selSer.innerHTML = "<option value=\'\'>" + pickProd + "</option>";
-			selSer.disabled = true;
+			setSerialOptions([]);
 			return;
 		}
 		var socEl = document.querySelector("[name=fk_soc]");
-		var sid   = socEl ? parseInt(socEl.value, 10) || 0 : 0;
+		var sid = socEl ? parseInt(socEl.value, 10) || 0 : 0;
 		fetch(serialAjaxUrl + "&fk_product=" + pid + (sid > 0 ? "&fk_soc=" + sid : ""), {credentials:"same-origin"})
 			.then(function(r){ return r.json(); })
 			.then(function(data){ setSerialOptions(data); })
@@ -781,15 +853,15 @@ if ($action == 'create') {
 	}
 
 	function loadSrProducts(){
+		if(sourceInput.value !== "manual") return;
 		var socEl = document.querySelector("[name=fk_soc]");
-		var sid   = socEl ? parseInt(socEl.value, 10) || 0 : 0;
+		var sid = socEl ? parseInt(socEl.value, 10) || 0 : 0;
 		var prodEl = document.getElementById("fk_product");
 		if(!prodEl) return;
 		if(!sid){
-			prodEl.innerHTML = "<option value=\'\'>" + pickCust + "</option>";
+			prodEl.innerHTML = "<option value=\"\">" + txt.pickCust + "</option>";
 			prodEl.disabled = true;
-			// Reset serial when customer is cleared
-			if(selSer){ selSer.innerHTML = "<option value=\'\'>" + pickProd + "</option>"; selSer.disabled = true; }
+			setSerialOptions([]);
 			return;
 		}
 		fetch(srProductAjaxUrl + "?socid=" + sid, {credentials:"same-origin"})
@@ -798,7 +870,7 @@ if ($action == 'create') {
 				prodEl.innerHTML = "";
 				var blank = document.createElement("option");
 				blank.value = "";
-				blank.textContent = data.length ? ("\u2014 " + pickSel + " \u2014") : noProd;
+				blank.textContent = data.length ? ("— " + txt.pickSel + " —") : txt.noProd;
 				prodEl.appendChild(blank);
 				data.forEach(function(p){
 					var opt = document.createElement("option");
@@ -807,14 +879,12 @@ if ($action == 'create') {
 					prodEl.appendChild(opt);
 				});
 				prodEl.disabled = (data.length === 0);
-				// Consume pending product (e.g. arrived via URL param or warranty sync)
 				if(pendingProduct && prodEl.querySelector("option[value=\"" + pendingProduct + "\"]")){
-					prodEl.value   = pendingProduct;
+					prodEl.value = pendingProduct;
 					pendingProduct = 0;
 					loadSerials();
-				} else if(!pendingProduct){
-					// Customer changed interactively — reset serial
-					if(selSer){ selSer.innerHTML = "<option value=\'\'>" + pickProd + "</option>"; selSer.disabled = true; }
+				} else {
+					setSerialOptions([]);
 				}
 			})
 			.catch(function(){ prodEl.disabled = true; });
@@ -822,14 +892,14 @@ if ($action == 'create') {
 
 	function loadProjects(){
 		if(!selProj) return;
-		var el  = document.querySelector("[name=fk_soc]");
+		var el = document.querySelector("[name=fk_soc]");
 		var sid = el ? parseInt(el.value, 10) || 0 : 0;
 		selProj.innerHTML = "";
-		selProj.disabled  = true;
+		selProj.disabled = true;
 		if(!sid){
 			var opt = document.createElement("option");
 			opt.value = "";
-			opt.textContent = pickCust;
+			opt.textContent = txt.pickCust;
 			selProj.appendChild(opt);
 			notifySelect2(selProj);
 			return;
@@ -839,7 +909,7 @@ if ($action == 'create') {
 			.then(function(data){
 				var blank = document.createElement("option");
 				blank.value = "";
-				blank.textContent = data.length ? pickProj : noProj;
+				blank.textContent = data.length ? txt.pickProj : txt.noProj;
 				selProj.appendChild(blank);
 				data.forEach(function(p){
 					var opt = document.createElement("option");
@@ -853,20 +923,41 @@ if ($action == 'create') {
 			.catch(function(){ selProj.disabled = true; });
 	}
 
+	if(warrantyBody){
+		warrantyBody.addEventListener("click", function(e){
+			var tr = e.target.closest("tr[data-warranty-id]");
+			if(tr) selectWarranty(tr.dataset.warrantyId);
+		});
+	}
+	if(warrantySearch) warrantySearch.addEventListener("input", renderWarrantyRows);
+	if(manualToggle) manualToggle.addEventListener("click", function(){ setManualMode(sourceInput.value !== "manual"); });
+
 	if(typeof jQuery !== "undefined"){
 		jQuery(document).on("select2:select select2:clear", "[name=fk_product]", loadSerials);
-		jQuery(document).on("select2:select select2:clear", "[name=fk_soc]", function(){ loadSrProducts(); loadProjects(); });
+		jQuery(document).on("select2:select select2:clear", "[name=fk_soc]", function(){
+			pendingWarranty = 0;
+			loadWarranties();
+			loadProjects();
+			if(sourceInput.value === "manual") loadSrProducts();
+		});
 	}
 	document.addEventListener("change", function(e){
-		if(e.target && e.target.name === "fk_product")   { loadSerials(); }
-		if(e.target && e.target.name === "fk_soc")       { loadSrProducts(); loadProjects(); }
-		if(e.target && e.target.name === "fk_warranty")  { onWarrantyChange(); }
-		if(e.target && e.target.name === "serial_number"){ onSerialChange(); }
+		if(e.target && e.target.name === "fk_product") loadSerials();
+		if(e.target && e.target.name === "fk_soc"){
+			pendingWarranty = 0;
+			loadWarranties();
+			loadProjects();
+			if(sourceInput.value === "manual") loadSrProducts();
+		}
+		if(e.target && (e.target.name === "issue_dateyear" || e.target.name === "issue_datemonth" || e.target.name === "issue_dateday")){
+			refreshWarrantyStatuses();
+		}
 	});
 
-	// On init: load products and projects for pre-selected customer (if any)
-	loadSrProducts();
+	setManualMode(sourceInput.value === "manual");
+	loadWarranties();
 	loadProjects();
+	updateSubmitState();
 })();</script>';
 } else {
 	// =====================================================================
