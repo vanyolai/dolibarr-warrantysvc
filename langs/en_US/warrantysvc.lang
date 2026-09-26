@@ -534,3 +534,7 @@ NoSerialShipmentItem = no serial, qty %s
 
 ErrorInvalidShipmentItem = The selected shipment item is invalid.
 ErrorShipmentWarrantyStartDateMissing = The shipment has no usable shipment date, so warranty start cannot be determined.
+
+ErrorWarrantyDoesNotMatchClaim = The selected warranty does not match the claim customer, Product or serial number.
+ErrorWarrantyNotFound = The selected warranty could not be found.
+ErrorVoidedWarrantyClaim = A voided warranty cannot be linked to a new claim.

@@ -19,6 +19,7 @@ require_once DOL_DOCUMENT_ROOT.'/core/class/html.formprojet.class.php';
 require_once DOL_DOCUMENT_ROOT.'/core/lib/date.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/custom/warrantysvc/class/svcrequest.class.php';
 require_once DOL_DOCUMENT_ROOT.'/custom/warrantysvc/class/svcrequestline.class.php';
+require_once DOL_DOCUMENT_ROOT.'/custom/warrantysvc/class/svcwarranty.class.php';
 require_once DOL_DOCUMENT_ROOT.'/custom/warrantysvc/lib/warrantysvc.lib.php';
 
 $langs->loadLangs(array('warrantysvc@warrantysvc', 'companies', 'bills', 'stocks'));
@@ -62,6 +63,7 @@ $types_no_movement     = array('guidance', 'informational');
 /*
  * Actions
  */
+$error = 0;
 $backurlforlist = DOL_URL_ROOT.'/custom/warrantysvc/list.php';
 
 if (empty($backtopage) || ($cancel && empty($id))) {
@@ -93,15 +95,41 @@ if ($action == 'add' && $permwrite) {
 	$object->fk_user_assigned  = GETPOST('fk_user_assigned', 'int');
 	// resolution_type is not set at intake — chosen during the Diagnosing stage
 
-	// Manual warranty pairing
+	// Manual warranty pairing. Warranty eligibility is evaluated at the
+	// claim issue date, not at page-render time or from the stored status value.
 	$fk_warranty_posted = GETPOST('fk_warranty', 'int');
 	if ($fk_warranty_posted > 0) {
-		require_once DOL_DOCUMENT_ROOT.'/custom/warrantysvc/class/svcwarranty.class.php';
 		$w = new SvcWarranty($db);
 		if ($w->fetch($fk_warranty_posted) > 0) {
-			$object->fk_warranty     = $w->id;
-			$object->warranty_status = $w->status;
-			$object->billable        = ($w->status == 'active') ? 0 : 1;
+			$warranty_matches = ((int) $w->entity === (int) $conf->entity)
+				&& ((int) $w->fk_soc === (int) $object->fk_soc)
+				&& ((int) $w->fk_product === (int) $object->fk_product);
+
+			$warranty_serial = trim((string) $w->serial_number);
+			$claim_serial = trim((string) $object->serial_number);
+			if ($warranty_matches) {
+				if ($warranty_serial !== '') {
+					$warranty_matches = ($warranty_serial === $claim_serial);
+				} elseif ($claim_serial !== '') {
+					$warranty_matches = false;
+				}
+			}
+
+			if (!$warranty_matches) {
+				$error++;
+				setEventMessages($langs->trans('ErrorWarrantyDoesNotMatchClaim'), null, 'errors');
+			} elseif ($w->status === SvcWarranty::STATUS_VOIDED) {
+				$error++;
+				setEventMessages($langs->trans('ErrorVoidedWarrantyClaim'), null, 'errors');
+			} else {
+				$effective_warranty_status = $w->getStatusAt($object->issue_date);
+				$object->fk_warranty     = $w->id;
+				$object->warranty_status = $effective_warranty_status;
+				$object->billable        = ($effective_warranty_status === SvcWarranty::STATUS_ACTIVE) ? 0 : 1;
+			}
+		} else {
+			$error++;
+			setEventMessages($langs->trans('ErrorWarrantyNotFound'), null, 'errors');
 		}
 	}
 
@@ -111,7 +139,7 @@ if ($action == 'add' && $permwrite) {
 		$error++;
 	}
 
-	$result = $object->create($user);
+	$result = $error ? -1 : $object->create($user);
 	if ($result > 0) {
 		// Sync all FK-based links into element_element
 		$object->syncLinkedObjects();
@@ -521,7 +549,7 @@ if ($action == 'create') {
 	// Render manually so we can embed data-serial and data-product on each option.
 	print '<tr><td>'.$form->textwithpicto($langs->trans('SvcWarranty'), $langs->trans('TooltipSvcWarranty')).'</td>';
 	print '<td>';
-	$sql_w  = "SELECT rowid, ref, serial_number, fk_product, status FROM ".MAIN_DB_PREFIX."svc_warranty";
+	$sql_w  = "SELECT rowid, ref, serial_number, fk_product, status, expiry_date FROM ".MAIN_DB_PREFIX."svc_warranty";
 	$sql_w .= " WHERE entity = ".((int) $conf->entity);
 	$sql_w .= " AND status != 'voided'";
 	if ($prefill_soc > 0) {
@@ -531,33 +559,53 @@ if ($action == 'create') {
 	$res_w = $db->query($sql_w);
 	$prefill_warranty = (int) GETPOST('fk_warranty', 'int');
 
-	// Auto-select: if no explicit warranty is specified but product + customer context exists,
-	// find the single active warranty for that combination and pre-select it.
+	// Auto-select only when there is exactly one warranty that is effectively
+	// active today for the selected Product/customer. Stored status alone is not
+	// sufficient because expiry is derived from expiry_date.
 	if ($prefill_warranty === 0 && $prefill_product > 0 && $prefill_soc > 0) {
-		$sql_aw  = "SELECT rowid FROM ".MAIN_DB_PREFIX."svc_warranty";
+		$sql_aw  = "SELECT rowid, status, expiry_date FROM ".MAIN_DB_PREFIX."svc_warranty";
 		$sql_aw .= " WHERE fk_product = ".((int) $prefill_product);
 		$sql_aw .= " AND fk_soc = ".((int) $prefill_soc);
-		$sql_aw .= " AND status = 'active'";
+		$sql_aw .= " AND status != 'voided'";
 		$sql_aw .= " AND entity IN (".getEntity('svcwarranty').")";
 		$res_aw = $db->query($sql_aw);
-		if ($res_aw && $db->num_rows($res_aw) === 1) {
-			$row_aw = $db->fetch_object($res_aw);
-			$prefill_warranty = (int) $row_aw->rowid;
+		$active_warranty_ids = array();
+		if ($res_aw) {
+			while ($row_aw = $db->fetch_object($res_aw)) {
+				$tmpw = new SvcWarranty($db);
+				$tmpw->status = $row_aw->status;
+				$tmpw->expiry_date = !empty($row_aw->expiry_date) ? $db->jdate($row_aw->expiry_date) : null;
+				if ($tmpw->getStatusAt() === SvcWarranty::STATUS_ACTIVE) {
+					$active_warranty_ids[] = (int) $row_aw->rowid;
+				}
+			}
 		}
-		// 0 or >1 results → leave blank; user picks manually
+		if (count($active_warranty_ids) === 1) {
+			$prefill_warranty = $active_warranty_ids[0];
+		}
 	}
 
 	print '<select name="fk_warranty" id="fk_warranty" class="minwidth300">';
 	print '<option value=""></option>';
 	if ($res_w) {
 		while ($ow = $db->fetch_object($res_w)) {
+			$tmpw = new SvcWarranty($db);
+			$tmpw->status = $ow->status;
+			$tmpw->expiry_date = !empty($ow->expiry_date) ? $db->jdate($ow->expiry_date) : null;
+			$effective_status = $tmpw->getStatusAt();
+
+			$status_label_key = $effective_status === SvcWarranty::STATUS_ACTIVE
+				? 'SvcActive'
+				: ($effective_status === SvcWarranty::STATUS_EXPIRED ? 'SvcExpired' : 'SvcVoided');
+
 			$label = dol_escape_htmltag($ow->ref);
 			if ($ow->serial_number) {
 				$label .= ' — '.dol_escape_htmltag($ow->serial_number);
 			}
-			$label .= ' ('.dol_escape_htmltag($ow->status).')';
+			$label .= ' ('.dol_escape_htmltag($langs->trans($status_label_key)).')';
 			$sel = ($prefill_warranty === (int) $ow->rowid) ? ' selected' : '';
 			print '<option value="'.(int) $ow->rowid.'" data-serial="'.dol_escape_htmltag($ow->serial_number).'" data-product="'.(int) $ow->fk_product.'"'
+				.' data-status="'.dol_escape_htmltag($effective_status).'"'
 				.$sel.'>'.$label.'</option>';
 		}
 	}
