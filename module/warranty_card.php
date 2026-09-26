@@ -80,7 +80,30 @@ if ($action == 'add' && $permwrite) {
 	$object->note_public    = GETPOST('note_public', 'restricthtml');
 	$object->note_private   = GETPOST('note_private', 'restricthtml');
 
-	if ($duration_source === 'product_field') {
+	// When this warranty comes from the shipment-item wizard, resolve the
+	// physical item again from the database. Hidden Product/serial/quantity
+	// fields are display helpers only and must not be trusted.
+	$shipment_item_key = GETPOST('shipment_item', 'alphanohtml');
+	if ($shipment_item_key !== '' && $object->fk_expedition > 0) {
+		$shipment_item_error = '';
+		$shipment_item = warrantysvc_resolve_shipment_item(
+			$db,
+			(int) $object->fk_expedition,
+			$shipment_item_key,
+			$shipment_item_error
+		);
+		if ($shipment_item === null) {
+			$object->error = $shipment_item_error !== '' ? $shipment_item_error : $langs->trans('ErrorInvalidShipmentItem');
+		} else {
+			$object->fk_soc = (int) $shipment_item['fk_soc'];
+			$object->fk_product = (int) $shipment_item['fk_product'];
+			$object->fk_expeditiondet = (int) $shipment_item['fk_expeditiondet'];
+			$object->serial_number = (string) $shipment_item['serial_number'];
+			$object->covered_qty = (float) $shipment_item['covered_qty'];
+		}
+	}
+
+	if ($duration_source === 'product_field' && empty($object->error)) {
 		$period_error = '';
 		$period = warrantysvc_compute_product_warranty_period(
 			$db,
