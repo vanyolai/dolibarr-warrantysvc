@@ -450,22 +450,40 @@ class SvcWarranty extends CommonObject
 	}
 
 	/**
-	 * Sync status field based on expiry date (called after fetch)
+	 * Return the effective warranty status at a given date.
+	 *
+	 * "expired" is derived from expiry_date; "voided" is the only stored status
+	 * that always wins. This keeps historical rows consistent even when their
+	 * database status was originally created as "active".
+	 *
+	 * @param int|null $atDate Date to evaluate, defaults to now
+	 * @return string One of STATUS_ACTIVE, STATUS_EXPIRED, STATUS_VOIDED
+	 */
+	public function getStatusAt($atDate = null)
+	{
+		if ($this->status == self::STATUS_VOIDED) {
+			return self::STATUS_VOIDED;
+		}
+
+		$atDate = !empty($atDate) ? (int) $atDate : dol_now();
+		$atDay = dol_print_date($atDate, '%Y-%m-%d', 'tzserver');
+		$expiryDay = !empty($this->expiry_date) ? dol_print_date($this->expiry_date, '%Y-%m-%d', 'tzserver') : '';
+
+		if ($expiryDay !== '' && $expiryDay < $atDay) {
+			return self::STATUS_EXPIRED;
+		}
+
+		return self::STATUS_ACTIVE;
+	}
+
+	/**
+	 * Sync the in-memory status from expiry date after fetch.
 	 *
 	 * @return void
 	 */
 	private function syncStatus()
 	{
-		if ($this->status == self::STATUS_VOIDED) {
-			return;
-		}
-		$today = dol_print_date(dol_now(), '%Y-%m-%d', 'tzserver');
-		$expiry_day = !empty($this->expiry_date) ? dol_print_date($this->expiry_date, '%Y-%m-%d', 'tzserver') : '';
-		if ($expiry_day !== '' && $expiry_day < $today) {
-			$this->status = self::STATUS_EXPIRED;
-		} else {
-			$this->status = self::STATUS_ACTIVE;
-		}
+		$this->status = $this->getStatusAt();
 	}
 
 	/**
