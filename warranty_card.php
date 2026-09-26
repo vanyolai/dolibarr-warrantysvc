@@ -72,10 +72,39 @@ if ($action == 'add' && $permwrite) {
 	$object->exclusions     = $duration_source === 'warranty_type' ? GETPOST('exclusions', 'restricthtml') : '';
 	$object->fk_commande    = GETPOST('fk_commande', 'int');
 	$object->fk_expedition  = GETPOST('fk_expedition', 'int');
+	$object->fk_expeditiondet = GETPOST('fk_expeditiondet', 'int');
+	$posted_covered_qty = price2num(GETPOST('covered_qty', 'alphanohtml'), 'MS');
+	if ($posted_covered_qty > 0) {
+		$object->covered_qty = $posted_covered_qty;
+	}
 	$object->note_public    = GETPOST('note_public', 'restricthtml');
 	$object->note_private   = GETPOST('note_private', 'restricthtml');
 
-	if ($duration_source === 'product_field') {
+	// When this warranty comes from the shipment-item wizard, resolve the
+	// physical item again from the database. Hidden Product/serial/quantity
+	// fields are display helpers only and must not be trusted.
+	$shipment_item_key = GETPOST('shipment_item', 'alphanohtml');
+	if ($shipment_item_key !== '' && $object->fk_expedition > 0) {
+		$shipment_item_error = '';
+		$shipment_item = warrantysvc_resolve_shipment_item(
+			$db,
+			(int) $object->fk_expedition,
+			$shipment_item_key,
+			$shipment_item_error
+		);
+		if ($shipment_item === null) {
+			$object->error = $shipment_item_error !== '' ? $shipment_item_error : $langs->trans('ErrorInvalidShipmentItem');
+		} else {
+			$object->fk_soc = (int) $shipment_item['fk_soc'];
+			$object->fk_product = (int) $shipment_item['fk_product'];
+			$object->fk_expeditiondet = (int) $shipment_item['fk_expeditiondet'];
+			$object->serial_number = (string) $shipment_item['serial_number'];
+			$object->covered_qty = (float) $shipment_item['covered_qty'];
+			$object->start_date = (int) $shipment_item['start_date'];
+		}
+	}
+
+	if ($duration_source === 'product_field' && empty($object->error)) {
 		$period_error = '';
 		$period = warrantysvc_compute_product_warranty_period(
 			$db,
@@ -289,86 +318,134 @@ if ($action == 'create_from_shipment') {
 		$presoc     = ($expedition->fetch($fk_expedition_src) > 0) ? (int) $expedition->socid : 0;
 		$shipment_start_date = warrantysvc_resolve_shipment_start_date($db, $expedition);
 		if ($shipment_start_date === null) {
-			$shipment_start_date = dol_now();
+			setEventMessages($langs->trans('ErrorShipmentWarrantyStartDateMissing'), null, 'errors');
 		}
 
-		// Serials in this shipment that don't yet have a warranty.
-		// Candidate serials and module warranty rows are queried separately: comparing
-		// expeditiondet_batch.batch directly to svc_warranty.serial_number in SQL can
-		// fail on existing Dolibarr databases when their collations differ.
-		$sql_ser  = "SELECT edl.batch as serial_number, ed.fk_product,";
-		$sql_ser .= " p.ref as product_ref, p.label as product_label";
-		$sql_ser .= " FROM ".MAIN_DB_PREFIX."expeditiondet_batch edl";
-		$sql_ser .= " JOIN ".MAIN_DB_PREFIX."expeditiondet ed ON ed.rowid = edl.fk_expeditiondet";
-		$sql_ser .= " JOIN ".MAIN_DB_PREFIX."product p ON p.rowid = ed.fk_product";
-		$sql_ser .= " WHERE ed.fk_expedition = ".((int) $fk_expedition_src);
-		$sql_ser .= " AND edl.batch IS NOT NULL AND edl.batch != ''";
-		$res_ser = $db->query($sql_ser);
+		// Build one selectable warranty candidate for each physical shipment item:
+		// one row per serial/lot allocation, or one row per ordinary shipment line.
+		// Keep core shipment serials and module warranty serials in separate SQL
+		// queries to avoid cross-collation comparisons on existing databases.
+		$item_options = array('' => '— '.$langs->trans('SelectShipmentItem').' —');
+		$item_map = array();
+		$item_query_error = ($shipment_start_date === null);
+		$res_items = false;
 
-		$serial_options     = array('' => '— '.$langs->trans('SelectSerial').' —');
-		$serial_product_map = '{';
-		$serial_query_error = false;
-		$covered = array();
+		if (!$item_query_error) {
+			$sql_items  = "SELECT ed.rowid AS fk_expeditiondet, ed.fk_product, ed.qty AS line_qty,";
+			$sql_items .= " edl.rowid AS fk_expeditiondet_batch, edl.batch AS serial_number, edl.qty AS batch_qty,";
+			$sql_items .= " p.ref AS product_ref, p.label AS product_label";
+			$sql_items .= " FROM ".MAIN_DB_PREFIX."expeditiondet ed";
+			$sql_items .= " LEFT JOIN ".MAIN_DB_PREFIX."expeditiondet_batch edl ON edl.fk_expeditiondet = ed.rowid";
+			$sql_items .= " JOIN ".MAIN_DB_PREFIX."product p ON p.rowid = ed.fk_product";
+			$sql_items .= " WHERE ed.fk_expedition = ".((int) $fk_expedition_src);
+			$sql_items .= " AND p.fk_product_type = 0";
+			$sql_items .= " ORDER BY ed.rowid ASC, edl.rowid ASC";
+			$res_items = $db->query($sql_items);
+		}
+		$covered_serials = array();
+		$covered_lines = array();
 
-		if (!$res_ser) {
-			$serial_query_error = true;
+		if ($item_query_error) {
+			// The specific error message has already been queued above.
+		} elseif (!$res_items) {
+			$item_query_error = true;
 			setEventMessages($db->lasterror(), null, 'errors');
 		} else {
-			$sql_cov  = "SELECT fk_product, serial_number FROM ".MAIN_DB_PREFIX."svc_warranty";
-			$sql_cov .= " WHERE status != 'voided'";
-			$sql_cov .= " AND serial_number IS NOT NULL AND serial_number != ''";
+			// Only warranties already originating from this shipment make a current
+			// shipment item unavailable. Older warranties from previous sales must
+			// not hide a legitimately resold serial.
+			$sql_cov  = "SELECT fk_product, serial_number, fk_expeditiondet";
+			$sql_cov .= " FROM ".MAIN_DB_PREFIX."svc_warranty";
+			$sql_cov .= " WHERE fk_expedition = ".((int) $fk_expedition_src);
+			$sql_cov .= " AND status != 'voided'";
 			$sql_cov .= " AND entity IN (".getEntity('svcwarranty').")";
 			$res_cov = $db->query($sql_cov);
 			if (!$res_cov) {
-				$serial_query_error = true;
+				$item_query_error = true;
 				setEventMessages($db->lasterror(), null, 'errors');
 			} else {
 				while ($obj_cov = $db->fetch_object($res_cov)) {
-					$covered[((int) $obj_cov->fk_product).'\\0'.(string) $obj_cov->serial_number] = true;
+					$covered_serial = trim((string) $obj_cov->serial_number);
+					if ($covered_serial !== '') {
+						$covered_serials[((int) $obj_cov->fk_product).'\\0'.$covered_serial] = true;
+					} elseif (!empty($obj_cov->fk_expeditiondet)) {
+						$covered_lines[(int) $obj_cov->fk_expeditiondet] = true;
+					}
 				}
-				while ($obj_ser = $db->fetch_object($res_ser)) {
-					$key = ((int) $obj_ser->fk_product).'\\0'.(string) $obj_ser->serial_number;
-					if (isset($covered[$key])) {
+
+				while ($obj_item = $db->fetch_object($res_items)) {
+					$serial_number = trim((string) $obj_item->serial_number);
+					$has_serial = ($serial_number !== '');
+					$covered_qty = $has_serial ? (float) $obj_item->batch_qty : (float) $obj_item->line_qty;
+					if ($covered_qty <= 0) {
 						continue;
 					}
-					$opt_label = $obj_ser->serial_number.' — '.$obj_ser->product_ref.($obj_ser->product_label ? ' '.$obj_ser->product_label : '');
-					$serial_options[$obj_ser->serial_number] = $opt_label;
 
-					$product_months = null;
+					if ($has_serial) {
+						$covered_key = ((int) $obj_item->fk_product).'\\0'.$serial_number;
+						if (isset($covered_serials[$covered_key])) {
+							continue;
+						}
+						$item_key = 'b:'.((int) $obj_item->fk_expeditiondet_batch);
+					} else {
+						if (isset($covered_lines[(int) $obj_item->fk_expeditiondet])) {
+							continue;
+						}
+						$item_key = 'l:'.((int) $obj_item->fk_expeditiondet);
+					}
+
+					$product_label = $obj_item->product_ref.($obj_item->product_label ? ' — '.$obj_item->product_label : '');
+					$item_label = $has_serial
+						? $serial_number.' — '.$product_label
+						: $product_label.' — '.$langs->trans('NoSerialShipmentItem', price($covered_qty));
+
+					$product_months = 0;
 					$product_coverage_days = 0;
 					if ($duration_source === 'product_field') {
 						$period_error = '';
 						$period = warrantysvc_compute_product_warranty_period(
 							$db,
-							(int) $obj_ser->fk_product,
+							(int) $obj_item->fk_product,
 							(int) $conf->entity,
 							(int) $shipment_start_date,
 							$period_error
 						);
 						if ($period_error !== '') {
-							$serial_query_error = true;
+							$item_query_error = true;
 							setEventMessages($period_error, null, 'errors');
 							break;
 						}
 						if ($period !== null) {
-							$product_months = $period['months'];
-							$product_coverage_days = $period['days'];
+							$product_months = (int) $period['months'];
+							$product_coverage_days = (int) $period['days'];
 						}
 					}
 
-					$serial_product_map .= '"'.dol_escape_js($obj_ser->serial_number).'":{"fk_product":'.((int) $obj_ser->fk_product)
-						.',"label":"'.dol_escape_js($obj_ser->product_ref.($obj_ser->product_label ? ' — '.$obj_ser->product_label : '')).'"'
-						.',"coverage_months":'.((int) ($product_months ?: 0))
-						.',"coverage_days":'.((int) $product_coverage_days).'},';
+					$item_options[$item_key] = $item_label;
+					$item_map[$item_key] = array(
+						'fk_product' => (int) $obj_item->fk_product,
+						'fk_expeditiondet' => (int) $obj_item->fk_expeditiondet,
+						'serial_number' => $has_serial ? $serial_number : '',
+						'covered_qty' => $covered_qty,
+						'label' => $product_label,
+						'coverage_months' => $product_months,
+						'coverage_days' => $product_coverage_days,
+					);
 				}
 			}
 		}
-		$serial_product_map = rtrim($serial_product_map, ',').'}';
 
-		if ($serial_query_error) {
-			print '<div class="error" style="margin-top:10px">'.$langs->trans('Error').': '.dol_escape_htmltag($db->lasterror()).'</div>';
-		} elseif (count($serial_options) <= 1) {
-			print '<div class="warning" style="margin-top:10px">'.$langs->trans('NoUncoveredSerialsInShipment').'</div>';
+		$item_map_js = json_encode($item_map, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+		if ($item_map_js === false) {
+			$item_map_js = '{}';
+			$item_query_error = true;
+			setEventMessages($langs->trans('Error'), null, 'errors');
+		}
+
+		if ($item_query_error) {
+			print '<div class="error" style="margin-top:10px">'.$langs->trans('Error').'</div>';
+		} elseif (count($item_options) <= 1) {
+			print '<div class="warning" style="margin-top:10px">'.$langs->trans('NoUncoveredItemsInShipment').'</div>';
 		} else {
 			$wtype_items       = array();
 			$wtype_options     = array();
@@ -400,6 +477,9 @@ if ($action == 'create_from_shipment') {
 			print '<input type="hidden" name="fk_soc" value="'.((int) $presoc).'">';
 			print '<input type="hidden" name="fk_expedition" value="'.((int) $fk_expedition_src).'">';
 			print '<input type="hidden" id="fk_product" name="fk_product" value="">';
+			print '<input type="hidden" id="fk_expeditiondet" name="fk_expeditiondet" value="">';
+			print '<input type="hidden" id="serial_number" name="serial_number" value="">';
+			print '<input type="hidden" id="covered_qty" name="covered_qty" value="1">';
 
 			print dol_get_fiche_head(array(), '', '', -1);
 			print '<table class="border centpercent tableforfieldcreate">';
@@ -413,15 +493,18 @@ if ($action == 'create_from_shipment') {
 			}
 			print '</td></tr>';
 
-			// Serial number dropdown (only uncovered serials from this shipment)
-			print '<tr><td class="fieldrequired">'.$form->textwithpicto($langs->trans('SvcSerialNumber'), $langs->trans('TooltipWarrantySerial')).'</td>';
+			// Shipment item dropdown: serialized/lot allocations and ordinary lines.
+			print '<tr><td class="fieldrequired">'.$form->textwithpicto($langs->trans('ShipmentItem'), $langs->trans('TooltipShipmentItem')).'</td>';
 			print '<td>';
-			print Form::selectarray('serial_number', $serial_options, dol_escape_htmltag(GETPOST('serial_number', 'alpha')), 0, 0, 0, '', 0, 0, 0, '', 'flat minwidth300', 0, '', '', true);
+			print Form::selectarray('shipment_item', $item_options, GETPOST('shipment_item', 'alpha'), 0, 0, 0, '', 0, 0, 0, '', 'flat minwidth300', 0, '', '', true);
 			print '</td></tr>';
 
-			// Product — auto-filled by JS when serial is chosen
+			// Product — auto-filled by JS when the shipment item is chosen
 			print '<tr><td>'.$langs->trans('Product').'</td>';
-			print '<td><span id="product_label" class="opacitymedium">'.$langs->trans('AutoFilledFromSerial').'</span></td></tr>';
+			print '<td><span id="product_label" class="opacitymedium">'.$langs->trans('AutoFilledFromShipmentItem').'</span></td></tr>';
+
+			print '<tr id="serial_display_row" style="display:none"><td>'.$langs->trans('SvcSerialNumber').'</td>';
+			print '<td><span id="serial_display"></span></td></tr>';
 
 			// Warranty Type is upstream duration/policy UI and is hidden in Product-field mode.
 			if ($duration_source === 'warranty_type') {
@@ -431,16 +514,15 @@ if ($action == 'create_from_shipment') {
 				print '</td></tr>';
 			}
 
-			// Start date
-			print '<tr><td class="fieldrequired">'.$langs->trans('StartDate').'</td>';
-			print '<td>';
-			print $form->selectDate($shipment_start_date, 'start_date', 0, 0, 0, 'formship', 1, 1);
-			print '</td></tr>';
+			// Shipment-origin warranties always start on the contractual shipment date.
+			print '<tr><td>'.$langs->trans('StartDate').'</td>';
+			print '<td><strong>'.dol_print_date($shipment_start_date, 'day').'</strong>';
+			print ' <span class="opacitymedium">('.$langs->trans('WarrantyStartFromShipment').')</span></td></tr>';
 
 			if ($duration_source === 'product_field') {
 				print '<tr><td>'.$langs->trans('WarrantyDuration').'</td>';
 				print '<td><input type="hidden" id="coverage_days" name="coverage_days" value="0">';
-				print '<span id="coverage_auto_hint" class="opacitymedium">'.$langs->trans('SelectSerialForWarrantyPeriod').'</span></td></tr>';
+				print '<span id="coverage_auto_hint" class="opacitymedium">'.$langs->trans('SelectShipmentItemForWarrantyPeriod').'</span></td></tr>';
 			} else {
 				print '<tr><td>'.$form->textwithpicto($langs->trans('CoverageDays'), $langs->trans('TooltipCoverageDays')).'</td>';
 				print '<td>';
@@ -469,62 +551,88 @@ if ($action == 'create_from_shipment') {
 			print '</form>';
 
 			print '<script>(function(){
-	var smap  = '.$serial_product_map.';
+	var items = '.$item_map_js.';
 	var wtdef = '.$wtype_defaults_js.';
 	var usesProductMonths = '.($duration_source === 'product_field' ? 'true' : 'false').';
-	var selSer  = document.querySelector("[name=serial_number]");
+	var selItem = document.querySelector("[name=shipment_item]");
 	var selType = document.querySelector("[name=warranty_type]");
 	var inpProd = document.getElementById("fk_product");
+	var inpExpDet = document.getElementById("fk_expeditiondet");
+	var inpSerial = document.getElementById("serial_number");
+	var inpQty = document.getElementById("covered_qty");
 	var lblProd = document.getElementById("product_label");
-	var inpCov  = document.getElementById("coverage_days");
-	var hint    = document.getElementById("coverage_auto_hint");
-	var btn     = document.getElementById("btn_save_ship");
+	var serialRow = document.getElementById("serial_display_row");
+	var serialDisplay = document.getElementById("serial_display");
+	var inpCov = document.getElementById("coverage_days");
+	var hint = document.getElementById("coverage_auto_hint");
+	var btn = document.getElementById("btn_save_ship");
 	var fromTypeText = "'.dol_escape_js($langs->trans('CoverageFromType')).'";
 	var fromProductText = "'.dol_escape_js($langs->trans('CoverageFromProductMonths', '__MONTHS__')).'";
 	var missingProductText = "'.dol_escape_js($langs->trans('ProductWarrantyPeriodMissing')).'";
-	function syncSerial(){
-		var s = selSer ? selSer.value : "";
-		if(s && smap[s]){
-			if(inpProd) inpProd.value = smap[s].fk_product;
-			if(lblProd) lblProd.textContent = smap[s].label;
-			if(btn)     btn.disabled = false;
+
+	function currentItem(){
+		var key = selItem ? selItem.value : "";
+		return (key && items[key]) ? items[key] : null;
+	}
+
+	function syncItem(){
+		var item = currentItem();
+		if(item){
+			if(inpProd) inpProd.value = item.fk_product;
+			if(inpExpDet) inpExpDet.value = item.fk_expeditiondet;
+			if(inpSerial) inpSerial.value = item.serial_number || "";
+			if(inpQty) inpQty.value = item.covered_qty;
+			if(lblProd) lblProd.textContent = item.label;
+			if(serialDisplay) serialDisplay.textContent = item.serial_number || "";
+			if(serialRow) serialRow.style.display = item.serial_number ? "" : "none";
 		} else {
 			if(inpProd) inpProd.value = "";
-			if(lblProd) lblProd.textContent = "'.dol_escape_js($langs->trans('AutoFilledFromSerial')).'";
-			if(btn)     btn.disabled = true;
+			if(inpExpDet) inpExpDet.value = "";
+			if(inpSerial) inpSerial.value = "";
+			if(inpQty) inpQty.value = "1";
+			if(lblProd) lblProd.textContent = "'.dol_escape_js($langs->trans('AutoFilledFromShipmentItem')).'";
+			if(serialDisplay) serialDisplay.textContent = "";
+			if(serialRow) serialRow.style.display = "none";
 		}
-		syncType();
+		syncDuration();
 	}
-	function syncType(){
-		var serial = selSer ? selSer.value : "";
-		if(serial && smap[serial] && smap[serial].coverage_days > 0){
-			inpCov.value = smap[serial].coverage_days;
-			inpCov.readOnly = true;
-			inpCov.style.opacity = "0.5";
-			if(hint){ hint.textContent = fromProductText.replace("__MONTHS__", smap[serial].coverage_months); hint.style.display = ""; }
-			if(btn) btn.disabled = false;
-			return;
-		}
+
+	function syncDuration(){
+		var item = currentItem();
 		if(usesProductMonths){
-			inpCov.value = "";
-			inpCov.readOnly = true;
-			inpCov.style.opacity = "0.5";
-			if(hint){ hint.textContent = missingProductText; hint.style.display = ""; }
-			if(btn) btn.disabled = true;
+			if(item && item.coverage_days > 0){
+				inpCov.value = item.coverage_days;
+				inpCov.readOnly = true;
+				inpCov.style.opacity = "0.5";
+				if(hint){ hint.textContent = fromProductText.replace("__MONTHS__", item.coverage_months); hint.style.display = ""; }
+				if(btn) btn.disabled = false;
+			} else {
+				inpCov.value = "";
+				inpCov.readOnly = true;
+				inpCov.style.opacity = "0.5";
+				if(hint){ hint.textContent = item ? missingProductText : "'.dol_escape_js($langs->trans('SelectShipmentItemForWarrantyPeriod')).'"; hint.style.display = ""; }
+				if(btn) btn.disabled = true;
+			}
 			return;
 		}
+
+		if(btn) btn.disabled = !item;
 		var code = selType ? selType.value : "";
 		if(code && wtdef[code] !== undefined){
-			inpCov.value = wtdef[code]; inpCov.readOnly = true; inpCov.style.opacity = "0.5";
+			inpCov.value = wtdef[code];
+			inpCov.readOnly = true;
+			inpCov.style.opacity = "0.5";
 			if(hint){ hint.textContent = fromTypeText; hint.style.display = ""; }
 		} else {
-			inpCov.readOnly = false; inpCov.style.opacity = "";
+			inpCov.readOnly = false;
+			inpCov.style.opacity = "";
 			if(hint) hint.style.display = "none";
 		}
 	}
-	if(selSer)  selSer.addEventListener("change", syncSerial);
-	if(selType) selType.addEventListener("change", syncType);
-	syncSerial(); syncType();
+
+	if(selItem) selItem.addEventListener("change", syncItem);
+	if(selType) selType.addEventListener("change", syncDuration);
+	syncItem();
 })();</script>';
 		}
 	}

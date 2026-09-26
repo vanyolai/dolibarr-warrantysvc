@@ -430,6 +430,96 @@ function warrantysvc_get_product_warranty_months($db, $productId, $entity, &$err
 
 
 /**
+ * Resolve and validate one physical item selected from a shipment.
+ *
+ * Item keys are internal UI tokens:
+ * - b:<expeditiondet_batch rowid> for a serial/lot allocation
+ * - l:<expeditiondet rowid> for an ordinary non-serialized shipment line
+ *
+ * The database is authoritative; Product, customer, serial and quantity are
+ * never trusted from hidden form inputs.
+ *
+ * @param DoliDB $db Database handler
+ * @param int $shipmentId Shipment id
+ * @param string $itemKey Internal item token
+ * @param string $error Output error
+ * @return array<string,mixed>|null
+ */
+function warrantysvc_resolve_shipment_item($db, $shipmentId, $itemKey, &$error = '')
+{
+	$error = '';
+	$shipmentId = (int) $shipmentId;
+	$itemKey = trim((string) $itemKey);
+	if ($shipmentId <= 0 || !preg_match('/^([bl]):(\\d+)$/', $itemKey, $matches)) {
+		$error = 'Invalid shipment item.';
+		return null;
+	}
+
+	$type = $matches[1];
+	$rowId = (int) $matches[2];
+
+	if ($type === 'b') {
+		$sql  = "SELECT e.fk_soc, e.date_expedition, e.date_delivery, ed.rowid AS fk_expeditiondet, ed.fk_product,";
+		$sql .= " edl.batch AS serial_number, edl.qty AS covered_qty";
+		$sql .= " FROM ".MAIN_DB_PREFIX."expeditiondet_batch edl";
+		$sql .= " JOIN ".MAIN_DB_PREFIX."expeditiondet ed ON ed.rowid = edl.fk_expeditiondet";
+		$sql .= " JOIN ".MAIN_DB_PREFIX."expedition e ON e.rowid = ed.fk_expedition";
+		$sql .= " WHERE edl.rowid = ".$rowId;
+		$sql .= " AND ed.fk_expedition = ".$shipmentId;
+		$sql .= " AND edl.batch IS NOT NULL AND edl.batch != ''";
+	} else {
+		$sql  = "SELECT e.fk_soc, e.date_expedition, e.date_delivery, ed.rowid AS fk_expeditiondet, ed.fk_product,";
+		$sql .= " NULL AS serial_number, ed.qty AS covered_qty";
+		$sql .= " FROM ".MAIN_DB_PREFIX."expeditiondet ed";
+		$sql .= " JOIN ".MAIN_DB_PREFIX."expedition e ON e.rowid = ed.fk_expedition";
+		$sql .= " WHERE ed.rowid = ".$rowId;
+		$sql .= " AND ed.fk_expedition = ".$shipmentId;
+		$sql .= " AND NOT EXISTS (";
+		$sql .= "SELECT 1 FROM ".MAIN_DB_PREFIX."expeditiondet_batch edl";
+		$sql .= " WHERE edl.fk_expeditiondet = ed.rowid";
+		$sql .= " AND edl.batch IS NOT NULL AND edl.batch != ''";
+		$sql .= ")";
+	}
+
+	$resql = $db->query($sql);
+	if (!$resql) {
+		$error = $db->lasterror();
+		return null;
+	}
+
+	$obj = $db->fetch_object($resql);
+	if (!$obj) {
+		$error = 'Shipment item not found or does not belong to the selected shipment.';
+		return null;
+	}
+
+	$coveredQty = (float) $obj->covered_qty;
+	if ($coveredQty <= 0) {
+		$error = 'Shipment item quantity is invalid.';
+		return null;
+	}
+
+	$startDate = warrantysvc_normalize_date($obj->date_expedition);
+	if ($startDate === null) {
+		$startDate = warrantysvc_normalize_date($obj->date_delivery);
+	}
+	if ($startDate === null) {
+		$error = 'The shipment has no usable shipment date.';
+		return null;
+	}
+
+	return array(
+		'fk_soc' => (int) $obj->fk_soc,
+		'fk_product' => (int) $obj->fk_product,
+		'fk_expeditiondet' => (int) $obj->fk_expeditiondet,
+		'serial_number' => !empty($obj->serial_number) ? (string) $obj->serial_number : '',
+		'covered_qty' => $coveredQty,
+		'start_date' => (int) $startDate,
+	);
+}
+
+
+/**
  * Compute the Product-field warranty period for one concrete warranty.
  *
  * @param DoliDB $db Database handler

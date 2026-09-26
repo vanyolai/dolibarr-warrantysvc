@@ -75,6 +75,78 @@ class SvcWarranty extends CommonObject
 	}
 
 	/**
+	 * Void older active warranties for the same concrete serialized unit when
+	 * ownership changes. Product is part of the identity to avoid collisions
+	 * between manufacturers that happen to use the same serial text.
+	 *
+	 * Must be called inside the same transaction as creation of the replacement
+	 * warranty so a failed replacement can never invalidate the historical one.
+	 *
+	 * @return int Number of warranties voided, -1 on database error
+	 */
+	private function voidSupersededSerialWarranties()
+	{
+		if (empty($this->serial_number) || empty($this->fk_product) || empty($this->fk_soc) || empty($this->id)) {
+			return 0;
+		}
+
+		$sql = "UPDATE ".MAIN_DB_PREFIX."svc_warranty";
+		$sql .= " SET status = '".self::STATUS_VOIDED."'";
+		$sql .= " WHERE rowid <> ".((int) $this->id);
+		$sql .= " AND entity = ".((int) $this->entity);
+		$sql .= " AND fk_product = ".((int) $this->fk_product);
+		$sql .= " AND serial_number = '".$this->db->escape($this->serial_number)."'";
+		$sql .= " AND fk_soc <> ".((int) $this->fk_soc);
+		$sql .= " AND status = '".self::STATUS_ACTIVE."'";
+
+		$resql = $this->db->query($sql);
+		if (!$resql) {
+			$this->error = $this->db->lasterror();
+			return -1;
+		}
+
+		return (int) $this->db->affected_rows($resql);
+	}
+
+	/**
+	 * Check whether this shipment item already has a non-voided warranty.
+	 *
+	 * @return int Existing warranty rowid, 0 if free, -1 on database error
+	 */
+	private function findExistingShipmentWarranty()
+	{
+		if (empty($this->fk_expedition)) {
+			return 0;
+		}
+
+		$sql = "SELECT rowid FROM ".MAIN_DB_PREFIX."svc_warranty";
+		$sql .= " WHERE entity = ".((int) $this->entity);
+		$sql .= " AND fk_expedition = ".((int) $this->fk_expedition);
+		$sql .= " AND status <> '".self::STATUS_VOIDED."'";
+
+		if (!empty($this->serial_number)) {
+			$sql .= " AND fk_product = ".((int) $this->fk_product);
+			$sql .= " AND serial_number = '".$this->db->escape($this->serial_number)."'";
+		} elseif (!empty($this->fk_expeditiondet)) {
+			$sql .= " AND fk_expeditiondet = ".((int) $this->fk_expeditiondet);
+			$sql .= " AND (serial_number IS NULL OR serial_number = '')";
+		} else {
+			return 0;
+		}
+
+		$sql .= " LIMIT 1";
+		$resql = $this->db->query($sql);
+		if (!$resql) {
+			$this->error = $this->db->lasterror();
+			return -1;
+		}
+
+		$obj = $this->db->fetch_object($resql);
+		return $obj ? (int) $obj->rowid : 0;
+	}
+
+
+	/**
 	 * Create warranty in DB
 	 *
 	 * @param  User $user      User
@@ -94,6 +166,18 @@ class SvcWarranty extends CommonObject
 		$now = dol_now();
 		$this->date_creation = $now;
 		$this->fk_user_creat = $user->id;
+		$this->entity = (int) $conf->entity;
+
+		$existingShipmentWarranty = $this->findExistingShipmentWarranty();
+		if ($existingShipmentWarranty < 0) {
+			$this->db->rollback();
+			return -1;
+		}
+		if ($existingShipmentWarranty > 0) {
+			$this->error = 'A non-voided warranty already exists for this shipment item (warranty id '.$existingShipmentWarranty.').';
+			$this->db->rollback();
+			return -1;
+		}
 
 		if (!empty($this->socid) && empty($this->fk_soc)) {
 			$this->fk_soc = $this->socid;
@@ -143,6 +227,14 @@ class SvcWarranty extends CommonObject
 		}
 
 		$this->id = $this->db->last_insert_id(MAIN_DB_PREFIX.'svc_warranty');
+
+		// If the same serialized unit is sold to a different customer, the
+		// previous active warranty is superseded. Do this only after the new row
+		// exists and within the same transaction.
+		if ($this->voidSupersededSerialWarranties() < 0) {
+			$this->db->rollback();
+			return -1;
+		}
 
 		// Insert extrafields
 		$result = $this->insertExtraFields();

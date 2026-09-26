@@ -523,3 +523,14 @@ ErrorProductWarrantyFieldNotConfigured = Product-field duration mode is active, 
 
 SvcMonths = months
 WarrantyDurationLegacyUnknown = Legacy record: calendar-month snapshot not stored
+
+ShipmentItem = Shipment item
+TooltipShipmentItem = Select a shipped serial/lot allocation or a non-serialized shipment line to create a warranty for.
+SelectShipmentItem = Select a shipment item
+AutoFilledFromShipmentItem = Auto-filled from shipment item
+SelectShipmentItemForWarrantyPeriod = Select a shipment item to load the Product warranty period.
+NoUncoveredItemsInShipment = All eligible items in this shipment already have warranty coverage.
+NoSerialShipmentItem = no serial, qty %s
+
+ErrorInvalidShipmentItem = The selected shipment item is invalid.
+ErrorShipmentWarrantyStartDateMissing = The shipment has no usable shipment date, so warranty start cannot be determined.
