@@ -62,10 +62,11 @@ if ($mode === 'svcrequest') {
 		}
 	}
 
-	// Query 2: serials from validated shipments via lot tracking (secondary; skipped if table unavailable)
-	$sql2  = "SELECT DISTINCT pl.batch AS serial_number";
+	// Query 2: serials from validated shipments (secondary source).
+	// Dolibarr 23 stores the serial/lot string directly in expeditiondet_batch.batch;
+	// there is no expeditiondet_batch.fk_lot column to join through.
+	$sql2  = "SELECT DISTINCT edl.batch AS serial_number";
 	$sql2 .= " FROM ".MAIN_DB_PREFIX."expeditiondet_batch edl";
-	$sql2 .= " JOIN ".MAIN_DB_PREFIX."product_lot pl ON pl.rowid = edl.fk_lot";
 	$sql2 .= " JOIN ".MAIN_DB_PREFIX."expeditiondet ed ON ed.rowid = edl.fk_expeditiondet";
 	$sql2 .= " JOIN ".MAIN_DB_PREFIX."expedition e ON e.rowid = ed.fk_expedition";
 	$sql2 .= " WHERE ed.fk_product = ".$fk_product;
@@ -74,7 +75,7 @@ if ($mode === 'svcrequest') {
 		$sql2 .= " AND e.fk_soc = ".$fk_soc;
 	}
 	$sql2 .= " AND e.entity IN (".getEntity('expedition').")";
-	$sql2 .= " AND pl.batch IS NOT NULL AND pl.batch != ''";
+	$sql2 .= " AND edl.batch IS NOT NULL AND edl.batch != ''";
 	$sql2 .= " ORDER BY serial_number ASC";
 
 	$resql2 = $db->query($sql2);
@@ -91,21 +92,51 @@ if ($mode === 'svcrequest') {
 	print json_encode($serials);
 	exit;
 } else {
-	$sql  = "SELECT DISTINCT pl.batch AS serial_number";
+	// Build the shipped-serial list first, then remove already-covered serials
+	// in PHP. This avoids cross-table collation comparisons between Dolibarr core
+	// batch columns and module-owned serial columns.
+	$sql  = "SELECT DISTINCT edl.batch AS serial_number";
 	$sql .= " FROM ".MAIN_DB_PREFIX."expeditiondet_batch edl";
-	$sql .= " JOIN ".MAIN_DB_PREFIX."product_lot pl ON pl.rowid = edl.fk_lot";
 	$sql .= " JOIN ".MAIN_DB_PREFIX."expeditiondet ed ON ed.rowid = edl.fk_expeditiondet";
 	$sql .= " WHERE ed.fk_product = ".$fk_product;
-	$sql .= " AND pl.batch IS NOT NULL AND pl.batch != ''";
-	$sql .= " AND NOT EXISTS (";
-	$sql .= "   SELECT 1 FROM ".MAIN_DB_PREFIX."svc_warranty w";
-	$sql .= "   WHERE w.serial_number = pl.batch";
-	$sql .= "   AND w.fk_product = ed.fk_product";
-	$sql .= "   AND w.status != 'voided'";
-	$sql .= "   AND w.serial_number IS NOT NULL AND w.serial_number != ''";
-	$sql .= "   AND w.entity IN (".getEntity('svcwarranty').")";
-	$sql .= " )";
-	$sql .= " ORDER BY pl.batch ASC";
+	$sql .= " AND edl.batch IS NOT NULL AND edl.batch != ''";
+	$sql .= " ORDER BY edl.batch ASC";
+
+	$resql = $db->query($sql);
+	if (!$resql) {
+		http_response_code(500);
+		header('Content-Type: application/json');
+		print json_encode(array('error' => $db->lasterror()));
+		exit;
+	}
+
+	$covered = array();
+	$sqlw  = "SELECT serial_number FROM ".MAIN_DB_PREFIX."svc_warranty";
+	$sqlw .= " WHERE fk_product = ".$fk_product;
+	$sqlw .= " AND status != 'voided'";
+	$sqlw .= " AND serial_number IS NOT NULL AND serial_number != ''";
+	$sqlw .= " AND entity IN (".getEntity('svcwarranty').")";
+	$resw = $db->query($sqlw);
+	if (!$resw) {
+		http_response_code(500);
+		header('Content-Type: application/json');
+		print json_encode(array('error' => $db->lasterror()));
+		exit;
+	}
+	while ($ow = $db->fetch_object($resw)) {
+		$covered[(string) $ow->serial_number] = true;
+	}
+
+	while ($obj = $db->fetch_object($resql)) {
+		$serial = (string) $obj->serial_number;
+		if (!isset($covered[$serial])) {
+			$serials[] = $serial;
+		}
+	}
+
+	header('Content-Type: application/json');
+	print json_encode($serials);
+	exit;
 }
 
 $resql = $db->query($sql);
