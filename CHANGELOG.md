@@ -3,6 +3,8 @@
 ## [Unreleased] - Dolibarr 23 fork
 
 ### Added
+- New Warranty Claim now uses a customer warranty/device table instead of chained Product / serial / warranty dropdowns, with live search and Issue Date-aware Active/Expired status.
+- Explicit warranty-less service intake remains available as a separate, billable workflow.
 - Selectable warranty-duration source: Product integer extrafield in calendar months, or the original Warranty Type/day-based workflow.
 - Calendar-month warranty calculation with end-of-month clamping and an immutable `coverage_months` snapshot on each Product-field warranty.
 - Line-level warranties for ordinary non-serialized shipment lines, including originating shipment-line and covered-quantity tracking.
