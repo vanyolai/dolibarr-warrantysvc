@@ -218,14 +218,16 @@ foreach ($product_month_fields as $field_name => $field_label) {
 print '</select>';
 print '</td></tr>';
 
-// Default warranty coverage days (fallback)
-print '<tr class="oddeven">';
-print '<td>'.$langs->trans('DefaultCoverageDays').'<br><span class="opacitymedium">'
-	.$langs->trans('DefaultCoverageDaysDesc').'</span></td>';
-print '<td>';
-print '<input type="number" name="WARRANTYSVC_DEFAULT_COVERAGE_DAYS" value="'.((int) getDolGlobalInt('WARRANTYSVC_DEFAULT_COVERAGE_DAYS', 365)).'" class="flat width75" min="1" max="3650">';
-print ' '.$langs->trans('SvcDays');
-print '</td></tr>';
+// Default day-based coverage is legacy fallback only when no Product month field is configured.
+if (getDolGlobalString('WARRANTYSVC_PRODUCT_WARRANTY_MONTHS_FIELD') === '') {
+	print '<tr class="oddeven">';
+	print '<td>'.$langs->trans('DefaultCoverageDays').'<br><span class="opacitymedium">'
+		.$langs->trans('DefaultCoverageDaysDesc').'</span></td>';
+	print '<td>';
+	print '<input type="number" name="WARRANTYSVC_DEFAULT_COVERAGE_DAYS" value="'.((int) getDolGlobalInt('WARRANTYSVC_DEFAULT_COVERAGE_DAYS', 365)).'" class="flat width75" min="1" max="3650">';
+	print ' '.$langs->trans('SvcDays');
+	print '</td></tr>';
+}
 
 // Notify customer when warranty created
 print '<tr class="oddeven">';
