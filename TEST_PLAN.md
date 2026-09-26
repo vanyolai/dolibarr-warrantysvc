@@ -282,3 +282,17 @@
 | 7. Settings Verification | | | |
 | 8. Schema / Upgrade Safety | | | |
 | 9. Edge Cases | | | |
+
+## 2. SERVICE REQUEST / CLAIM WORKFLOW
+
+### 2.0 New Claim Warranty Picker
+- [ ] Select a customer — only that customer's non-voided WarrantySvc records appear in the table
+- [ ] Verify Product, serial/LOT, warranty ref, start, expiry and effective status columns
+- [ ] Change Issue Date across a warranty expiry boundary — Active/Expired status changes immediately
+- [ ] Search by Product ref/label, serial/LOT and warranty ref
+- [ ] Select a warranty row — Create becomes enabled and the submitted claim derives Product/serial from the selected Warranty record
+- [ ] Open New Warranty Claim from a warranty card — the corresponding row is pre-selected
+- [ ] Switch to warranty-less / other service intake — Product + optional serial controls appear and the claim starts billable
+- [ ] Switch back — manual controls hide and a Warranty row is required again
+- [ ] Change customer after selecting a warranty — previous selection is cleared
+
