@@ -1,7 +1,7 @@
 -- Copyright (C) 2026 DPG Supply
-ALTER TABLE llx_svc_warranty ADD INDEX idx_svc_warranty_serial (serial_number, entity);
-ALTER TABLE llx_svc_warranty ADD INDEX idx_svc_warranty_fk_soc (fk_soc);
-ALTER TABLE llx_svc_warranty ADD INDEX idx_svc_warranty_fk_product (fk_product);
-ALTER TABLE llx_svc_warranty ADD INDEX idx_svc_warranty_status (status);
-
-ALTER TABLE llx_svc_warranty ADD INDEX idx_svc_warranty_fk_expeditiondet (fk_expeditiondet);
+-- Idempotent indexes: Dolibarr can execute module key files again on re-enable.
+CREATE INDEX IF NOT EXISTS idx_svc_warranty_serial ON llx_svc_warranty (serial_number, entity);
+CREATE INDEX IF NOT EXISTS idx_svc_warranty_fk_soc ON llx_svc_warranty (fk_soc);
+CREATE INDEX IF NOT EXISTS idx_svc_warranty_fk_product ON llx_svc_warranty (fk_product);
+CREATE INDEX IF NOT EXISTS idx_svc_warranty_status ON llx_svc_warranty (status);
+CREATE INDEX IF NOT EXISTS idx_svc_warranty_fk_expeditiondet ON llx_svc_warranty (fk_expeditiondet);
