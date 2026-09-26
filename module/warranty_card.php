@@ -336,17 +336,23 @@ if ($action == 'create_from_shipment') {
 
 					$product_months = null;
 					$product_coverage_days = 0;
-					if ($product_month_field !== '') {
-						$month_error = '';
-						$product_months = warrantysvc_get_product_warranty_months($db, (int) $obj_ser->fk_product, (int) $conf->entity, $month_error);
-						if ($month_error !== '') {
+					if ($duration_source === 'product_field') {
+						$period_error = '';
+						$period = warrantysvc_compute_product_warranty_period(
+							$db,
+							(int) $obj_ser->fk_product,
+							(int) $conf->entity,
+							(int) $shipment_start_date,
+							$period_error
+						);
+						if ($period_error !== '') {
 							$serial_query_error = true;
-							setEventMessages($month_error, null, 'errors');
+							setEventMessages($period_error, null, 'errors');
 							break;
 						}
-						if ($product_months !== null && $product_months > 0) {
-							$product_expiry = warrantysvc_add_months_clamped($shipment_start_date, $product_months);
-							$product_coverage_days = $product_expiry ? (int) warrantysvc_calendar_days_between($shipment_start_date, $product_expiry) : 0;
+						if ($period !== null) {
+							$product_months = $period['months'];
+							$product_coverage_days = $period['days'];
 						}
 					}
 
