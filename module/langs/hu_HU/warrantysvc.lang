@@ -595,3 +595,21 @@ Billable = Számlázható
 ExpiryDate = Garancia vége
 ComponentOut = Kimenő alkatrész
 ComponentIn = Visszaérkező alkatrész
+
+#
+# Warranty claim unit picker
+#
+WarrantyCoveredUnit = Eszköz / garancia
+SearchWarrantyUnitPlaceholder = Keresés termékre, sorozat-/LOT-számra vagy garanciaazonosítóra...
+SelectCustomerForWarrantyUnits = Válassz partnert a regisztrált garanciák megjelenítéséhez.
+NoWarrantiesForCustomer = Ehhez a partnerhez nincs regisztrált garancia.
+NoWarrantiesMatchFilter = Nincs a keresésnek megfelelő garancia.
+SerialOrLot = Sorozat- / LOT-szám
+NoSerialNumber = Nincs sorozatszám
+WarrantyCoveredQuantity = Mennyiség: %s
+CreateClaimWithoutWarranty = Garancia nélküli / egyéb szervizigény
+CreateClaimWithoutWarrantyDesc = Olyan szervizügyhöz, amelyhez nem tartozik WarrantySvc garancia.
+BackToWarrantySelection = Vissza a garanciákhoz
+ManualClaimEntryWarning = Garancia nélküli szervizigény: nem kapcsolódik WarrantySvc garanciához, ezért az ügy alapértelmezetten számlázható.
+ErrorLoadingWarrantyUnits = Nem sikerült betölteni a partner garanciáit.
+ErrorWarrantyRequiredForClaim = Válassz garanciát, vagy válts garancia nélküli szervizigényre.
