@@ -147,6 +147,7 @@ if ($action == 'update' && $permwrite) {
 	$existing_coverage_terms = $object->coverage_terms;
 	$existing_exclusions = $object->exclusions;
 	$existing_coverage_months = (int) $object->coverage_months;
+	$existing_product_id = (int) $object->fk_product;
 	$object->fk_soc         = GETPOST('fk_soc', 'int');
 	$object->fk_product     = GETPOST('fk_product', 'int');
 	$object->serial_number  = GETPOST('serial_number', 'alpha');
@@ -161,7 +162,7 @@ if ($action == 'update' && $permwrite) {
 	$object->note_private   = GETPOST('note_private', 'restricthtml');
 
 	if ($duration_source === 'product_field') {
-		$months = $existing_coverage_months;
+		$months = ($existing_product_id === (int) $object->fk_product) ? $existing_coverage_months : 0;
 		if ($months <= 0) {
 			$period_error = '';
 			$period = warrantysvc_compute_product_warranty_period(
