@@ -1475,7 +1475,6 @@ if ($action != 'edit' && $object->id > 0) {
 	$tmparray = $form->showLinkToObjectBlock($object, array(), array('svcwarranty'), 1);
 	$linktoelem = isset($tmparray['linktoelem']) ? $tmparray['linktoelem'] : '';
 	$htmltoenteralink = isset($tmparray['htmltoenteralink']) ? $tmparray['htmltoenteralink'] : '';
-	$htmltoenteralink = warrantysvc_fix_orphan_linkto_labels($htmltoenteralink);
 	print $htmltoenteralink;
 	$somethingshown = $form->showLinkedObjectBlock($object, $linktoelem);
 }
