@@ -627,13 +627,16 @@ class InterfaceWarrantySvcTrigger extends DolibarrTriggers
 			$order_id = (int) $object->origin_id;
 		}
 
-		// Fetch serialized lines for this shipment
-		// llx_expeditiondet_batch.batch is the serial/lot string directly
-		$sql  = "SELECT edl.batch as serial_number, ed.fk_product";
-		$sql .= " FROM ".MAIN_DB_PREFIX."expeditiondet_batch edl";
-		$sql .= " JOIN ".MAIN_DB_PREFIX."expeditiondet ed ON ed.rowid = edl.fk_expeditiondet";
+		// Fetch every physical shipment line. Serialized/lot-tracked lines expand to
+		// one row per batch allocation; ordinary lines remain one row with NULL serial.
+		$sql  = "SELECT ed.rowid AS fk_expeditiondet, ed.fk_product, ed.qty AS line_qty,";
+		$sql .= " edl.batch AS serial_number, edl.qty AS batch_qty";
+		$sql .= " FROM ".MAIN_DB_PREFIX."expeditiondet ed";
+		$sql .= " LEFT JOIN ".MAIN_DB_PREFIX."expeditiondet_batch edl ON edl.fk_expeditiondet = ed.rowid";
+		$sql .= " JOIN ".MAIN_DB_PREFIX."product p ON p.rowid = ed.fk_product";
 		$sql .= " WHERE ed.fk_expedition = ".((int) $object->id);
-		$sql .= " AND edl.batch IS NOT NULL AND edl.batch != ''";
+		$sql .= " AND p.fk_product_type = 0";
+		$sql .= " ORDER BY ed.rowid ASC, edl.rowid ASC";
 
 		$resql = $this->db->query($sql);
 		if (!$resql) {
@@ -642,28 +645,44 @@ class InterfaceWarrantySvcTrigger extends DolibarrTriggers
 		}
 
 		while ($line = $this->db->fetch_object($resql)) {
-			// Skip if a warranty already exists for this serial ON THIS SHIPMENT
+			$serial_number = trim((string) $line->serial_number);
+			$has_serial = ($serial_number !== '');
+			$covered_qty = $has_serial ? (float) $line->batch_qty : (float) $line->line_qty;
+			if ($covered_qty <= 0) {
+				continue;
+			}
+
+			// Idempotency: a serialized/batched unit is unique within its shipment;
+			// an ordinary product warranty is unique by originating shipment line.
 			$sql_dup = "SELECT rowid FROM ".MAIN_DB_PREFIX."svc_warranty";
-			$sql_dup .= " WHERE serial_number = '".$this->db->escape($line->serial_number)."'";
-			$sql_dup .= " AND fk_expedition = ".((int) $object->id);
+			if ($has_serial) {
+				$sql_dup .= " WHERE serial_number = '".$this->db->escape($serial_number)."'";
+				$sql_dup .= " AND fk_expedition = ".((int) $object->id);
+				$sql_dup .= " AND fk_product = ".((int) $line->fk_product);
+			} else {
+				$sql_dup .= " WHERE fk_expeditiondet = ".((int) $line->fk_expeditiondet);
+				$sql_dup .= " AND (serial_number IS NULL OR serial_number = '')";
+			}
 			$sql_dup .= " AND entity = ".((int) $conf->entity);
 			$res_dup = $this->db->query($sql_dup);
 			if ($res_dup && $this->db->fetch_object($res_dup)) {
-				continue; // warranty already exists for this serial on this shipment
+				continue;
 			}
 
-			// Auto-void active warranties for this serial held by a DIFFERENT customer
-			// (unit was returned and resold). Same-customer warranties are kept (sub-coverage).
-			$sql_void = "SELECT rowid, fk_soc FROM ".MAIN_DB_PREFIX."svc_warranty";
-			$sql_void .= " WHERE serial_number = '".$this->db->escape($line->serial_number)."'";
-			$sql_void .= " AND status = 'active'";
-			$sql_void .= " AND entity = ".((int) $conf->entity);
-			$res_void = $this->db->query($sql_void);
-			if ($res_void) {
-				while ($row_void = $this->db->fetch_object($res_void)) {
-					if ((int) $row_void->fk_soc !== (int) $object->socid) {
-						$this->db->query("UPDATE ".MAIN_DB_PREFIX."svc_warranty SET status = 'voided' WHERE rowid = ".((int) $row_void->rowid));
-						dol_syslog('WarrantySvcTrigger: voided warranty '.$row_void->rowid.' for serial '.$line->serial_number.' (resold to different customer)', LOG_INFO);
+			// Auto-void active warranties only for a concrete serial that has been
+			// returned and then sold to a different customer.
+			if ($has_serial) {
+				$sql_void = "SELECT rowid, fk_soc FROM ".MAIN_DB_PREFIX."svc_warranty";
+				$sql_void .= " WHERE serial_number = '".$this->db->escape($serial_number)."'";
+				$sql_void .= " AND status = 'active'";
+				$sql_void .= " AND entity = ".((int) $conf->entity);
+				$res_void = $this->db->query($sql_void);
+				if ($res_void) {
+					while ($row_void = $this->db->fetch_object($res_void)) {
+						if ((int) $row_void->fk_soc !== (int) $object->socid) {
+							$this->db->query("UPDATE ".MAIN_DB_PREFIX."svc_warranty SET status = 'voided' WHERE rowid = ".((int) $row_void->rowid));
+							dol_syslog('WarrantySvcTrigger: voided warranty '.$row_void->rowid.' for serial '.$serial_number.' (resold to different customer)', LOG_INFO);
+						}
 					}
 				}
 			}
@@ -720,10 +739,12 @@ class InterfaceWarrantySvcTrigger extends DolibarrTriggers
 
 			// ---- Build warranty record ----
 			$warranty                  = new SvcWarranty($this->db);
-			$warranty->serial_number   = $line->serial_number;
+			$warranty->serial_number   = $has_serial ? $serial_number : null;
+			$warranty->covered_qty     = $covered_qty;
 			$warranty->fk_product      = $line->fk_product;
 			$warranty->fk_soc          = $object->socid;
 			$warranty->fk_expedition   = $object->id;
+			$warranty->fk_expeditiondet= $line->fk_expeditiondet;
 			$warranty->fk_commande     = $order_id;
 			$warranty->warranty_type   = $type_code ?: 'standard';
 			$warranty->coverage_terms  = $matched_type ? $matched_type->coverage_terms : '';
@@ -778,7 +799,7 @@ class InterfaceWarrantySvcTrigger extends DolibarrTriggers
 				}
 			} else {
 				dol_syslog(
-					'WarrantySvcTrigger: failed to create warranty for serial '.$line->serial_number.': '.$warranty->error,
+					'WarrantySvcTrigger: failed to create warranty for '.($has_serial ? 'serial '.$serial_number : 'shipment line '.$line->fk_expeditiondet).': '.$warranty->error,
 					LOG_WARNING
 				);
 			}
