@@ -119,6 +119,11 @@ if ($use_warranty_types && $search_wtype) {
 if ($search_status && $search_status != '-1') {
 	if ($search_status == 'active') {
 		$sql .= " AND t.status != 'voided' AND (".$eff_exp." IS NULL OR ".$eff_exp." >= '".$db->escape($today_date)."')";
+	} elseif ($search_status == 'expiring') {
+		$expiring_to = dol_print_date(dol_time_plus_duree(dol_now(), 30, 'd'), '%Y-%m-%d', 'tzserver');
+		$sql .= " AND t.status != 'voided'";
+		$sql .= " AND ".$eff_exp." >= '".$db->escape($today_date)."'";
+		$sql .= " AND ".$eff_exp." <= '".$db->escape($expiring_to)."'";
 	} elseif ($search_status == 'expired') {
 		$sql .= " AND t.status != 'voided' AND ".$eff_exp." < '".$db->escape($today_date)."'";
 	} elseif ($search_status == 'voided') {
