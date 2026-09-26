@@ -11,6 +11,7 @@
 - PHP syntax-lint workflow for the fork branch.
 
 ### Changed
+- WarrantySvc-specific UI labels now use module language keys with complete English and Hungarian translations; Dolibarr core-standard labels continue to use core translations.
 - Product-field mode has a single source of truth: the configured Product warranty-month field. Warranty Type menus, Product defaults, terms/exclusions and day-based controls are hidden in this mode.
 - Warranty start dates are resolved from shipment dates instead of creation time.
 - Warranty serial lookup avoids collation-sensitive joins against core shipment tables.
