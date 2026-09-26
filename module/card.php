@@ -19,6 +19,7 @@ require_once DOL_DOCUMENT_ROOT.'/core/class/html.formprojet.class.php';
 require_once DOL_DOCUMENT_ROOT.'/core/lib/date.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/custom/warrantysvc/class/svcrequest.class.php';
 require_once DOL_DOCUMENT_ROOT.'/custom/warrantysvc/class/svcrequestline.class.php';
+require_once DOL_DOCUMENT_ROOT.'/custom/warrantysvc/class/svcwarranty.class.php';
 require_once DOL_DOCUMENT_ROOT.'/custom/warrantysvc/lib/warrantysvc.lib.php';
 
 $langs->loadLangs(array('warrantysvc@warrantysvc', 'companies', 'bills', 'stocks'));
@@ -93,15 +94,30 @@ if ($action == 'add' && $permwrite) {
 	$object->fk_user_assigned  = GETPOST('fk_user_assigned', 'int');
 	// resolution_type is not set at intake — chosen during the Diagnosing stage
 
-	// Manual warranty pairing
+	// Manual warranty pairing. Warranty eligibility is evaluated at the
+	// claim issue date, not at page-render time or from the stored status value.
 	$fk_warranty_posted = GETPOST('fk_warranty', 'int');
 	if ($fk_warranty_posted > 0) {
-		require_once DOL_DOCUMENT_ROOT.'/custom/warrantysvc/class/svcwarranty.class.php';
 		$w = new SvcWarranty($db);
 		if ($w->fetch($fk_warranty_posted) > 0) {
-			$object->fk_warranty     = $w->id;
-			$object->warranty_status = $w->status;
-			$object->billable        = ($w->status == 'active') ? 0 : 1;
+			$warranty_matches = ((int) $w->fk_soc === (int) $object->fk_soc)
+				&& ((int) $w->fk_product === (int) $object->fk_product);
+			if ($warranty_matches && $object->serial_number !== '' && $w->serial_number !== null && $w->serial_number !== '') {
+				$warranty_matches = ((string) $w->serial_number === (string) $object->serial_number);
+			}
+
+			if (!$warranty_matches) {
+				$error++;
+				setEventMessages($langs->trans('ErrorWarrantyDoesNotMatchClaim'), null, 'errors');
+			} else {
+				$effective_warranty_status = $w->getStatusAt($object->issue_date);
+				$object->fk_warranty     = $w->id;
+				$object->warranty_status = $effective_warranty_status;
+				$object->billable        = ($effective_warranty_status === SvcWarranty::STATUS_ACTIVE) ? 0 : 1;
+			}
+		} else {
+			$error++;
+			setEventMessages($langs->trans('ErrorWarrantyNotFound'), null, 'errors');
 		}
 	}
 
@@ -111,7 +127,7 @@ if ($action == 'add' && $permwrite) {
 		$error++;
 	}
 
-	$result = $object->create($user);
+	$result = $error ? -1 : $object->create($user);
 	if ($result > 0) {
 		// Sync all FK-based links into element_element
 		$object->syncLinkedObjects();
