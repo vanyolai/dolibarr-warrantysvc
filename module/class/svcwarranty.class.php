@@ -109,6 +109,44 @@ class SvcWarranty extends CommonObject
 	}
 
 	/**
+	 * Check whether this shipment item already has a non-voided warranty.
+	 *
+	 * @return int Existing warranty rowid, 0 if free, -1 on database error
+	 */
+	private function findExistingShipmentWarranty()
+	{
+		if (empty($this->fk_expedition)) {
+			return 0;
+		}
+
+		$sql = "SELECT rowid FROM ".MAIN_DB_PREFIX."svc_warranty";
+		$sql .= " WHERE entity = ".((int) $this->entity);
+		$sql .= " AND fk_expedition = ".((int) $this->fk_expedition);
+		$sql .= " AND status <> '".self::STATUS_VOIDED."'";
+
+		if (!empty($this->serial_number)) {
+			$sql .= " AND fk_product = ".((int) $this->fk_product);
+			$sql .= " AND serial_number = '".$this->db->escape($this->serial_number)."'";
+		} elseif (!empty($this->fk_expeditiondet)) {
+			$sql .= " AND fk_expeditiondet = ".((int) $this->fk_expeditiondet);
+			$sql .= " AND (serial_number IS NULL OR serial_number = '')";
+		} else {
+			return 0;
+		}
+
+		$sql .= " LIMIT 1";
+		$resql = $this->db->query($sql);
+		if (!$resql) {
+			$this->error = $this->db->lasterror();
+			return -1;
+		}
+
+		$obj = $this->db->fetch_object($resql);
+		return $obj ? (int) $obj->rowid : 0;
+	}
+
+
+	/**
 	 * Create warranty in DB
 	 *
 	 * @param  User $user      User
@@ -129,6 +167,17 @@ class SvcWarranty extends CommonObject
 		$this->date_creation = $now;
 		$this->fk_user_creat = $user->id;
 		$this->entity = (int) $conf->entity;
+
+		$existingShipmentWarranty = $this->findExistingShipmentWarranty();
+		if ($existingShipmentWarranty < 0) {
+			$this->db->rollback();
+			return -1;
+		}
+		if ($existingShipmentWarranty > 0) {
+			$this->error = 'A non-voided warranty already exists for this shipment item (warranty id '.$existingShipmentWarranty.').';
+			$this->db->rollback();
+			return -1;
+		}
 
 		if (!empty($this->socid) && empty($this->fk_soc)) {
 			$this->fk_soc = $this->socid;
