@@ -53,20 +53,40 @@ $sql .= " AND ed.fk_product = ".((int) $fk_product);
 $sql .= " AND e.fk_statut >= 1";
 $sql .= " AND e.entity IN (".getEntity('expedition').")";
 $sql .= " AND edb.batch IS NOT NULL AND edb.batch != ''";
-$sql .= " AND NOT EXISTS (";
-$sql .= "   SELECT 1 FROM ".MAIN_DB_PREFIX."svc_warranty w";
-$sql .= "   WHERE w.serial_number = edb.batch";
-$sql .= "   AND w.fk_product = ed.fk_product";
-$sql .= "   AND w.status != 'voided'";
-$sql .= "   AND w.serial_number IS NOT NULL AND w.serial_number != ''";
-$sql .= "   AND w.entity IN (".getEntity('svcwarranty').")";
-$sql .= " )";
 $sql .= " ORDER BY e.rowid DESC, edb.batch ASC";
 
 $resql = $db->query($sql);
+if (!$resql) {
+	http_response_code(500);
+	header('Content-Type: application/json');
+	print json_encode(array('error' => $db->lasterror()));
+	exit;
+}
+
+// Resolve already-covered serials separately. Comparing in PHP avoids MariaDB/MySQL
+// collation conflicts between Dolibarr core batch columns and module-owned columns.
+$covered = array();
+$sqlw  = "SELECT serial_number FROM ".MAIN_DB_PREFIX."svc_warranty";
+$sqlw .= " WHERE fk_product = ".((int) $fk_product);
+$sqlw .= " AND status != 'voided'";
+$sqlw .= " AND serial_number IS NOT NULL AND serial_number != ''";
+$sqlw .= " AND entity IN (".getEntity('svcwarranty').")";
+$resw = $db->query($sqlw);
+if (!$resw) {
+	http_response_code(500);
+	header('Content-Type: application/json');
+	print json_encode(array('error' => $db->lasterror()));
+	exit;
+}
+while ($ow = $db->fetch_object($resw)) {
+	$covered[(string) $ow->serial_number] = true;
+}
+
 $serials = array();
-if ($resql) {
-	while ($obj = $db->fetch_object($resql)) {
+while ($obj = $db->fetch_object($resql)) {
+		if (isset($covered[(string) $obj->serial_number])) {
+			continue;
+		}
 		// Resolve best date: shipment → delivery → invoice → order
 		$origin_ts    = 0;
 		$origin_label = '';
@@ -111,7 +131,6 @@ if ($resql) {
 			'origin_year'    => $origin_year,
 			'origin_input'   => $origin_input,
 		);
-	}
 }
 
 header('Content-Type: application/json');
