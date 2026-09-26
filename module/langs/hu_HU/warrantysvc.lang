@@ -5,248 +5,248 @@
 #
 # Module
 #
-WarrantySvc = Warranty
-WarrantySvcDescription = Manage warranty claims, warranties, and RMA workflows for serialized equipment.
+WarrantySvc = Garancia
+WarrantySvcDescription = Garanciális igények, garanciák és RMA folyamatok kezelése sorozatszámos eszközökhöz.
 
 #
 # Menu
 #
-WarrantySvcMenu = Warranty & Service
-SvcRequests = Warranty Claims
-ServiceRequests = Warranty Claims
-NewSvcRequest = New Warranty Claim
-Warranties = Warranties
-NewWarranty = New Warranty
+WarrantySvcMenu = Garancia és szerviz
+SvcRequests = Garanciális igények
+ServiceRequests = Garanciális igények
+NewSvcRequest = Új garanciális igény
+Warranties = Garanciák
+NewWarranty = Új garancia
 
 #
 # Object labels
 #
-SvcRequest = Warranty Claim
-SvcRequests = Warranty Claims
-SvcWarranty = Warranty
-SvcWarranties = Warranties
-ServiceLog = Service Log
-LinkToWarranty = Link to warranty
-LinkToServiceRequest = Link to warranty claim
+SvcRequest = Garanciális igény
+SvcRequests = Garanciális igények
+SvcWarranty = Garancia
+SvcWarranties = Garanciák
+ServiceLog = Szerviznapló
+LinkToWarranty = Hivatkozás garanciára
+LinkToServiceRequest = Hivatkozás garanciális igényre
 
 #
 # Status labels
 #
-SvcDraft = Draft
-SvcValidated = Validated
-SvcDiagnosing = Diagnosing
-SvcInProgress = In Progress
-AwaitingReturn = Awaiting Return
-SvcResolved = Resolved
-SvcClosed = Closed
-SvcCancelled = Cancelled
+SvcDraft = Piszkozat
+SvcValidated = Hitelesítve
+SvcDiagnosing = Diagnosztika
+SvcInProgress = Folyamatban
+AwaitingReturn = Visszaküldésre vár
+SvcResolved = Megoldva
+SvcClosed = Lezárva
+SvcCancelled = Törölve
 
 #
 # Resolution types
 #
-ResolutionType = Resolution Type
-ResolutionTypeSelect = Select resolution type...
-ResolutionComponent = Component Shipment
-ResolutionComponentDesc = Ship a part to the customer. No return required.
-ResolutionComponentReturn = Component Shipment + Return
-ResolutionComponentReturnDesc = Ship a part and request the old part be returned for analysis.
-ResolutionSwapCross = Full Unit Swap — Cross Ship
-ResolutionSwapCrossDesc = Send a refurbished replacement now; customer returns faulty unit after.
-ResolutionSwapWait = Full Unit Swap — Wait for Return
-ResolutionSwapWaitDesc = Customer ships faulty unit first; we send replacement after receipt.
-ResolutionIntervention = On-Site Service
-ResolutionInterventionDesc = Technician visits the customer site. Optionally creates an Intervention.
-ResolutionGuidance = Guidance Only
-ResolutionGuidanceDesc = Provide troubleshooting steps or documentation. No physical action.
-ResolutionInformational = Informational
-ResolutionInformationalDesc = Customer call with no fault found. Machine operating as intended. Logged for audit.
+ResolutionType = Megoldás típusa
+ResolutionTypeSelect = Válassz megoldástípust...
+ResolutionComponent = Alkatrész küldése
+ResolutionComponentDesc = Alkatrész küldése az ügyfélnek. Visszaküldés nem szükséges.
+ResolutionComponentReturn = Alkatrész küldése + visszaküldés
+ResolutionComponentReturnDesc = Alkatrész küldése, a régi alkatrész visszakérése bevizsgálásra.
+ResolutionSwapCross = Teljes készülékcsere — keresztküldés
+ResolutionSwapCrossDesc = Felújított cserekészülék azonnali küldése; a hibás készüléket az ügyfél ezt követően küldi vissza.
+ResolutionSwapWait = Teljes készülékcsere — visszaérkezés után
+ResolutionSwapWaitDesc = Az ügyfél előbb visszaküldi a hibás készüléket; a csere ezután kerül kiküldésre.
+ResolutionIntervention = Helyszíni szerviz
+ResolutionInterventionDesc = Technikus kiszáll az ügyfél helyszínére. Igény szerint Beavatkozás hozható létre.
+ResolutionGuidance = Csak útmutatás
+ResolutionGuidanceDesc = Hibaelhárítási lépések vagy dokumentáció biztosítása. Nincs fizikai művelet.
+ResolutionInformational = Tájékoztató
+ResolutionInformationalDesc = Ügyfélhívás, amelynél nem igazolódott hiba. A berendezés rendeltetésszerűen működik; naplózva ellenőrzési célból.
 
 #
 # Field labels
 #
-SvcSerialNumber = Serial Number
-SerialIn = Returning Serial
-SerialOut = Replacement Serial
-IssueDescription = Issue Description
-IssueDate = Issue Date
-ReportedVia = Reported Via
-CustomerSite = Customer Site / Location
-ResolutionNotes = Resolution Notes
-WarrantyStatus = Warranty Status
-OutboundCarrier = Outbound Carrier
-OutboundTracking = Outbound Tracking
-DateShipped = Date Shipped
-ReturnCarrier = Return Carrier
-ReturnTracking = Return Tracking
-DateReturnExpected = Return Expected By
-DateReturnReceived = Return Received
-ReturnReminderCount = Reminders Sent
-SvcWarehouseSource = Replacement From Warehouse
-SvcWarehouseReturn = Return To Warehouse
-SealNumber = Security Seal #
-TooltipSealNumber = The unique number from the security sticker shipped with the repaired parts. Once applied by the customer, an intact seal confirms authorized warranty service was performed. A missing or broken seal voids warranty coverage.
-SealNumberPlaceholder = e.g. SEAL-2026-00001
-ConditionScore = Condition Score
-ConditionStatus = Condition
-ServiceHours = Service Hours
-ServiceCount = Times Serviced
-LastServiceDate = Last Service Date
+SvcSerialNumber = Sorozatszám
+SerialIn = Visszaérkező sorozatszám
+SerialOut = Cserekészülék sorozatszáma
+IssueDescription = Hibaleírás
+IssueDate = Bejelentés dátuma
+ReportedVia = Bejelentés módja
+CustomerSite = Ügyfél telephelye / helyszín
+ResolutionNotes = Megoldási megjegyzések
+WarrantyStatus = Garancia állapota
+OutboundCarrier = Kimenő fuvarozó
+OutboundTracking = Kimenő nyomkövetés
+DateShipped = Küldés dátuma
+ReturnCarrier = Visszaküldés fuvarozója
+ReturnTracking = Visszaküldés nyomkövetése
+DateReturnExpected = Visszaérkezés várható
+DateReturnReceived = Visszaérkezett
+ReturnReminderCount = Kiküldött emlékeztetők
+SvcWarehouseSource = Csere forrásraktára
+SvcWarehouseReturn = Visszáru raktára
+SealNumber = Biztonsági plombaszám
+TooltipSealNumber = A javított alkatrészekkel küldött biztonsági matrica egyedi száma. Az ép plomba igazolja, hogy engedélyezett garanciális javítás történt.
+SealNumberPlaceholder = pl. SEAL-2026-00001
+ConditionScore = Állapot pontszáma
+ConditionStatus = Állapot
+ServiceHours = Szervizórák
+ServiceCount = Szervizelések száma
+LastServiceDate = Utolsó szerviz dátuma
 
 #
 # Reported via options
 #
-ReportedViaPhone = Phone
-ReportedViaEmail = Email
-ReportedViaOnSite = On-Site
-ReportedViaOther = Other
+ReportedViaPhone = Telefon
+ReportedViaEmail = E-mail
+ReportedViaOnSite = Helyszínen
+ReportedViaOther = Egyéb
 
 #
 # Warranty type management
 #
-WarrantyType = Warranty Type
-WarrantyTypes = Warranty Types
-AddWarrantyType = Add Warranty Type
-WarrantyTypeAdded = Warranty type added.
-WarrantyTypeUpdated = Warranty type updated.
-WarrantyTypeDeleted = Warranty type deleted.
-WarrantyTypeLabel = e.g. Standard Warranty
-NoPredefinedType = No predefined type (manual)
-CoverageFromType = Legacy duration from warranty type
-DeleteWarrantyType = Delete Warranty Type
-ConfirmDeleteWarrantyType = Are you sure you want to delete this warranty type? Existing warranties using this type will retain their coverage but lose the type label.
-SelectWarrantyType = Select a warranty type...
-ErrorWarrantyTypeCodeLabelRequired = Code and label are required.
-StartDate = Start Date
-ExpiryDateCalculated = End date calculated from start date + warranty type duration
-CoverageDays = Coverage (days)
-CoverageTerms = Coverage Terms
-Exclusions = Exclusions
-ClaimCount = Claims Filed
-TotalClaimedValue = Total Claimed Value
+WarrantyType = Garanciatípus
+WarrantyTypes = Garanciatípusok
+AddWarrantyType = Garanciatípus hozzáadása
+WarrantyTypeAdded = Garanciatípus hozzáadva.
+WarrantyTypeUpdated = Garanciatípus frissítve.
+WarrantyTypeDeleted = Garanciatípus törölve.
+WarrantyTypeLabel = pl. Normál garancia
+NoPredefinedType = Nincs előre definiált típus (kézi)
+CoverageFromType = Örökölt időtartam a garanciatípusból
+DeleteWarrantyType = Garanciatípus törlése
+ConfirmDeleteWarrantyType = Biztosan törlöd ezt a garanciatípust? A már meglévő garanciák időtartama megmarad, de a típusmegnevezés elveszik.
+SelectWarrantyType = Válassz garanciatípust...
+ErrorWarrantyTypeCodeLabelRequired = A kód és a megnevezés kötelező.
+StartDate = Kezdő dátum
+ExpiryDateCalculated = A lejárat a kezdő dátum és a garanciatípus időtartama alapján számítódik
+CoverageDays = Garancia időtartama (nap)
+CoverageTerms = Garanciális feltételek
+Exclusions = Kizárások
+ClaimCount = Bejelentett igények
+TotalClaimedValue = Igények összértéke
 
 #
 # Warranty status badges
 #
-SvcActive = Active
-SvcExpired = Expired
-SvcVoided = Voided
-NoCoverage = No Coverage
+SvcActive = Aktív
+SvcExpired = Lejárt
+SvcVoided = Érvénytelenített
+NoCoverage = Nincs garancia
 
 #
 # Condition status labels
 #
-ConditionGood = Good
-ConditionFair = Fair
-ConditionPoor = Poor
-ConditionScrap = Scrap / Write-Off
+ConditionGood = Jó
+ConditionFair = Közepes
+ConditionPoor = Gyenge
+ConditionScrap = Selejt / leírandó
 
 #
 # Replacement selection strategies
 #
-StrategyFIFO = FIFO (oldest refurb stock first)
-StrategyLeastServiced = Least Serviced (lowest service count)
-StrategyBestCondition = Best Condition (lowest condition score)
-StrategyManual = Manual Selection
+StrategyFIFO = FIFO (legrégebbi felújított készlet először)
+StrategyLeastServiced = Legkevesebbet szervizelt
+StrategyBestCondition = Legjobb állapot
+StrategyManual = Kézi kiválasztás
 
 #
 # Action buttons
 #
-ValidateSvcRequest = Validate
-BeginDiagnosis = Begin Diagnosis
-OpenTroubleshoot = Open Troubleshoot
-SetInProgress = Set In Progress
-SendReplacement = Send Replacement
-ReceiveReturn = Receive Return
-CreateIntervention = Create Intervention
-MarkResolved = Mark Resolved
-CloseSvcRequest = Close
-ReopenSvcRequest = Re-open
-CancelSvcRequest = Cancel
-DeleteSvcRequest = Delete Warranty Claim
+ValidateSvcRequest = Hitelesítés
+BeginDiagnosis = Diagnosztika indítása
+OpenTroubleshoot = Hibaelhárítás megnyitása
+SetInProgress = Folyamatban állapotra
+SendReplacement = Csere küldése
+ReceiveReturn = Visszáru átvétele
+CreateIntervention = Beavatkozás létrehozása
+MarkResolved = Megoldottnak jelölés
+CloseSvcRequest = Lezárás
+ReopenSvcRequest = Újranyitás
+CancelSvcRequest = Garanciális igény törlése
+DeleteSvcRequest = Garanciális igény végleges törlése
 SvcRequestCancelledWithShipmentWarning = Warranty claim cancelled. Linked shipment (ID: %s) still exists — <a href="%s">view it in the Shipments module</a> and cancel or delete it manually if no longer needed.
 ConfirmCancelSvcRequest = Are you sure you want to cancel this warranty claim? This cannot be undone without re-opening.
 ConfirmReopenSvcRequest = Are you sure you want to re-open this warranty claim?
 ConfirmDeleteSvcRequest = Are you sure you want to permanently delete warranty claim %s? This action cannot be undone.
-SendReminder = Send Return Reminder
+SendReminder = Visszaküldési emlékeztető küldése
 SvcDiagnosingStarted = Diagnosis started
 SvcChooseResolutionAfterDiagnosis = Choose a resolution type once diagnosis is complete
 SvcRequestNotInValidatedStatus = This warranty claim must be validated before it can enter diagnosis.
 SvcRequestNotInDiagnosingStatus = This warranty claim is not in a state that allows moving to In Progress.
 SvcRequestResolutionTypeRequiredBeforeProgress = Choose a resolution type before moving to In Progress.
-InvoiceNonReturn = Invoice for Non-Return
-VoidWarranty = Void Warranty
+InvoiceNonReturn = Nem visszaküldött tétel számlázása
+VoidWarranty = Garancia érvénytelenítése
 
 #
 # Section headings
 #
-SectionResolution = Resolution
-SectionComponents = Components / Parts
-SectionWarranty = Warranty Coverage
-SectionShipping = Outbound Shipment
-SectionReturn = Return Tracking
-SectionLinkedObjects = Linked Objects
+SectionResolution = Megoldás
+SectionComponents = Alkatrészek
+SectionWarranty = Garancia
+SectionShipping = Kimenő szállítás
+SectionReturn = Visszaküldés követése
+SectionLinkedObjects = Kapcsolódó objektumok
 
 #
 # Info/status banners
 #
-WarrantyCoveredBanner = This warranty claim is covered under active warranty.
-WarrantyExpiredBanner = Warranty has expired. This claim is billable.
-WarrantyNoneBanner = No warranty on file for this serial number. This claim is billable.
-NoSerialSelected = No serial number selected — warranty cannot be checked.
+WarrantyCoveredBanner = A garanciális igény aktív garancia alá tartozik.
+WarrantyExpiredBanner = A garancia lejárt. Az igény számlázható.
+WarrantyNoneBanner = Ehhez a sorozatszámhoz nincs nyilvántartott garancia. Az igény számlázható.
+NoSerialSelected = Nincs sorozatszám kiválasztva — a garancia nem ellenőrizhető.
 
 #
 # PDF document labels
 #
-SvcRequestSlip = Warranty Claim Authorization
-ReturnInstructions = Return Instructions
-ReturnShipTo = Please return the unit to:
-EstimatedResolution = Estimated Resolution
-DatePrinted = Printed
-ComponentLines = Component Lines
-TrackingInfo = Tracking Information
-LineType = Type
-SvcShipped = Shipped
-LineTypeComponentOut = Outbound Part
-LineTypeComponentIn = Return Part
-LineTypeConsumedSite = Consumed On-Site
-TechnicianSignature = Technician Signature
-CustomerSignature = Customer Signature
-DateSigned = Date
-SerialOut = Replacement Serial
-SerialIn = Returned Serial
-OutboundCarrier = Outbound Carrier
-OutboundTracking = Outbound Tracking #
-ReturnCarrier = Return Carrier
-ReturnTracking = Return Tracking #
-IssueDescription = Issue Description
-ResolutionNotes = Resolution Notes
+SvcRequestSlip = Garanciális igény engedélyezése
+ReturnInstructions = Visszaküldési utasítások
+ReturnShipTo = A készüléket ide küldje vissza:
+EstimatedResolution = Várható megoldás
+DatePrinted = Nyomtatás dátuma
+ComponentLines = Alkatrésztételek
+TrackingInfo = Nyomkövetési adatok
+LineType = Típus
+SvcShipped = Kiszállítva
+LineTypeComponentOut = Kimenő alkatrész
+LineTypeComponentIn = Visszaérkező alkatrész
+LineTypeConsumedSite = Helyszínen felhasznált
+TechnicianSignature = Technikus aláírása
+CustomerSignature = Ügyfél aláírása
+DateSigned = Dátum
+SerialOut = Cserekészülék sorozatszáma
+SerialIn = Visszaérkező sorozatszám
+OutboundCarrier = Kimenő fuvarozó
+OutboundTracking = Kimenő nyomkövetés
+ReturnCarrier = Visszaküldés fuvarozója
+ReturnTracking = Visszaküldés nyomkövetése
+IssueDescription = Hibaleírás
+ResolutionNotes = Megoldási megjegyzések
 
 #
 # Tabs
 #
-SvcDetails = Details
-SvcNotes = Notes
-SvcDocuments = Documents
-Troubleshoot = Troubleshoot
+SvcDetails = Részletek
+SvcNotes = Megjegyzések
+SvcDocuments = Dokumentumok
+Troubleshoot = Hibaelhárítás
 
 #
 # Troubleshooting workflow
 #
-TroubleshootSaved = Troubleshoot findings saved.
-TroubleshootSummary = Summary
-TroubleshootOutcome = Outcome
-SelectOutcome = Select outcome...
-TroubleshootOutcome_resolved = Issue resolved during call — no action needed
-TroubleshootOutcome_no_fault = No fault found — machine operating correctly
-TroubleshootOutcome_escalate = Escalate to senior technician
-TroubleshootOutcome_parts_needed = Parts needed — follow up with component shipment
-TroubleshootOutcome_intervention = On-site service required
-SvcDone = Done
-DiagnosticStep = Diagnostic Step
-Finding = Finding
-FindingOptional = Optional note
-PreviousTroubleshootSessions = Previous Troubleshoot Sessions
-SaveFindings = Save Findings
+TroubleshootSaved = Hibaelhárítási eredmények elmentve.
+TroubleshootSummary = Összefoglaló
+TroubleshootOutcome = Eredmény
+SelectOutcome = Válassz eredményt...
+TroubleshootOutcome_resolved = A probléma a hívás során megoldódott — nincs további teendő
+TroubleshootOutcome_no_fault = Nem találtunk hibát — a berendezés megfelelően működik
+TroubleshootOutcome_escalate = Továbbítás tapasztaltabb technikushoz
+TroubleshootOutcome_parts_needed = Alkatrész szükséges — alkatrészküldés következik
+TroubleshootOutcome_intervention = Helyszíni szerviz szükséges
+SvcDone = Kész
+DiagnosticStep = Diagnosztikai lépés
+Finding = Megállapítás
+FindingOptional = Opcionális megjegyzés
+PreviousTroubleshootSessions = Korábbi hibaelhárítások
+SaveFindings = Eredmények mentése
 
 # Checklist steps — Safety
 ChecklistSafetyPowerOff = Confirm unit is powered off before inspection
@@ -382,7 +382,7 @@ NotYetScheduled = Not yet scheduled
 ReturnPending = Awaiting return
 ExpectedBy = Expected by
 ShipmentRef = Shipment
-ComponentLines = Component Lines
+ComponentLines = Alkatrésztételek
 ScheduleIntervention = Schedule Intervention
 Overdue = Overdue
 SvcConfirm = Confirm
@@ -485,18 +485,18 @@ WarrantyVariantOverride = variant override
 
 # Unit Service History
 UnitServiceHistory = Unit Service History
-ServiceCount = Times Serviced
-ServiceHours = Total Service Hours
-ConditionStatus = Condition
-ConditionScore = Condition Score
+ServiceCount = Szervizelések száma
+ServiceHours = Szervizórák
+ConditionStatus = Állapot
+ConditionScore = Állapot pontszáma
 ConditionNotes = Condition Notes
-LastServiceDate = Last Service Date
+LastServiceDate = Utolsó szerviz dátuma
 LowerIsBetter = lower is better
 NoServiceHistory = No service history recorded for this serial.
-ConditionGood = Good
-ConditionFair = Fair
-ConditionPoor = Poor
-ConditionScrap = Scrap
+ConditionGood = Jó
+ConditionFair = Közepes
+ConditionPoor = Gyenge
+ConditionScrap = Selejt / leírandó
 
 # Debug
 DebugMode = Debug Mode
