@@ -72,6 +72,11 @@ if ($action == 'add' && $permwrite) {
 	$object->exclusions     = $duration_source === 'warranty_type' ? GETPOST('exclusions', 'restricthtml') : '';
 	$object->fk_commande    = GETPOST('fk_commande', 'int');
 	$object->fk_expedition  = GETPOST('fk_expedition', 'int');
+	$object->fk_expeditiondet = GETPOST('fk_expeditiondet', 'int');
+	$posted_covered_qty = price2num(GETPOST('covered_qty', 'alphanohtml'), 'MS');
+	if ($posted_covered_qty > 0) {
+		$object->covered_qty = $posted_covered_qty;
+	}
 	$object->note_public    = GETPOST('note_public', 'restricthtml');
 	$object->note_private   = GETPOST('note_private', 'restricthtml');
 
