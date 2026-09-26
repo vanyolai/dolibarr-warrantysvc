@@ -596,6 +596,10 @@ class InterfaceWarrantySvcTrigger extends DolibarrTriggers
 		require_once DOL_DOCUMENT_ROOT.'/custom/warrantysvc/class/svcwarrantytype.class.php';
 
 		$global_coverage_days = getDolGlobalInt('WARRANTYSVC_DEFAULT_COVERAGE_DAYS', 365);
+		$duration_source = getDolGlobalString(
+			'WARRANTYSVC_DURATION_SOURCE',
+			getDolGlobalString('WARRANTYSVC_PRODUCT_WARRANTY_MONTHS_FIELD') !== '' ? 'product_field' : 'warranty_type'
+		);
 
 		// Resolve the contractual warranty start from the shipment, not from the
 		// time this trigger happens to run.
@@ -608,9 +612,15 @@ class InterfaceWarrantySvcTrigger extends DolibarrTriggers
 		// Validate the optional Product integer extrafield used as warranty months.
 		// If an administrator configured a field that later disappears or changes
 		// type, stop rather than silently issuing warranties with the wrong period.
-		$product_month_field = trim(getDolGlobalString('WARRANTYSVC_PRODUCT_WARRANTY_MONTHS_FIELD'));
+		$product_month_field = $duration_source === 'product_field'
+			? trim(getDolGlobalString('WARRANTYSVC_PRODUCT_WARRANTY_MONTHS_FIELD'))
+			: '';
 		$product_month_field_error = '';
-		if ($product_month_field !== '') {
+		if ($duration_source === 'product_field') {
+			if ($product_month_field === '') {
+				dol_syslog('WarrantySvcTrigger: Product-field duration mode is active but no Product warranty-duration field is configured', LOG_ERR);
+				return;
+			}
 			warrantysvc_get_product_month_field($this->db, (int) $conf->entity, $product_month_field_error);
 			if ($product_month_field_error !== '') {
 				dol_syslog('WarrantySvcTrigger: '.$product_month_field_error, LOG_ERR);
@@ -618,8 +628,8 @@ class InterfaceWarrantySvcTrigger extends DolibarrTriggers
 			}
 		}
 
-		// Pre-load all active warranty types (used for coverage_terms/exclusions lookup)
-		$all_types = SvcWarrantyType::fetchAllForForm($this->db);
+		// Warranty Types are only part of the upstream duration mode.
+		$all_types = $duration_source === 'warranty_type' ? SvcWarrantyType::fetchAllForForm($this->db) : array();
 
 		// Resolve order ID from shipment origin
 		$order_id = 0;
@@ -687,53 +697,45 @@ class InterfaceWarrantySvcTrigger extends DolibarrTriggers
 				}
 			}
 
-			// ---- Resolve warranty type: product default > first active type > 'standard' ----
+			// ---- Resolve upstream Warranty Type only in Warranty Type duration mode ----
 			$type_code = '';
 			$product_coverage_days = 0;
-
-			// 1. Check product-specific warranty default
-			$sql_pd  = "SELECT warranty_type, coverage_days FROM ".MAIN_DB_PREFIX."warrantysvc_product_default";
-			$sql_pd .= " WHERE fk_product = ".((int) $line->fk_product)." AND entity = ".((int) $conf->entity);
-			$res_pd  = $this->db->query($sql_pd);
-			$row_pd  = ($res_pd) ? $this->db->fetch_object($res_pd) : null;
-
-			// 2. If not found, check parent product (variant cascade)
-			if (!$row_pd && isModEnabled('variants')) {
-				$sql_par  = "SELECT fk_product_parent FROM ".MAIN_DB_PREFIX."product_attribute_combination";
-				$sql_par .= " WHERE fk_product_child = ".((int) $line->fk_product);
-				$sql_par .= " AND entity IN (".getEntity('product').")";
-				$res_par  = $this->db->query($sql_par);
-				if ($res_par && ($row_par = $this->db->fetch_object($res_par))) {
-					$sql_pd2  = "SELECT warranty_type, coverage_days FROM ".MAIN_DB_PREFIX."warrantysvc_product_default";
-					$sql_pd2 .= " WHERE fk_product = ".((int) $row_par->fk_product_parent)." AND entity = ".((int) $conf->entity);
-					$res_pd2  = $this->db->query($sql_pd2);
-					$row_pd   = ($res_pd2) ? $this->db->fetch_object($res_pd2) : null;
-				}
-			}
-
-			if ($row_pd && !empty($row_pd->warranty_type)) {
-				$type_code = $row_pd->warranty_type;
-				// When a Product month extrafield is configured, it is the only
-				// product-level duration source. coverage_days remains a legacy fallback
-				// only for installations that do not configure the month source.
-				if ($product_month_field === '') {
-					$product_coverage_days = ($row_pd->coverage_days > 0) ? (int) $row_pd->coverage_days : 0;
-				}
-			}
-
-			// 3. Find the matching type object for coverage_terms and exclusions
 			$matched_type = null;
-			if ($all_types) {
-				foreach ($all_types as $wt) {
-					if ($type_code && $wt->code === $type_code) {
-						$matched_type = $wt;
-						break;
+			if ($duration_source === 'warranty_type') {
+				$sql_pd  = "SELECT warranty_type, coverage_days FROM ".MAIN_DB_PREFIX."warrantysvc_product_default";
+				$sql_pd .= " WHERE fk_product = ".((int) $line->fk_product)." AND entity = ".((int) $conf->entity);
+				$res_pd  = $this->db->query($sql_pd);
+				$row_pd  = ($res_pd) ? $this->db->fetch_object($res_pd) : null;
+
+				if (!$row_pd && isModEnabled('variants')) {
+					$sql_par  = "SELECT fk_product_parent FROM ".MAIN_DB_PREFIX."product_attribute_combination";
+					$sql_par .= " WHERE fk_product_child = ".((int) $line->fk_product);
+					$sql_par .= " AND entity IN (".getEntity('product').")";
+					$res_par  = $this->db->query($sql_par);
+					if ($res_par && ($row_par = $this->db->fetch_object($res_par))) {
+						$sql_pd2  = "SELECT warranty_type, coverage_days FROM ".MAIN_DB_PREFIX."warrantysvc_product_default";
+						$sql_pd2 .= " WHERE fk_product = ".((int) $row_par->fk_product_parent)." AND entity = ".((int) $conf->entity);
+						$res_pd2  = $this->db->query($sql_pd2);
+						$row_pd   = ($res_pd2) ? $this->db->fetch_object($res_pd2) : null;
 					}
 				}
-				// Fallback to first active type if no product-specific match
-				if (!$matched_type) {
-					$matched_type = $all_types[0];
-					$type_code = $matched_type->code;
+
+				if ($row_pd && !empty($row_pd->warranty_type)) {
+					$type_code = $row_pd->warranty_type;
+					$product_coverage_days = ($row_pd->coverage_days > 0) ? (int) $row_pd->coverage_days : 0;
+				}
+
+				if ($all_types) {
+					foreach ($all_types as $wt) {
+						if ($type_code && $wt->code === $type_code) {
+							$matched_type = $wt;
+							break;
+						}
+					}
+					if (!$matched_type) {
+						$matched_type = $all_types[0];
+						$type_code = $matched_type->code;
+					}
 				}
 			}
 
@@ -746,9 +748,9 @@ class InterfaceWarrantySvcTrigger extends DolibarrTriggers
 			$warranty->fk_expedition   = $object->id;
 			$warranty->fk_expeditiondet= $line->fk_expeditiondet;
 			$warranty->fk_commande     = $order_id;
-			$warranty->warranty_type   = $type_code ?: 'standard';
-			$warranty->coverage_terms  = $matched_type ? $matched_type->coverage_terms : '';
-			$warranty->exclusions      = $matched_type ? $matched_type->exclusions : '';
+			$warranty->warranty_type   = ($duration_source === 'warranty_type' && $type_code !== '') ? $type_code : null;
+			$warranty->coverage_terms  = ($duration_source === 'warranty_type' && $matched_type) ? $matched_type->coverage_terms : '';
+			$warranty->exclusions      = ($duration_source === 'warranty_type' && $matched_type) ? $matched_type->exclusions : '';
 			$warranty->start_date      = $warranty_start;
 
 			$product_months = null;
@@ -761,8 +763,8 @@ class InterfaceWarrantySvcTrigger extends DolibarrTriggers
 				}
 			}
 
-			if ($product_month_field !== '') {
-				// A configured Product month field is the single source of truth for
+			if ($duration_source === 'product_field') {
+				// The configured Product month field is the single source of truth for
 				// automatic customer-warranty duration. Warranty type never overrides it.
 				if ($product_months === null || $product_months <= 0) {
 					dol_syslog('WarrantySvcTrigger: skipped automatic warranty for product '.$line->fk_product.' because the configured Product warranty period is blank/zero', LOG_WARNING);
