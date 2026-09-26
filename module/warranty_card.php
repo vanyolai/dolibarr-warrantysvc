@@ -79,21 +79,24 @@ if ($action == 'add' && $permwrite) {
 	if ($manual_expiry) {
 		$object->expiry_date = $manual_expiry;
 	} else {
-		// When a Product warranty-month field is configured and this Product has
-		// a positive value, calendar months are authoritative. Recompute on the
-		// server from the submitted start date instead of trusting the derived
-		// coverage_days value from the browser.
-		$month_error = '';
-		$product_months = warrantysvc_get_product_warranty_months($db, (int) $object->fk_product, (int) $conf->entity, $month_error);
-		if ($month_error !== '') {
-			$object->error = $month_error;
-		} elseif ($product_months !== null && $product_months > 0) {
-			$calendar_expiry = warrantysvc_add_months_clamped($object->start_date, $product_months);
-			if ($calendar_expiry === null) {
-				$object->error = $langs->trans('ErrorWarrantyCalendarExpiry');
+		// When configured, the Product warranty-month field is the single source
+		// of truth for duration. Warranty type is a terms/exclusions profile only.
+		$product_month_field = trim(getDolGlobalString('WARRANTYSVC_PRODUCT_WARRANTY_MONTHS_FIELD'));
+		if ($product_month_field !== '') {
+			$month_error = '';
+			$product_months = warrantysvc_get_product_warranty_months($db, (int) $object->fk_product, (int) $conf->entity, $month_error);
+			if ($month_error !== '') {
+				$object->error = $month_error;
+			} elseif ($product_months === null || $product_months <= 0) {
+				$object->error = $langs->trans('ErrorProductWarrantyPeriodMissing');
 			} else {
-				$object->expiry_date = $calendar_expiry;
-				$object->coverage_days = warrantysvc_calendar_days_between($object->start_date, $calendar_expiry);
+				$calendar_expiry = warrantysvc_add_months_clamped($object->start_date, $product_months);
+				if ($calendar_expiry === null) {
+					$object->error = $langs->trans('ErrorWarrantyCalendarExpiry');
+				} else {
+					$object->expiry_date = $calendar_expiry;
+					$object->coverage_days = warrantysvc_calendar_days_between($object->start_date, $calendar_expiry);
+				}
 			}
 		}
 	}
@@ -411,6 +414,7 @@ if ($action == 'create_from_shipment') {
 			print '<script>(function(){
 	var smap  = '.$serial_product_map.';
 	var wtdef = '.$wtype_defaults_js.';
+	var usesProductMonths = '.(trim(getDolGlobalString('WARRANTYSVC_PRODUCT_WARRANTY_MONTHS_FIELD')) !== '' ? 'true' : 'false').';
 	var selSer  = document.querySelector("[name=serial_number]");
 	var selType = document.querySelector("[name=warranty_type]");
 	var inpProd = document.getElementById("fk_product");
@@ -420,6 +424,7 @@ if ($action == 'create_from_shipment') {
 	var btn     = document.getElementById("btn_save_ship");
 	var fromTypeText = "'.dol_escape_js($langs->trans('CoverageFromType')).'";
 	var fromProductText = "'.dol_escape_js($langs->trans('CoverageFromProductMonths', '__MONTHS__')).'";
+	var missingProductText = "'.dol_escape_js($langs->trans('ProductWarrantyPeriodMissing')).'";
 	function syncSerial(){
 		var s = selSer ? selSer.value : "";
 		if(s && smap[s]){
@@ -440,6 +445,15 @@ if ($action == 'create_from_shipment') {
 			inpCov.readOnly = true;
 			inpCov.style.opacity = "0.5";
 			if(hint){ hint.textContent = fromProductText.replace("__MONTHS__", smap[serial].coverage_months); hint.style.display = ""; }
+			if(btn) btn.disabled = false;
+			return;
+		}
+		if(usesProductMonths){
+			inpCov.value = "";
+			inpCov.readOnly = true;
+			inpCov.style.opacity = "0.5";
+			if(hint){ hint.textContent = missingProductText; hint.style.display = ""; }
+			if(btn) btn.disabled = true;
 			return;
 		}
 		var code = selType ? selType.value : "";
