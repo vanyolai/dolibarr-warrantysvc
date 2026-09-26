@@ -163,16 +163,16 @@ CloseSvcRequest = Lezárás
 ReopenSvcRequest = Újranyitás
 CancelSvcRequest = Garanciális igény törlése
 DeleteSvcRequest = Garanciális igény végleges törlése
-SvcRequestCancelledWithShipmentWarning = Warranty claim cancelled. Linked shipment (ID: %s) still exists — <a href="%s">view it in the Shipments module</a> and cancel or delete it manually if no longer needed.
-ConfirmCancelSvcRequest = Are you sure you want to cancel this warranty claim? This cannot be undone without re-opening.
-ConfirmReopenSvcRequest = Are you sure you want to re-open this warranty claim?
-ConfirmDeleteSvcRequest = Are you sure you want to permanently delete warranty claim %s? This action cannot be undone.
+SvcRequestCancelledWithShipmentWarning = A garanciális igény törölve. A kapcsolt szállítmány (ID: %s) továbbra is létezik — <a href="%s">nyisd meg a Szállítmányok modulban</a>, és szükség esetén kézzel töröld vagy érvénytelenítsd.
+ConfirmCancelSvcRequest = Biztosan törölni szeretnéd ezt a garanciális igényt? Ez csak újranyitással vonható vissza.
+ConfirmReopenSvcRequest = Biztosan újra szeretnéd nyitni ezt a garanciális igényt?
+ConfirmDeleteSvcRequest = Biztosan véglegesen törölni szeretnéd a(z) %s garanciális igényt? A művelet nem vonható vissza.
 SendReminder = Visszaküldési emlékeztető küldése
-SvcDiagnosingStarted = Diagnosis started
-SvcChooseResolutionAfterDiagnosis = Choose a resolution type once diagnosis is complete
-SvcRequestNotInValidatedStatus = This warranty claim must be validated before it can enter diagnosis.
-SvcRequestNotInDiagnosingStatus = This warranty claim is not in a state that allows moving to In Progress.
-SvcRequestResolutionTypeRequiredBeforeProgress = Choose a resolution type before moving to In Progress.
+SvcDiagnosingStarted = Diagnosztika elindítva
+SvcChooseResolutionAfterDiagnosis = A diagnosztika befejezése után válassz megoldástípust
+SvcRequestNotInValidatedStatus = A garanciális igényt a diagnosztika megkezdése előtt hitelesíteni kell.
+SvcRequestNotInDiagnosingStatus = A garanciális igény jelenlegi állapotából nem helyezhető Folyamatban állapotba.
+SvcRequestResolutionTypeRequiredBeforeProgress = A Folyamatban állapotba helyezés előtt válassz megoldástípust.
 InvoiceNonReturn = Nem visszaküldött tétel számlázása
 VoidWarranty = Garancia érvénytelenítése
 
