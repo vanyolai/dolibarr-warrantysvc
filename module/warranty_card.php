@@ -216,7 +216,10 @@ if ($action == 'create_from_shipment') {
 		$expedition = new Expedition($db);
 		$presoc     = ($expedition->fetch($fk_expedition_src) > 0) ? (int) $expedition->socid : 0;
 
-		// Serials in this shipment that don't yet have a warranty
+		// Serials in this shipment that don't yet have a warranty.
+		// Candidate serials and module warranty rows are queried separately: comparing
+		// expeditiondet_batch.batch directly to svc_warranty.serial_number in SQL can
+		// fail on existing Dolibarr databases when their collations differ.
 		$sql_ser  = "SELECT edl.batch as serial_number, ed.fk_product,";
 		$sql_ser .= " p.ref as product_ref, p.label as product_label";
 		$sql_ser .= " FROM ".MAIN_DB_PREFIX."expeditiondet_batch edl";
@@ -224,28 +227,45 @@ if ($action == 'create_from_shipment') {
 		$sql_ser .= " JOIN ".MAIN_DB_PREFIX."product p ON p.rowid = ed.fk_product";
 		$sql_ser .= " WHERE ed.fk_expedition = ".((int) $fk_expedition_src);
 		$sql_ser .= " AND edl.batch IS NOT NULL AND edl.batch != ''";
-		$sql_ser .= " AND NOT EXISTS (";
-		$sql_ser .= "   SELECT 1 FROM ".MAIN_DB_PREFIX."svc_warranty w";
-		$sql_ser .= "   WHERE w.serial_number = edl.batch";
-		$sql_ser .= "   AND w.fk_product = ed.fk_product";
-		$sql_ser .= "   AND w.status != 'voided'";
-		$sql_ser .= "   AND w.serial_number IS NOT NULL AND w.serial_number != ''";
-		$sql_ser .= "   AND w.entity IN (".getEntity('svcwarranty').")";
-		$sql_ser .= " )";
 		$res_ser = $db->query($sql_ser);
 
 		$serial_options     = array('' => '— '.$langs->trans('SelectSerial').' —');
 		$serial_product_map = '{';
-		if ($res_ser) {
-			while ($obj_ser = $db->fetch_object($res_ser)) {
-				$opt_label = $obj_ser->serial_number.' — '.$obj_ser->product_ref.($obj_ser->product_label ? ' '.$obj_ser->product_label : '');
-				$serial_options[$obj_ser->serial_number] = $opt_label;
-				$serial_product_map .= '"'.dol_escape_js($obj_ser->serial_number).'":{"fk_product":'.((int) $obj_ser->fk_product).',"label":"'.dol_escape_js($obj_ser->product_ref.($obj_ser->product_label ? ' — '.$obj_ser->product_label : '')).'"},';
+		$serial_query_error = false;
+		$covered = array();
+
+		if (!$res_ser) {
+			$serial_query_error = true;
+			setEventMessages($db->lasterror(), null, 'errors');
+		} else {
+			$sql_cov  = "SELECT fk_product, serial_number FROM ".MAIN_DB_PREFIX."svc_warranty";
+			$sql_cov .= " WHERE status != 'voided'";
+			$sql_cov .= " AND serial_number IS NOT NULL AND serial_number != ''";
+			$sql_cov .= " AND entity IN (".getEntity('svcwarranty').")";
+			$res_cov = $db->query($sql_cov);
+			if (!$res_cov) {
+				$serial_query_error = true;
+				setEventMessages($db->lasterror(), null, 'errors');
+			} else {
+				while ($obj_cov = $db->fetch_object($res_cov)) {
+					$covered[((int) $obj_cov->fk_product).'\\0'.(string) $obj_cov->serial_number] = true;
+				}
+				while ($obj_ser = $db->fetch_object($res_ser)) {
+					$key = ((int) $obj_ser->fk_product).'\\0'.(string) $obj_ser->serial_number;
+					if (isset($covered[$key])) {
+						continue;
+					}
+					$opt_label = $obj_ser->serial_number.' — '.$obj_ser->product_ref.($obj_ser->product_label ? ' '.$obj_ser->product_label : '');
+					$serial_options[$obj_ser->serial_number] = $opt_label;
+					$serial_product_map .= '"'.dol_escape_js($obj_ser->serial_number).'":{"fk_product":'.((int) $obj_ser->fk_product).',"label":"'.dol_escape_js($obj_ser->product_ref.($obj_ser->product_label ? ' — '.$obj_ser->product_label : '')).'"},';
+				}
 			}
 		}
 		$serial_product_map = rtrim($serial_product_map, ',').'}';
 
-		if (count($serial_options) <= 1) {
+		if ($serial_query_error) {
+			print '<div class="error" style="margin-top:10px">'.$langs->trans('Error').': '.dol_escape_htmltag($db->lasterror()).'</div>';
+		} elseif (count($serial_options) <= 1) {
 			print '<div class="warning" style="margin-top:10px">'.$langs->trans('NoUncoveredSerialsInShipment').'</div>';
 		} else {
 			$wtype_items       = SvcWarrantyType::fetchAllForForm($db);
