@@ -74,16 +74,48 @@ if ($action == 'add' && $permwrite) {
 	$object->note_public    = GETPOST('note_public', 'restricthtml');
 	$object->note_private   = GETPOST('note_private', 'restricthtml');
 
-	// Manual expiry overrides computed one
+	// Manual expiry overrides all automatic duration policies.
 	$manual_expiry = dol_mktime(12, 0, 0, GETPOST('expiry_datemonth', 'int'), GETPOST('expiry_dateday', 'int'), GETPOST('expiry_dateyear', 'int'));
 	if ($manual_expiry) {
 		$object->expiry_date = $manual_expiry;
+	} else {
+		// When a Product warranty-month field is configured and this Product has
+		// a positive value, calendar months are authoritative. Recompute on the
+		// server from the submitted start date instead of trusting the derived
+		// coverage_days value from the browser.
+		$month_error = '';
+		$product_months = warrantysvc_get_product_warranty_months($db, (int) $object->fk_product, (int) $conf->entity, $month_error);
+		if ($month_error !== '') {
+			$object->error = $month_error;
+		} elseif ($product_months !== null && $product_months > 0) {
+			$calendar_expiry = warrantysvc_add_months_clamped($object->start_date, $product_months);
+			if ($calendar_expiry === null) {
+				$object->error = $langs->trans('ErrorWarrantyCalendarExpiry');
+			} else {
+				$object->expiry_date = $calendar_expiry;
+				$object->coverage_days = warrantysvc_calendar_days_between($object->start_date, $calendar_expiry);
+			}
+		}
+	}
+
+	// Warranty type defines terms/exclusions. Its default duration is only a
+	// fallback when no Product month value applies.
+	if (!empty($object->warranty_type)) {
+		$type = new SvcWarrantyType($db);
+		if ($type->fetch(0, $object->warranty_type) > 0) {
+			if (empty($object->coverage_terms)) {
+				$object->coverage_terms = $type->coverage_terms;
+			}
+			if (empty($object->exclusions)) {
+				$object->exclusions = $type->exclusions;
+			}
+		}
 	}
 
 	// Retrieve extrafields from POST
 	$extrafields->setOptionalsFromPost(null, $object);
 
-	$result = $object->create($user);
+	$result = empty($object->error) ? $object->create($user) : -1;
 	if ($result > 0) {
 		if ($object->fk_expedition > 0) {
 			$object->add_object_linked('expedition', $object->fk_expedition);
@@ -387,7 +419,7 @@ if ($action == 'create_from_shipment') {
 	var hint    = document.getElementById("coverage_auto_hint");
 	var btn     = document.getElementById("btn_save_ship");
 	var fromTypeText = "'.dol_escape_js($langs->trans('CoverageFromType')).'";
-	var fromProductText = "'.dol_escape_js($langs->trans('CoverageFromProductMonths')).'";
+	var fromProductText = "'.dol_escape_js($langs->trans('CoverageFromProductMonths', '__MONTHS__')).'";
 	function syncSerial(){
 		var s = selSer ? selSer.value : "";
 		if(s && smap[s]){
@@ -407,7 +439,7 @@ if ($action == 'create_from_shipment') {
 			inpCov.value = smap[serial].coverage_days;
 			inpCov.readOnly = true;
 			inpCov.style.opacity = "0.5";
-			if(hint){ hint.textContent = fromProductText.replace("%s", smap[serial].coverage_months); hint.style.display = ""; }
+			if(hint){ hint.textContent = fromProductText.replace("__MONTHS__", smap[serial].coverage_months); hint.style.display = ""; }
 			return;
 		}
 		var code = selType ? selType.value : "";
