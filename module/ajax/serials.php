@@ -139,13 +139,3 @@ if ($mode === 'svcrequest') {
 	exit;
 }
 
-$resql = $db->query($sql);
-
-if ($resql) {
-	while ($obj = $db->fetch_object($resql)) {
-		$serials[] = $obj->serial_number;
-	}
-}
-
-header('Content-Type: application/json');
-print json_encode($serials);
