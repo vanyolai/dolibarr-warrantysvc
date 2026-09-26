@@ -152,11 +152,11 @@ if ($action == 'update' && $permwrite) {
 	$object->fk_soc         = GETPOST('fk_soc', 'int');
 	$object->fk_product     = GETPOST('fk_product', 'int');
 	$object->serial_number  = GETPOST('serial_number', 'alpha');
-	$object->warranty_type  = GETPOST('warranty_type', 'alpha');
+	$object->warranty_type  = $duration_source === 'warranty_type' ? GETPOST('warranty_type', 'alpha') : '';
 	$object->start_date     = dol_mktime(12, 0, 0, GETPOST('start_datemonth', 'int'), GETPOST('start_dateday', 'int'), GETPOST('start_dateyear', 'int'));
 	$object->coverage_days= GETPOST('coverage_days', 'int');
-	$object->coverage_terms = GETPOST('coverage_terms', 'restricthtml');
-	$object->exclusions     = GETPOST('exclusions', 'restricthtml');
+	$object->coverage_terms = $duration_source === 'warranty_type' ? GETPOST('coverage_terms', 'restricthtml') : '';
+	$object->exclusions     = $duration_source === 'warranty_type' ? GETPOST('exclusions', 'restricthtml') : '';
 	$object->fk_commande    = GETPOST('fk_commande', 'int');
 	$object->fk_expedition  = GETPOST('fk_expedition', 'int');
 	$object->note_public    = GETPOST('note_public', 'restricthtml');
