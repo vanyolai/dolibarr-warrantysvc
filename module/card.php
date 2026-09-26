@@ -537,7 +537,7 @@ if ($action == 'create') {
 	// Render manually so we can embed data-serial and data-product on each option.
 	print '<tr><td>'.$form->textwithpicto($langs->trans('SvcWarranty'), $langs->trans('TooltipSvcWarranty')).'</td>';
 	print '<td>';
-	$sql_w  = "SELECT rowid, ref, serial_number, fk_product, status FROM ".MAIN_DB_PREFIX."svc_warranty";
+	$sql_w  = "SELECT rowid, ref, serial_number, fk_product, status, expiry_date FROM ".MAIN_DB_PREFIX."svc_warranty";
 	$sql_w .= " WHERE entity = ".((int) $conf->entity);
 	$sql_w .= " AND status != 'voided'";
 	if ($prefill_soc > 0) {
@@ -547,33 +547,53 @@ if ($action == 'create') {
 	$res_w = $db->query($sql_w);
 	$prefill_warranty = (int) GETPOST('fk_warranty', 'int');
 
-	// Auto-select: if no explicit warranty is specified but product + customer context exists,
-	// find the single active warranty for that combination and pre-select it.
+	// Auto-select only when there is exactly one warranty that is effectively
+	// active today for the selected Product/customer. Stored status alone is not
+	// sufficient because expiry is derived from expiry_date.
 	if ($prefill_warranty === 0 && $prefill_product > 0 && $prefill_soc > 0) {
-		$sql_aw  = "SELECT rowid FROM ".MAIN_DB_PREFIX."svc_warranty";
+		$sql_aw  = "SELECT rowid, status, expiry_date FROM ".MAIN_DB_PREFIX."svc_warranty";
 		$sql_aw .= " WHERE fk_product = ".((int) $prefill_product);
 		$sql_aw .= " AND fk_soc = ".((int) $prefill_soc);
-		$sql_aw .= " AND status = 'active'";
+		$sql_aw .= " AND status != 'voided'";
 		$sql_aw .= " AND entity IN (".getEntity('svcwarranty').")";
 		$res_aw = $db->query($sql_aw);
-		if ($res_aw && $db->num_rows($res_aw) === 1) {
-			$row_aw = $db->fetch_object($res_aw);
-			$prefill_warranty = (int) $row_aw->rowid;
+		$active_warranty_ids = array();
+		if ($res_aw) {
+			while ($row_aw = $db->fetch_object($res_aw)) {
+				$tmpw = new SvcWarranty($db);
+				$tmpw->status = $row_aw->status;
+				$tmpw->expiry_date = !empty($row_aw->expiry_date) ? $db->jdate($row_aw->expiry_date) : null;
+				if ($tmpw->getStatusAt() === SvcWarranty::STATUS_ACTIVE) {
+					$active_warranty_ids[] = (int) $row_aw->rowid;
+				}
+			}
 		}
-		// 0 or >1 results → leave blank; user picks manually
+		if (count($active_warranty_ids) === 1) {
+			$prefill_warranty = $active_warranty_ids[0];
+		}
 	}
 
 	print '<select name="fk_warranty" id="fk_warranty" class="minwidth300">';
 	print '<option value=""></option>';
 	if ($res_w) {
 		while ($ow = $db->fetch_object($res_w)) {
+			$tmpw = new SvcWarranty($db);
+			$tmpw->status = $ow->status;
+			$tmpw->expiry_date = !empty($ow->expiry_date) ? $db->jdate($ow->expiry_date) : null;
+			$effective_status = $tmpw->getStatusAt();
+
+			$status_label_key = $effective_status === SvcWarranty::STATUS_ACTIVE
+				? 'SvcActive'
+				: ($effective_status === SvcWarranty::STATUS_EXPIRED ? 'SvcExpired' : 'SvcVoided');
+
 			$label = dol_escape_htmltag($ow->ref);
 			if ($ow->serial_number) {
 				$label .= ' — '.dol_escape_htmltag($ow->serial_number);
 			}
-			$label .= ' ('.dol_escape_htmltag($ow->status).')';
+			$label .= ' ('.dol_escape_htmltag($langs->trans($status_label_key)).')';
 			$sel = ($prefill_warranty === (int) $ow->rowid) ? ' selected' : '';
 			print '<option value="'.(int) $ow->rowid.'" data-serial="'.dol_escape_htmltag($ow->serial_number).'" data-product="'.(int) $ow->fk_product.'"'
+				.' data-status="'.dol_escape_htmltag($effective_status).'"'
 				.$sel.'>'.$label.'</option>';
 		}
 	}
