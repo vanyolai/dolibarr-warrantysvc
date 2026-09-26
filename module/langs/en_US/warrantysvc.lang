@@ -432,9 +432,9 @@ TooltipIssueDate = The date the customer reported the issue — not necessarily 
 TooltipSerialOut = Serial number of the replacement or component unit being sent to the customer.
 TooltipSerialIn = Serial number of the unit being returned by the customer for repair or analysis.
 TooltipWarrantySerial = The unique serial number of the unit covered by this warranty. Must match the serial recorded on the original shipment.
-TooltipWarrantyType = Predefined warranty template that auto-fills the coverage period. Select "No predefined type" to set days manually.
+TooltipWarrantyType = Predefined warranty terms/exclusions template. Its default duration is used only when the configured Product warranty-month field is blank or zero.
 TooltipCoverageDays = Duration of warranty coverage in days from the start date. Auto-filled when a warranty type is selected.
-CoverageFromProductMonths = from Product warranty field (%s calendar months)
+CoverageFromProductMonths = Product warranty period: %s calendar months
 ExpiryDateOverride = Expiry Date Override
 ExpiryAutoComputed = (auto-computed from start date + coverage days)
 TooltipExpiryDateOverride = Optionally set an exact expiry date. Leave blank to auto-compute from start date + coverage days.
@@ -506,3 +506,5 @@ DebugModeDesc = Exposes diagnostic endpoints at /custom/warrantysvc/ajax/debug.p
 WarrantySvcSetup = Warranty & Service Setup
 ServiceRequestExtraFields = Claim Extra Fields
 WarrantyExtraFields = Warranty Extra Fields
+
+ErrorWarrantyCalendarExpiry = Unable to calculate the warranty expiry date from the configured Product warranty period.
