@@ -1,5 +1,25 @@
 # Changelog
 
+## [Unreleased] - Dolibarr 23 fork
+
+### Added
+- Selectable warranty-duration source: Product integer extrafield in calendar months, or the original Warranty Type/day-based workflow.
+- Calendar-month warranty calculation with end-of-month clamping and an immutable `coverage_months` snapshot on each Product-field warranty.
+- Line-level warranties for ordinary non-serialized shipment lines, including originating shipment-line and covered-quantity tracking.
+- Dolibarr 23 shipment serial lookup based on `llx_expeditiondet_batch.batch`.
+- PHP syntax-lint workflow for the fork branch.
+
+### Changed
+- Product-field mode has a single source of truth: the configured Product warranty-month field. Warranty Type menus, Product defaults, terms/exclusions and day-based controls are hidden in this mode.
+- Warranty start dates are resolved from shipment dates instead of creation time.
+- Warranty serial lookup avoids collation-sensitive joins against core shipment tables.
+- Existing upstream schemas are upgraded explicitly and idempotently before normal module table loading.
+
+### Fixed
+- Dolibarr 23 queries that referenced the removed/nonexistent `expeditiondet_batch.fk_lot` relationship.
+- Misleading "all serials already covered" behaviour caused by failed cross-collation serial comparisons.
+- Unique-serial schema assumptions that prevented legitimate resale/re-warranty workflows.
+
 ## [1.36.0] - 2026-09-01
 
 ### Added
