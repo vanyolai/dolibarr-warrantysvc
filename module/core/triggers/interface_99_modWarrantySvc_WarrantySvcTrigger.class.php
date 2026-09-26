@@ -14,6 +14,7 @@
 require_once DOL_DOCUMENT_ROOT.'/core/triggers/dolibarrtriggers.class.php';
 require_once DOL_DOCUMENT_ROOT.'/core/class/CMailFile.class.php';
 require_once DOL_DOCUMENT_ROOT.'/custom/warrantysvc/class/svcwarrantytype.class.php';
+require_once DOL_DOCUMENT_ROOT.'/custom/warrantysvc/lib/warrantysvc.lib.php';
 
 
 /**
@@ -596,6 +597,27 @@ class InterfaceWarrantySvcTrigger extends DolibarrTriggers
 
 		$global_coverage_days = getDolGlobalInt('WARRANTYSVC_DEFAULT_COVERAGE_DAYS', 365);
 
+		// Resolve the contractual warranty start from the shipment, not from the
+		// time this trigger happens to run.
+		$warranty_start = warrantysvc_resolve_shipment_start_date($this->db, $object);
+		if ($warranty_start === null) {
+			dol_syslog('WarrantySvcTrigger: no shipment date available for warranty start on shipment '.$object->id, LOG_WARNING);
+			return;
+		}
+
+		// Validate the optional Product integer extrafield used as warranty months.
+		// If an administrator configured a field that later disappears or changes
+		// type, stop rather than silently issuing warranties with the wrong period.
+		$product_month_field = trim(getDolGlobalString('WARRANTYSVC_PRODUCT_WARRANTY_MONTHS_FIELD'));
+		$product_month_field_error = '';
+		if ($product_month_field !== '') {
+			warrantysvc_get_product_month_field($this->db, (int) $conf->entity, $product_month_field_error);
+			if ($product_month_field_error !== '') {
+				dol_syslog('WarrantySvcTrigger: '.$product_month_field_error, LOG_ERR);
+				return;
+			}
+		}
+
 		// Pre-load all active warranty types (used for coverage_terms/exclusions lookup)
 		$all_types = SvcWarrantyType::fetchAllForForm($this->db);
 
@@ -672,7 +694,12 @@ class InterfaceWarrantySvcTrigger extends DolibarrTriggers
 
 			if ($row_pd && !empty($row_pd->warranty_type)) {
 				$type_code = $row_pd->warranty_type;
-				$product_coverage_days = ($row_pd->coverage_days > 0) ? (int) $row_pd->coverage_days : 0;
+				// When a Product month extrafield is configured, it is the only
+				// product-level duration source. coverage_days remains a legacy fallback
+				// only for installations that do not configure the month source.
+				if ($product_month_field === '') {
+					$product_coverage_days = ($row_pd->coverage_days > 0) ? (int) $row_pd->coverage_days : 0;
+				}
 			}
 
 			// 3. Find the matching type object for coverage_terms and exclusions
@@ -701,17 +728,36 @@ class InterfaceWarrantySvcTrigger extends DolibarrTriggers
 			$warranty->warranty_type   = $type_code ?: 'standard';
 			$warranty->coverage_terms  = $matched_type ? $matched_type->coverage_terms : '';
 			$warranty->exclusions      = $matched_type ? $matched_type->exclusions : '';
-			$warranty->start_date      = dol_now();
+			$warranty->start_date      = $warranty_start;
 
-			// Coverage days priority: product default > type default > global config
-			if ($product_coverage_days > 0) {
+			$product_months = null;
+			if ($product_month_field !== '') {
+				$month_error = '';
+				$product_months = warrantysvc_get_product_warranty_months($this->db, (int) $line->fk_product, (int) $conf->entity, $month_error);
+				if ($month_error !== '') {
+					dol_syslog('WarrantySvcTrigger: unable to read Product warranty months for product '.$line->fk_product.': '.$month_error, LOG_ERR);
+					continue;
+				}
+			}
+
+			if ($product_months !== null && $product_months > 0) {
+				// Positive Product month value wins. expiry_date is computed using
+				// calendar-month arithmetic and stored explicitly as the warranty truth.
+				$warranty->expiry_date = warrantysvc_add_months_clamped($warranty_start, $product_months);
+				if ($warranty->expiry_date === null) {
+					dol_syslog('WarrantySvcTrigger: failed to calculate calendar-month expiry for product '.$line->fk_product, LOG_ERR);
+					continue;
+				}
+				$warranty->coverage_days = warrantysvc_calendar_days_between($warranty_start, $warranty->expiry_date);
+			} elseif ($product_coverage_days > 0) {
+				// Legacy mode only: product-specific day override.
 				$warranty->coverage_days = $product_coverage_days;
 			} elseif ($matched_type && $matched_type->default_coverage_days > 0) {
 				$warranty->coverage_days = (int) $matched_type->default_coverage_days;
 			} else {
 				$warranty->coverage_days = $global_coverage_days;
 			}
-			// expiry_date auto-computed in create() from coverage_days + start_date
+			// In day-based fallback mode create() computes expiry_date.
 
 			$result = $warranty->create($user);
 			if ($result > 0) {
