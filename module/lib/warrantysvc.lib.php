@@ -251,3 +251,280 @@ function warrantysvc_admin_prepare_head()
 
 	return $head;
 }
+
+
+/**
+ * Return Product integer extrafields that can act as the customer warranty
+ * duration source (value expressed in calendar months).
+ *
+ * @param DoliDB $db Database handler
+ * @param int $entity Current entity
+ * @return array<string,string> field name => display label
+ */
+function warrantysvc_get_product_month_field_options($db, $entity)
+{
+	$options = array();
+	$sql  = "SELECT name, label FROM ".MAIN_DB_PREFIX."extrafields";
+	$sql .= " WHERE elementtype = 'product'";
+	$sql .= " AND type = 'int'";
+	$sql .= " AND entity IN (0, ".((int) $entity).")";
+	$sql .= " ORDER BY entity ASC, pos ASC, label ASC";
+
+	$resql = $db->query($sql);
+	if ($resql) {
+		while ($obj = $db->fetch_object($resql)) {
+			$options[(string) $obj->name] = (string) $obj->label.' ['.(string) $obj->name.']';
+		}
+	}
+
+	return $options;
+}
+
+
+/**
+ * Validate and return the configured Product extrafield used as warranty months.
+ *
+ * An empty configuration is valid and means the module uses its legacy
+ * day-based coverage fallback.
+ *
+ * @param DoliDB $db Database handler
+ * @param int $entity Current entity
+ * @param string $error Output error message
+ * @return string Empty when not configured, otherwise the validated field name
+ */
+function warrantysvc_get_product_month_field($db, $entity, &$error = '')
+{
+	$error = '';
+	$field = trim(getDolGlobalString('WARRANTYSVC_PRODUCT_WARRANTY_MONTHS_FIELD'));
+	if ($field === '') {
+		return '';
+	}
+	if (!preg_match('/^[A-Za-z][A-Za-z0-9_]*$/', $field)) {
+		$error = 'Invalid Product warranty-month extrafield name: '.$field;
+		return '';
+	}
+
+	$sql  = "SELECT rowid FROM ".MAIN_DB_PREFIX."extrafields";
+	$sql .= " WHERE elementtype = 'product'";
+	$sql .= " AND name = '".$db->escape($field)."'";
+	$sql .= " AND type = 'int'";
+	$sql .= " AND entity IN (0, ".((int) $entity).")";
+	$sql .= " ORDER BY entity DESC";
+
+	$resql = $db->query($sql);
+	if (!$resql) {
+		$error = $db->lasterror();
+		return '';
+	}
+	if (!$db->fetch_object($resql)) {
+		$error = 'Configured Product warranty-month field does not exist or is not an integer extrafield: '.$field;
+		return '';
+	}
+
+	return $field;
+}
+
+
+/**
+ * Read the configured warranty duration in calendar months for a Product.
+ *
+ * A blank/zero Product value returns null so callers may use their documented
+ * fallback policy. Product variants inherit the configured field value from
+ * their parent when the child has no positive value.
+ *
+ * @param DoliDB $db Database handler
+ * @param int $productId Product id
+ * @param int $entity Current entity
+ * @param string $error Output error message
+ * @return int|null Positive month count or null when no value is configured
+ */
+function warrantysvc_get_product_warranty_months($db, $productId, $entity, &$error = '')
+{
+	$error = '';
+	$productId = (int) $productId;
+	if ($productId <= 0) {
+		return null;
+	}
+
+	$field = warrantysvc_get_product_month_field($db, $entity, $error);
+	if ($error !== '' || $field === '') {
+		return null;
+	}
+
+	$readMonths = function ($id) use ($db, $field, &$error) {
+		$sql  = "SELECT pe.".$field." AS warranty_months";
+		$sql .= " FROM ".MAIN_DB_PREFIX."product_extrafields pe";
+		$sql .= " WHERE pe.fk_object = ".((int) $id);
+		$resql = $db->query($sql);
+		if (!$resql) {
+			$error = $db->lasterror();
+			return null;
+		}
+		$obj = $db->fetch_object($resql);
+		if (!$obj || !is_numeric($obj->warranty_months)) {
+			return null;
+		}
+		$months = (int) $obj->warranty_months;
+		return $months > 0 ? $months : null;
+	};
+
+	$months = $readMonths($productId);
+	if ($error !== '' || $months !== null) {
+		return $months;
+	}
+
+	if (function_exists('isModEnabled') && isModEnabled('variants')) {
+		$sql  = "SELECT fk_product_parent FROM ".MAIN_DB_PREFIX."product_attribute_combination";
+		$sql .= " WHERE fk_product_child = ".$productId;
+		$sql .= " AND entity IN (".getEntity('product').")";
+		$resql = $db->query($sql);
+		if (!$resql) {
+			$error = $db->lasterror();
+			return null;
+		}
+		if ($parent = $db->fetch_object($resql)) {
+			return $readMonths((int) $parent->fk_product_parent);
+		}
+	}
+
+	return null;
+}
+
+
+/**
+ * Normalize a Dolibarr date/timestamp/string into a timestamp at noon.
+ *
+ * @param mixed $value Date-like value
+ * @return int|null
+ */
+function warrantysvc_normalize_date($value)
+{
+	if (empty($value)) {
+		return null;
+	}
+
+	if (is_numeric($value)) {
+		$timestamp = (int) $value;
+		if ($timestamp <= 0) {
+			return null;
+		}
+		$date = dol_print_date($timestamp, '%Y-%m-%d', 'tzserver');
+	} else {
+		$value = trim((string) $value);
+		if (preg_match('/^\d{4}-\d{2}-\d{2}/', $value)) {
+			$date = substr($value, 0, 10);
+		} else {
+			$timestamp = strtotime($value);
+			if ($timestamp === false) {
+				return null;
+			}
+			$date = dol_print_date($timestamp, '%Y-%m-%d', 'tzserver');
+		}
+	}
+
+	$parts = explode('-', $date);
+	if (count($parts) !== 3) {
+		return null;
+	}
+
+	return dol_mktime(12, 0, 0, (int) $parts[1], (int) $parts[2], (int) $parts[0]);
+}
+
+
+/**
+ * Resolve the contractual warranty start from a shipment.
+ *
+ * Actual shipment date wins. Planned delivery is used only when the actual
+ * shipment date is not yet available.
+ *
+ * @param DoliDB $db Database handler
+ * @param object $shipment Expedition-like object
+ * @return int|null Timestamp at noon
+ */
+function warrantysvc_resolve_shipment_start_date($db, $shipment)
+{
+	foreach (array('date_shipping', 'date_expedition', 'date_delivery') as $property) {
+		if (isset($shipment->{$property}) && !empty($shipment->{$property})) {
+			$value = warrantysvc_normalize_date($shipment->{$property});
+			if ($value !== null) {
+				return $value;
+			}
+		}
+	}
+
+	if (!empty($shipment->id)) {
+		$sql = "SELECT date_expedition, date_delivery FROM ".MAIN_DB_PREFIX."expedition WHERE rowid = ".((int) $shipment->id);
+		$resql = $db->query($sql);
+		if ($resql && ($obj = $db->fetch_object($resql))) {
+			$value = warrantysvc_normalize_date($obj->date_expedition);
+			if ($value !== null) {
+				return $value;
+			}
+			return warrantysvc_normalize_date($obj->date_delivery);
+		}
+	}
+
+	return null;
+}
+
+
+/**
+ * Add calendar months to a date, clamping to the last valid target-month day.
+ *
+ * Examples: 2024-01-31 + 1 month = 2024-02-29,
+ *           2025-01-31 + 1 month = 2025-02-28.
+ *
+ * @param int $timestamp Start timestamp
+ * @param int $months Positive number of calendar months
+ * @return int|null Expiry timestamp at noon
+ */
+function warrantysvc_add_months_clamped($timestamp, $months)
+{
+	$months = (int) $months;
+	if ($timestamp <= 0 || $months <= 0) {
+		return null;
+	}
+
+	$date = dol_print_date((int) $timestamp, '%Y-%m-%d', 'tzserver');
+	$start = DateTimeImmutable::createFromFormat('!Y-m-d', $date);
+	$errors = DateTimeImmutable::getLastErrors();
+	if ($start === false || (is_array($errors) && ($errors['warning_count'] > 0 || $errors['error_count'] > 0))) {
+		return null;
+	}
+
+	$day = (int) $start->format('d');
+	$targetMonth = $start->modify('first day of this month')->modify('+'.$months.' months');
+	$targetDay = min($day, (int) $targetMonth->format('t'));
+	$target = $targetMonth->setDate(
+		(int) $targetMonth->format('Y'),
+		(int) $targetMonth->format('m'),
+		$targetDay
+	);
+
+	return dol_mktime(
+		12,
+		0,
+		0,
+		(int) $target->format('m'),
+		(int) $target->format('d'),
+		(int) $target->format('Y')
+	);
+}
+
+
+/**
+ * Return the number of whole calendar days between two date timestamps.
+ *
+ * @param int $start Start timestamp
+ * @param int $end End timestamp
+ * @return int|null
+ */
+function warrantysvc_calendar_days_between($start, $end)
+{
+	if ($start <= 0 || $end <= 0) {
+		return null;
+	}
+	$a = new DateTimeImmutable(dol_print_date((int) $start, '%Y-%m-%d', 'tzserver'));
+	$b = new DateTimeImmutable(dol_print_date((int) $end, '%Y-%m-%d', 'tzserver'));
+	return (int) $a->diff($b)->days;
+}
