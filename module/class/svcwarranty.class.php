@@ -41,6 +41,7 @@ class SvcWarranty extends CommonObject
 	public $entity;
 	public $fk_product;
 	public $serial_number;
+	public $covered_qty = 1;
 	public $fk_soc;
 	public $socid; // alias
 	public $warranty_type;
@@ -53,6 +54,7 @@ class SvcWarranty extends CommonObject
 	public $fk_contract;
 	public $fk_commande;
 	public $fk_expedition;
+	public $fk_expeditiondet;
 	public $claim_count       = 0;
 	public $total_claimed_value = 0;
 	public $date_creation;
@@ -102,15 +104,16 @@ class SvcWarranty extends CommonObject
 		}
 
 		$sql = "INSERT INTO ".MAIN_DB_PREFIX."svc_warranty";
-		$sql .= " (ref, entity, fk_product, serial_number, fk_soc, warranty_type,";
+		$sql .= " (ref, entity, fk_product, serial_number, covered_qty, fk_soc, warranty_type,";
 		$sql .= "  start_date, expiry_date, coverage_days, coverage_terms, exclusions,";
-		$sql .= "  status, fk_contract, fk_commande, fk_expedition,";
+		$sql .= "  status, fk_contract, fk_commande, fk_expedition, fk_expeditiondet,";
 		$sql .= "  date_creation, fk_user_creat, import_key, note_private, note_public)";
 		$sql .= " VALUES (";
 		$sql .= "'".$this->db->escape($this->ref)."'";
 		$sql .= ", ".((int) $conf->entity);
 		$sql .= ", ".((int) $this->fk_product);
-		$sql .= ", '".$this->db->escape($this->serial_number)."'";
+		$sql .= ", ".($this->serial_number !== null && $this->serial_number !== '' ? "'".$this->db->escape($this->serial_number)."'" : "NULL");
+		$sql .= ", ".($this->covered_qty > 0 ? price2num($this->covered_qty, 'MT') : "1");
 		$sql .= ", ".((int) $this->fk_soc);
 		$sql .= ", ".($this->warranty_type ? "'".$this->db->escape($this->warranty_type)."'" : "NULL");
 		$sql .= ", '".$this->db->idate($this->start_date)."'";
@@ -122,6 +125,7 @@ class SvcWarranty extends CommonObject
 		$sql .= ", ".($this->fk_contract > 0 ? ((int) $this->fk_contract) : "NULL");
 		$sql .= ", ".($this->fk_commande > 0 ? ((int) $this->fk_commande) : "NULL");
 		$sql .= ", ".($this->fk_expedition > 0 ? ((int) $this->fk_expedition) : "NULL");
+		$sql .= ", ".($this->fk_expeditiondet > 0 ? ((int) $this->fk_expeditiondet) : "NULL");
 		$sql .= ", '".$this->db->idate($this->date_creation)."'";
 		$sql .= ", ".((int) $this->fk_user_creat);
 		$sql .= ", ".($this->import_key ? "'".$this->db->escape($this->import_key)."'" : "NULL");
@@ -164,10 +168,10 @@ class SvcWarranty extends CommonObject
 	{
 		global $conf;
 
-		$sql = "SELECT rowid, ref, entity, fk_product, serial_number, fk_soc,";
+		$sql = "SELECT rowid, ref, entity, fk_product, serial_number, covered_qty, fk_soc,";
 		$sql .= " warranty_type, start_date, expiry_date, coverage_days,";
 		$sql .= " coverage_terms, exclusions, status,";
-		$sql .= " fk_contract, fk_commande, fk_expedition,";
+		$sql .= " fk_contract, fk_commande, fk_expedition, fk_expeditiondet,";
 		$sql .= " claim_count, total_claimed_value,";
 		$sql .= " date_creation, tms, fk_user_creat,";
 		$sql .= " import_key, note_private, note_public";
@@ -189,6 +193,7 @@ class SvcWarranty extends CommonObject
 				$this->entity              = $obj->entity;
 				$this->fk_product          = $obj->fk_product;
 				$this->serial_number       = $obj->serial_number;
+				$this->covered_qty         = $obj->covered_qty;
 				$this->fk_soc              = $obj->fk_soc;
 				$this->socid               = $obj->fk_soc;
 				$this->warranty_type       = $obj->warranty_type;
@@ -201,6 +206,7 @@ class SvcWarranty extends CommonObject
 				$this->fk_contract         = $obj->fk_contract;
 				$this->fk_commande         = $obj->fk_commande;
 				$this->fk_expedition       = $obj->fk_expedition;
+				$this->fk_expeditiondet    = $obj->fk_expeditiondet;
 				$this->claim_count         = $obj->claim_count;
 				$this->total_claimed_value = $obj->total_claimed_value;
 				$this->date_creation       = $this->db->jdate($obj->date_creation);
@@ -263,7 +269,8 @@ class SvcWarranty extends CommonObject
 	{
 		$sql = "UPDATE ".MAIN_DB_PREFIX."svc_warranty SET";
 		$sql .= " fk_product = ".((int) $this->fk_product);
-		$sql .= ", serial_number = '".$this->db->escape($this->serial_number)."'";
+		$sql .= ", serial_number = ".($this->serial_number !== null && $this->serial_number !== '' ? "'".$this->db->escape($this->serial_number)."'" : "NULL");
+		$sql .= ", covered_qty = ".($this->covered_qty > 0 ? price2num($this->covered_qty, 'MT') : "1");
 		$sql .= ", fk_soc = ".((int) $this->fk_soc);
 		$sql .= ", warranty_type = ".($this->warranty_type ? "'".$this->db->escape($this->warranty_type)."'" : "NULL");
 		$sql .= ", start_date = '".$this->db->idate($this->start_date)."'";
@@ -275,6 +282,7 @@ class SvcWarranty extends CommonObject
 		$sql .= ", fk_contract = ".($this->fk_contract > 0 ? ((int) $this->fk_contract) : "NULL");
 		$sql .= ", fk_commande = ".($this->fk_commande > 0 ? ((int) $this->fk_commande) : "NULL");
 		$sql .= ", fk_expedition = ".($this->fk_expedition > 0 ? ((int) $this->fk_expedition) : "NULL");
+		$sql .= ", fk_expeditiondet = ".($this->fk_expeditiondet > 0 ? ((int) $this->fk_expeditiondet) : "NULL");
 		$sql .= ", claim_count = ".((int) $this->claim_count);
 		$sql .= ", total_claimed_value = ".((float) $this->total_claimed_value);
 		$sql .= ", note_private = ".($this->note_private ? "'".$this->db->escape($this->note_private)."'" : "NULL");
