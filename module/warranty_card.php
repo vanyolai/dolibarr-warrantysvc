@@ -1083,10 +1083,12 @@ if (empty($object->id)) {
 $head = svcwarranty_prepare_head($object);
 
 // Determine live status
-$now           = dol_now();
+$now = dol_now();
+$today = dol_print_date($now, '%Y-%m-%d', 'tzserver');
 $display_status = $object->status;
 if ($object->status != SvcWarranty::STATUS_VOIDED) {
-	if (!empty($object->expiry_date) && $object->expiry_date < $now) {
+	$expiry_day = !empty($object->expiry_date) ? dol_print_date($object->expiry_date, '%Y-%m-%d', 'tzserver') : '';
+	if ($expiry_day !== '' && $expiry_day < $today) {
 		$display_status = SvcWarranty::STATUS_EXPIRED;
 	} else {
 		$display_status = SvcWarranty::STATUS_ACTIVE;
