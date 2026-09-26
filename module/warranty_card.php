@@ -297,78 +297,121 @@ if ($action == 'create_from_shipment') {
 			$shipment_start_date = dol_now();
 		}
 
-		// Serials in this shipment that don't yet have a warranty.
-		// Candidate serials and module warranty rows are queried separately: comparing
-		// expeditiondet_batch.batch directly to svc_warranty.serial_number in SQL can
-		// fail on existing Dolibarr databases when their collations differ.
-		$sql_ser  = "SELECT edl.batch as serial_number, ed.fk_product,";
-		$sql_ser .= " p.ref as product_ref, p.label as product_label";
-		$sql_ser .= " FROM ".MAIN_DB_PREFIX."expeditiondet_batch edl";
-		$sql_ser .= " JOIN ".MAIN_DB_PREFIX."expeditiondet ed ON ed.rowid = edl.fk_expeditiondet";
-		$sql_ser .= " JOIN ".MAIN_DB_PREFIX."product p ON p.rowid = ed.fk_product";
-		$sql_ser .= " WHERE ed.fk_expedition = ".((int) $fk_expedition_src);
-		$sql_ser .= " AND edl.batch IS NOT NULL AND edl.batch != ''";
-		$res_ser = $db->query($sql_ser);
+		// Build one selectable warranty candidate for each physical shipment item:
+		// one row per serial/lot allocation, or one row per ordinary shipment line.
+		// Keep core shipment serials and module warranty serials in separate SQL
+		// queries to avoid cross-collation comparisons on existing databases.
+		$sql_items  = "SELECT ed.rowid AS fk_expeditiondet, ed.fk_product, ed.qty AS line_qty,";
+		$sql_items .= " edl.rowid AS fk_expeditiondet_batch, edl.batch AS serial_number, edl.qty AS batch_qty,";
+		$sql_items .= " p.ref AS product_ref, p.label AS product_label";
+		$sql_items .= " FROM ".MAIN_DB_PREFIX."expeditiondet ed";
+		$sql_items .= " LEFT JOIN ".MAIN_DB_PREFIX."expeditiondet_batch edl ON edl.fk_expeditiondet = ed.rowid";
+		$sql_items .= " JOIN ".MAIN_DB_PREFIX."product p ON p.rowid = ed.fk_product";
+		$sql_items .= " WHERE ed.fk_expedition = ".((int) $fk_expedition_src);
+		$sql_items .= " AND p.fk_product_type = 0";
+		$sql_items .= " ORDER BY ed.rowid ASC, edl.rowid ASC";
+		$res_items = $db->query($sql_items);
 
-		$serial_options     = array('' => '— '.$langs->trans('SelectSerial').' —');
-		$serial_product_map = '{';
-		$serial_query_error = false;
-		$covered = array();
+		$item_options = array('' => '— '.$langs->trans('SelectShipmentItem').' —');
+		$item_map = array();
+		$item_query_error = false;
+		$covered_serials = array();
+		$covered_lines = array();
 
-		if (!$res_ser) {
-			$serial_query_error = true;
+		if (!$res_items) {
+			$item_query_error = true;
 			setEventMessages($db->lasterror(), null, 'errors');
 		} else {
-			$sql_cov  = "SELECT fk_product, serial_number FROM ".MAIN_DB_PREFIX."svc_warranty";
-			$sql_cov .= " WHERE status != 'voided'";
-			$sql_cov .= " AND serial_number IS NOT NULL AND serial_number != ''";
+			// Only warranties already originating from this shipment make a current
+			// shipment item unavailable. Older warranties from previous sales must
+			// not hide a legitimately resold serial.
+			$sql_cov  = "SELECT fk_product, serial_number, fk_expeditiondet";
+			$sql_cov .= " FROM ".MAIN_DB_PREFIX."svc_warranty";
+			$sql_cov .= " WHERE fk_expedition = ".((int) $fk_expedition_src);
+			$sql_cov .= " AND status != 'voided'";
 			$sql_cov .= " AND entity IN (".getEntity('svcwarranty').")";
 			$res_cov = $db->query($sql_cov);
 			if (!$res_cov) {
-				$serial_query_error = true;
+				$item_query_error = true;
 				setEventMessages($db->lasterror(), null, 'errors');
 			} else {
 				while ($obj_cov = $db->fetch_object($res_cov)) {
-					$covered[((int) $obj_cov->fk_product).'\\0'.(string) $obj_cov->serial_number] = true;
+					$covered_serial = trim((string) $obj_cov->serial_number);
+					if ($covered_serial !== '') {
+						$covered_serials[((int) $obj_cov->fk_product).'\\0'.$covered_serial] = true;
+					} elseif (!empty($obj_cov->fk_expeditiondet)) {
+						$covered_lines[(int) $obj_cov->fk_expeditiondet] = true;
+					}
 				}
-				while ($obj_ser = $db->fetch_object($res_ser)) {
-					$key = ((int) $obj_ser->fk_product).'\\0'.(string) $obj_ser->serial_number;
-					if (isset($covered[$key])) {
+
+				while ($obj_item = $db->fetch_object($res_items)) {
+					$serial_number = trim((string) $obj_item->serial_number);
+					$has_serial = ($serial_number !== '');
+					$covered_qty = $has_serial ? (float) $obj_item->batch_qty : (float) $obj_item->line_qty;
+					if ($covered_qty <= 0) {
 						continue;
 					}
-					$opt_label = $obj_ser->serial_number.' — '.$obj_ser->product_ref.($obj_ser->product_label ? ' '.$obj_ser->product_label : '');
-					$serial_options[$obj_ser->serial_number] = $opt_label;
 
-					$product_months = null;
+					if ($has_serial) {
+						$covered_key = ((int) $obj_item->fk_product).'\\0'.$serial_number;
+						if (isset($covered_serials[$covered_key])) {
+							continue;
+						}
+						$item_key = 'b:'.((int) $obj_item->fk_expeditiondet_batch);
+					} else {
+						if (isset($covered_lines[(int) $obj_item->fk_expeditiondet])) {
+							continue;
+						}
+						$item_key = 'l:'.((int) $obj_item->fk_expeditiondet);
+					}
+
+					$product_label = $obj_item->product_ref.($obj_item->product_label ? ' — '.$obj_item->product_label : '');
+					$item_label = $has_serial
+						? $serial_number.' — '.$product_label
+						: $product_label.' — '.$langs->trans('NoSerialShipmentItem', price($covered_qty));
+
+					$product_months = 0;
 					$product_coverage_days = 0;
 					if ($duration_source === 'product_field') {
 						$period_error = '';
 						$period = warrantysvc_compute_product_warranty_period(
 							$db,
-							(int) $obj_ser->fk_product,
+							(int) $obj_item->fk_product,
 							(int) $conf->entity,
 							(int) $shipment_start_date,
 							$period_error
 						);
 						if ($period_error !== '') {
-							$serial_query_error = true;
+							$item_query_error = true;
 							setEventMessages($period_error, null, 'errors');
 							break;
 						}
 						if ($period !== null) {
-							$product_months = $period['months'];
-							$product_coverage_days = $period['days'];
+							$product_months = (int) $period['months'];
+							$product_coverage_days = (int) $period['days'];
 						}
 					}
 
-					$serial_product_map .= '"'.dol_escape_js($obj_ser->serial_number).'":{"fk_product":'.((int) $obj_ser->fk_product)
-						.',"label":"'.dol_escape_js($obj_ser->product_ref.($obj_ser->product_label ? ' — '.$obj_ser->product_label : '')).'"'
-						.',"coverage_months":'.((int) ($product_months ?: 0))
-						.',"coverage_days":'.((int) $product_coverage_days).'},';
+					$item_options[$item_key] = $item_label;
+					$item_map[$item_key] = array(
+						'fk_product' => (int) $obj_item->fk_product,
+						'fk_expeditiondet' => (int) $obj_item->fk_expeditiondet,
+						'serial_number' => $has_serial ? $serial_number : '',
+						'covered_qty' => $covered_qty,
+						'label' => $product_label,
+						'coverage_months' => $product_months,
+						'coverage_days' => $product_coverage_days,
+					);
 				}
 			}
 		}
-		$serial_product_map = rtrim($serial_product_map, ',').'}';
+
+		$item_map_js = json_encode($item_map, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+		if ($item_map_js === false) {
+			$item_map_js = '{}';
+			$item_query_error = true;
+			setEventMessages($langs->trans('Error'), null, 'errors');
+		}
 
 		if ($serial_query_error) {
 			print '<div class="error" style="margin-top:10px">'.$langs->trans('Error').': '.dol_escape_htmltag($db->lasterror()).'</div>';
