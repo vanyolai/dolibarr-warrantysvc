@@ -1,6 +1,5 @@
--- Migration: rename coverage_months -> coverage_days
--- Safe to re-run: will error silently if coverage_months no longer exists
-ALTER TABLE llx_svc_warranty CHANGE coverage_months coverage_days INTEGER DEFAULT NULL;
+-- This fork starts from upstream v1.36.x where coverage_days already exists.
+-- coverage_months below is a separate immutable snapshot for Product-field mode.
 
 -- v1.9.0: add coverage_terms and exclusions template fields to warranty type dictionary
 ALTER TABLE llx_svc_warranty_type ADD COLUMN coverage_terms TEXT AFTER description;
@@ -19,3 +18,6 @@ ALTER TABLE llx_svc_warranty ADD COLUMN fk_expeditiondet INTEGER AFTER fk_expedi
 ALTER TABLE llx_svc_warranty DROP INDEX uk_svc_warranty_serial;
 ALTER TABLE llx_svc_warranty ADD INDEX idx_svc_warranty_serial (serial_number, entity);
 ALTER TABLE llx_svc_warranty ADD INDEX idx_svc_warranty_fk_expeditiondet (fk_expeditiondet);
+
+-- vanyolai fork: snapshot the calendar-month duration used when a warranty is created
+ALTER TABLE llx_svc_warranty ADD COLUMN coverage_months INTEGER DEFAULT NULL AFTER coverage_days;
