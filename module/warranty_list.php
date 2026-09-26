@@ -80,7 +80,7 @@ $eff_exp = $use_warranty_types
 
 // Build query
 $sql  = "SELECT t.rowid, t.ref, t.fk_soc, t.fk_product, t.serial_number,";
-$sql .= " t.warranty_type, t.start_date, t.expiry_date, t.status,";
+$sql .= " t.warranty_type, t.start_date, t.expiry_date, t.coverage_months, t.status,";
 $sql .= " (SELECT COUNT(*) FROM ".MAIN_DB_PREFIX."svc_request sr WHERE sr.fk_warranty = t.rowid) AS claim_count,";
 $sql .= " t.total_claimed_value,";
 $sql .= " s.nom as company_name,";
@@ -239,6 +239,9 @@ if ($use_warranty_types) {
 	print Form::selectarray('search_wtype', $wtype_filter, $search_wtype, 0, 0, 0, '', 0, 0, 0, '', 'flat maxwidth100');
 	print '</td>';
 }
+if (!$use_warranty_types) {
+	print '<td class="liste_titre"></td>';
+}
 
 // Status filter
 $statuses = array(
@@ -276,6 +279,8 @@ print getTitleFieldOfList('Product',       0, $_SERVER['PHP_SELF'], 'p.ref',    
 print getTitleFieldOfList('SerialNumber',  0, $_SERVER['PHP_SELF'], 't.serial_number', '', '', '',       '', $sortfield, $sortorder);
 if ($use_warranty_types) {
 	print getTitleFieldOfList('WarrantyType', 0, $_SERVER['PHP_SELF'], 't.warranty_type', '', '', '', '', $sortfield, $sortorder);
+} else {
+	print getTitleFieldOfList('WarrantyDuration', 0, $_SERVER['PHP_SELF'], 't.coverage_months', '', '', '', '', $sortfield, $sortorder);
 }
 print getTitleFieldOfList('Status',        0, $_SERVER['PHP_SELF'], 't.status',       '', '', 'center', '', $sortfield, $sortorder);
 print getTitleFieldOfList('StartDate',     0, $_SERVER['PHP_SELF'], 't.start_date',   '', '', '',       '', $sortfield, $sortorder);
@@ -291,7 +296,7 @@ if ($resql) {
 	$i   = 0;
 
 	if ($num == 0) {
-		$column_count = $use_warranty_types ? 10 : 9;
+		$column_count = 10;
 		print '<tr class="oddeven"><td colspan="'.$column_count.'"><span class="opacitymedium">'.$langs->trans('NoRecordFound').'</span></td></tr>';
 	}
 
@@ -331,6 +336,8 @@ if ($resql) {
 		if ($use_warranty_types) {
 			$wtype_label = $obj->warranty_type ? ($wtype_labels[$obj->warranty_type] ?? $obj->warranty_type) : '';
 			print '<td>'.($wtype_label ? dol_escape_htmltag($wtype_label) : '<span class="opacitymedium">&mdash;</span>').'</td>';
+		} else {
+			print '<td>'.((int) $obj->coverage_months > 0 ? ((int) $obj->coverage_months).' '.$langs->trans('SvcMonths') : '<span class="opacitymedium">&mdash;</span>').'</td>';
 		}
 		print '<td class="center">'.svcwarranty_status_badge($display_status).'</td>';
 		print '<td>'.dol_print_date($db->jdate($obj->start_date), 'day').'</td>';
