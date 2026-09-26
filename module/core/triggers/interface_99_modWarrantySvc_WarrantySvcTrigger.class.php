@@ -670,24 +670,6 @@ class InterfaceWarrantySvcTrigger extends DolibarrTriggers
 				continue;
 			}
 
-			// Auto-void active warranties only for a concrete serial that has been
-			// returned and then sold to a different customer.
-			if ($has_serial) {
-				$sql_void = "SELECT rowid, fk_soc FROM ".MAIN_DB_PREFIX."svc_warranty";
-				$sql_void .= " WHERE serial_number = '".$this->db->escape($serial_number)."'";
-				$sql_void .= " AND status = 'active'";
-				$sql_void .= " AND entity = ".((int) $conf->entity);
-				$res_void = $this->db->query($sql_void);
-				if ($res_void) {
-					while ($row_void = $this->db->fetch_object($res_void)) {
-						if ((int) $row_void->fk_soc !== (int) $object->socid) {
-							$this->db->query("UPDATE ".MAIN_DB_PREFIX."svc_warranty SET status = 'voided' WHERE rowid = ".((int) $row_void->rowid));
-							dol_syslog('WarrantySvcTrigger: voided warranty '.$row_void->rowid.' for serial '.$serial_number.' (resold to different customer)', LOG_INFO);
-						}
-					}
-				}
-			}
-
 			// ---- Resolve upstream Warranty Type only in Warranty Type duration mode ----
 			$type_code = '';
 			$product_coverage_days = 0;
