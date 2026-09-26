@@ -310,7 +310,7 @@ class modWarrantySvc extends DolibarrModules
 		$warrantyDesc = $this->db->DDLDescTable($warrantyTable);
 		if ($warrantyDesc && $this->db->num_rows($warrantyDesc) > 0) {
 			$fields = array(
-				'covered_qty' => array('type' => 'double', 'value' => '24,8', 'default' => '1'),
+				'covered_qty' => array('type' => 'decimal', 'value' => '24,8', 'default' => '1'),
 				'fk_expeditiondet' => array('type' => 'int'),
 				'coverage_months' => array('type' => 'int'),
 			);
@@ -324,9 +324,22 @@ class modWarrantySvc extends DolibarrModules
 
 			// Upstream required a serial number; the fork also supports line-level
 			// warranties for products without LOT/SN tracking.
-			$serialDesc = array('type' => 'varchar', 'value' => '128');
-			if ($this->db->DDLUpdateField($warrantyTable, 'serial_number', $serialDesc) < 0) {
-				return -1;
+			$resSerial = $this->db->DDLDescTable($warrantyTable, 'serial_number');
+			$serialField = $resSerial ? $this->db->fetch_object($resSerial) : null;
+			$serialNeedsNullable = false;
+			if ($serialField) {
+				if (isset($serialField->Null)) {
+					$serialNeedsNullable = (strtoupper((string) $serialField->Null) === 'NO');
+				} elseif ($this->db->type === 'pgsql') {
+					// PostgreSQL DDLDescTable does not expose nullability in the same shape.
+					$serialNeedsNullable = true;
+				}
+			}
+			if ($serialNeedsNullable) {
+				$serialDesc = array('type' => 'varchar', 'value' => '128');
+				if ($this->db->DDLUpdateField($warrantyTable, 'serial_number', $serialDesc) < 0) {
+					return -1;
+				}
 			}
 
 			// Upstream used a unique serial index. A returned unit can legitimately
