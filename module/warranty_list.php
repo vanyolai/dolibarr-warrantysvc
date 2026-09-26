@@ -132,11 +132,10 @@ if ($search_expiry_to) {
 	$sql .= " AND ".$eff_exp." <= '".$db->idate($search_expiry_to)."'";
 }
 
-$sql .= $db->order($sortfield, $sortorder);
-
-// Count for pagination
-$sqlcount = preg_replace('/SELECT.*?FROM/s', 'SELECT COUNT(*) as nb FROM', $sql);
-$sqlcount = preg_replace('/ORDER BY.*$/s', '', $sqlcount);
+// Count before ordering/limiting. Wrap the filtered query instead of
+// rewriting SELECT with a regex: the warranty query itself contains a
+// correlated SELECT for claim_count, so regex rewriting can produce invalid SQL.
+$sqlcount = "SELECT COUNT(*) as nb FROM (".$sql.") AS warranty_count";
 $nbtotalofrecords = 0;
 $resqlcount = $db->query($sqlcount);
 if ($resqlcount) {
@@ -144,6 +143,7 @@ if ($resqlcount) {
 	$nbtotalofrecords = $objcount->nb;
 }
 
+$sql .= $db->order($sortfield, $sortorder);
 $sql .= $db->plimit($limit, $offset);
 
 /*
