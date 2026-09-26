@@ -511,3 +511,12 @@ ErrorWarrantyCalendarExpiry = Unable to calculate the warranty expiry date from 
 
 ProductWarrantyPeriodMissing = No warranty period is configured for this Product.
 ErrorProductWarrantyPeriodMissing = No warranty period is configured for this Product. Set the configured Product warranty-duration field before creating the warranty.
+
+WarrantyDurationSource = Warranty duration source
+WarrantyDurationSourceDesc = Choose how warranty duration is determined.
+WarrantyDurationSourceProductField = Product field (calendar months)
+WarrantyDurationSourceWarrantyType = Warranty Type / upstream logic
+WarrantyDuration = Warranty duration
+WarrantyDurationFromProductField = Calculated from the configured Product warranty-duration field when saved.
+SelectSerialForWarrantyPeriod = Select a serial number to load the Product warranty period.
+ErrorProductWarrantyFieldNotConfigured = Product-field duration mode is active, but no Product warranty-duration field is configured.
