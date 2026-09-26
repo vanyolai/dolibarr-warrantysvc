@@ -1,7 +1,7 @@
 # Warranty & Service Management — Test Plan
 
-**Modules:** warrantysvc v1.21.1 + customerreturn v2.0.7
-**Environment:** Dolibarr 22.0.4 on digitalproperties.works/staging
+**Modules:** vanyolai/dolibarr-warrantysvc fork + Customer Returns
+**Target environment:** Dolibarr 23.x
 
 ---
 
@@ -10,7 +10,8 @@
 - [ ] Both modules installed and enabled
 - [ ] At least one warehouse configured
 - [ ] At least one customer (third party, type=customer)
-- [ ] At least one product with serial/lot tracking enabled
+- [ ] At least one serialized product and one ordinary non-serialized product
+- [ ] An integer Product extrafield containing customer warranty duration in calendar months
 - [ ] Stock module enabled
 - [ ] Shipments module enabled
 - [ ] Orders module enabled
@@ -19,30 +20,40 @@
 
 ## 1. WARRANTY LIFECYCLE
 
-### 1.1 Create Warranty Manually
+### 1.1 Create Warranty Manually — Product-field mode
+- [ ] Set Warranty duration source = Product field (calendar months)
+- [ ] Select the configured Product warranty-month extrafield
 - [ ] Navigate to Warranties > New Warranty
-- [ ] Select customer, product, serial number, warranty type
-- [ ] Verify coverage dates auto-calculate from default coverage days
-- [ ] Save — verify warranty card shows all fields
+- [ ] Select customer, product and serial number where applicable
+- [ ] Verify Warranty Type / terms / exclusions controls are hidden
+- [ ] Save — verify expiry = start date + Product calendar months
+- [ ] Verify the created record stores coverage_months as an immutable snapshot
+- [ ] Change the Product warranty-month value afterwards — verify the existing warranty expiry does not change
 - [ ] Verify warranty appears in Warranty List with correct filters
 
-### 1.2 Auto-Create Warranty on Shipment (if enabled)
-- [ ] Settings > enable "Auto-create warranty on shipment validation"
-- [ ] Create a Sales Order with a serialized product
-- [ ] Create and validate a shipment from that SO
-- [ ] Verify a warranty record was auto-created for each serialized line
-- [ ] Verify warranty links to the shipment and order
+### 1.2 Auto-Create Warranty on Shipment
+- [ ] Enable automatic warranty creation and select the intended shipment event
+- [ ] Create a Sales Order containing a serialized product and an ordinary product
+- [ ] Create and validate/close a shipment from that SO
+- [ ] Verify one warranty is created per shipped serial/batch allocation
+- [ ] Verify one line-level warranty is created for the non-serialized shipment line
+- [ ] Verify start date comes from the shipment date, not the current time
+- [ ] Verify expiry uses calendar-month arithmetic from the configured Product field
+- [ ] Verify shipment line, shipment, order, quantity and serial (when present) are persisted
+- [ ] Repeat the trigger event — verify no duplicate warranty records are created
 
 ### 1.3 Void Warranty
 - [ ] Open a warranty card > click "Void"
 - [ ] Confirm void — verify status changes to Voided
 - [ ] Verify voided warranty cannot be used when creating a new SR
 
-### 1.4 Warranty on Product Card
-- [ ] Open a product card (serialized product)
-- [ ] Verify "Warranty Default Type" and "Default Coverage Days" rows appear
-- [ ] Set a default type and days > save
-- [ ] Create a new warranty for this product — verify defaults pre-fill
+### 1.4 Product Warranty Policy
+- [ ] In Product-field mode open a Product card
+- [ ] Verify the configured Product extrafield is the only visible warranty-duration policy
+- [ ] Verify "Default Warranty Terms" / Warranty Type rows are not injected by WarrantySvc
+- [ ] Change the Product warranty duration and save
+- [ ] Create a new warranty — verify the new value is used without changing older warranty snapshots
+- [ ] Switch to Warranty Type / upstream mode — verify the upstream Product defaults become visible again
 
 ---
 
@@ -227,7 +238,9 @@
 
 | Setting | Test |
 |---------|------|
-| Default Coverage Days | Create a warranty — verify coverage end date = start + N days |
+| Warranty duration source | Product-field mode uses Product calendar months; Warranty Type mode retains upstream day-based behaviour |
+| Product warranty duration field | Only valid integer Product extrafields are selectable; blank/invalid configuration is rejected |
+| Default Coverage Days | Visible and used only in Warranty Type / upstream mode |
 | Return Grace Days | Set to 3 days. Create SR, set to awaiting return. After 3 days, verify overdue indicators |
 | Auto Warranty Check | Create SR with serial — verify warranty_status auto-populates |
 | Warranty Requires Lots | Enable, then create SR — verify product picker only shows lot-tracked items |
@@ -235,7 +248,18 @@
 
 ---
 
-## 8. EDGE CASES
+## 8. SCHEMA / UPGRADE SAFETY
+
+- [ ] Enable the fork over an existing upstream WarrantySvc installation
+- [ ] Verify covered_qty, fk_expeditiondet and coverage_months are added only when missing
+- [ ] Verify serial_number becomes nullable
+- [ ] Verify the old unique serial index is removed on MySQL/MariaDB
+- [ ] Disable and re-enable the module — verify schema upgrade remains idempotent
+- [ ] Fresh install — verify the base schema already contains all fork fields
+
+---
+
+## 9. EDGE CASES
 
 - [ ] Create SR without a warranty (product not under warranty) — verify it works, warranty_status = "not_covered"
 - [ ] Create SR for an expired warranty — verify warranty_status = "expired"
@@ -256,4 +280,5 @@
 | 5. Customer Returns Standalone | | | |
 | 6. Cross-Module Linked Objects | | | |
 | 7. Settings Verification | | | |
-| 8. Edge Cases | | | |
+| 8. Schema / Upgrade Safety | | | |
+| 9. Edge Cases | | | |
