@@ -413,10 +413,10 @@ if ($action == 'create_from_shipment') {
 			setEventMessages($langs->trans('Error'), null, 'errors');
 		}
 
-		if ($serial_query_error) {
-			print '<div class="error" style="margin-top:10px">'.$langs->trans('Error').': '.dol_escape_htmltag($db->lasterror()).'</div>';
-		} elseif (count($serial_options) <= 1) {
-			print '<div class="warning" style="margin-top:10px">'.$langs->trans('NoUncoveredSerialsInShipment').'</div>';
+		if ($item_query_error) {
+			print '<div class="error" style="margin-top:10px">'.$langs->trans('Error').'</div>';
+		} elseif (count($item_options) <= 1) {
+			print '<div class="warning" style="margin-top:10px">'.$langs->trans('NoUncoveredItemsInShipment').'</div>';
 		} else {
 			$wtype_items       = array();
 			$wtype_options     = array();
