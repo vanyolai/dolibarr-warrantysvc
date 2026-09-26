@@ -34,6 +34,8 @@ if (!$user->admin) {
 
 $action = GETPOST('action', 'aZ09');
 
+$product_month_fields = warrantysvc_get_product_month_field_options($db, (int) $conf->entity);
+
 // Save settings
 if ($action == 'update') {
 	$settings = array(
@@ -46,6 +48,7 @@ if ($action == 'update') {
 		'WARRANTYSVC_AUTO_WARRANTY_ON_SHIPMENT',
 		'WARRANTYSVC_WARRANTY_TRIGGER_EVENT',
 		'WARRANTYSVC_AUTO_WARRANTY_ON_ORDER_CLOSE',
+		'WARRANTYSVC_PRODUCT_WARRANTY_MONTHS_FIELD',
 		'WARRANTYSVC_DEFAULT_COVERAGE_DAYS',
 		'WARRANTYSVC_NOTIFY_WARRANTY_CREATED',
 		'WARRANTYSVC_WARRANTY_REQUIRES_LOTS',
@@ -55,6 +58,10 @@ if ($action == 'update') {
 
 	foreach ($settings as $key) {
 		$val = GETPOST($key, 'alpha');
+		if ($key === 'WARRANTYSVC_PRODUCT_WARRANTY_MONTHS_FIELD' && $val !== '' && !isset($product_month_fields[$val])) {
+			setEventMessages($langs->trans('ErrorInvalidProductWarrantyMonthsField'), null, 'errors');
+			continue;
+		}
 		dolibarr_set_const($db, $key, $val, 'chaine', 0, '', $conf->entity);
 	}
 
@@ -196,7 +203,22 @@ $chk_oc = getDolGlobalString('WARRANTYSVC_AUTO_WARRANTY_ON_ORDER_CLOSE') ? ' che
 print '<input type="checkbox" name="WARRANTYSVC_AUTO_WARRANTY_ON_ORDER_CLOSE" value="1"'.$chk_oc.'>';
 print '</td></tr>';
 
-// Default warranty coverage months
+// Product integer extrafield used as the customer warranty duration in calendar months
+print '<tr class="oddeven">';
+print '<td>'.$langs->trans('ProductWarrantyMonthsField').'<br><span class="opacitymedium">'
+	.$langs->trans('ProductWarrantyMonthsFieldDesc').'</span></td>';
+print '<td>';
+$current_month_field = getDolGlobalString('WARRANTYSVC_PRODUCT_WARRANTY_MONTHS_FIELD');
+print '<select name="WARRANTYSVC_PRODUCT_WARRANTY_MONTHS_FIELD" class="flat minwidth300">';
+print '<option value="">--- '.$langs->trans('ProductWarrantyMonthsFieldNone').' ---</option>';
+foreach ($product_month_fields as $field_name => $field_label) {
+	$sel = ($current_month_field === $field_name) ? ' selected' : '';
+	print '<option value="'.dol_escape_htmltag($field_name).'"'.$sel.'>'.dol_escape_htmltag($field_label).'</option>';
+}
+print '</select>';
+print '</td></tr>';
+
+// Default warranty coverage days (fallback)
 print '<tr class="oddeven">';
 print '<td>'.$langs->trans('DefaultCoverageDays').'<br><span class="opacitymedium">'
 	.$langs->trans('DefaultCoverageDaysDesc').'</span></td>';
