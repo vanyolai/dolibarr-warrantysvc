@@ -477,10 +477,10 @@ if ($action == 'create') {
 				$prefill_serials[] = $oser->serial_number;
 			}
 		}
-		// Query 2: serials from validated shipments via lot tracking (secondary; skipped if table unavailable)
-		$sql_ser2  = "SELECT DISTINCT pl.batch AS serial_number";
+		// Query 2: serials from validated shipments.
+		// Dolibarr 23 stores the serial/lot string directly on expeditiondet_batch.batch.
+		$sql_ser2  = "SELECT DISTINCT edl.batch AS serial_number";
 		$sql_ser2 .= " FROM ".MAIN_DB_PREFIX."expeditiondet_batch edl";
-		$sql_ser2 .= " JOIN ".MAIN_DB_PREFIX."product_lot pl ON pl.rowid = edl.fk_lot";
 		$sql_ser2 .= " JOIN ".MAIN_DB_PREFIX."expeditiondet ed ON ed.rowid = edl.fk_expeditiondet";
 		$sql_ser2 .= " JOIN ".MAIN_DB_PREFIX."expedition e ON e.rowid = ed.fk_expedition";
 		$sql_ser2 .= " WHERE ed.fk_product = ".((int) $prefill_product);
@@ -489,7 +489,7 @@ if ($action == 'create') {
 			$sql_ser2 .= " AND e.fk_soc = ".((int) $prefill_soc);
 		}
 		$sql_ser2 .= " AND e.entity IN (".getEntity('expedition').")";
-		$sql_ser2 .= " AND pl.batch IS NOT NULL AND pl.batch != ''";
+		$sql_ser2 .= " AND edl.batch IS NOT NULL AND edl.batch != ''";
 		$sql_ser2 .= " ORDER BY serial_number ASC";
 		$res_ser2 = $db->query($sql_ser2);
 		if ($res_ser2) {
