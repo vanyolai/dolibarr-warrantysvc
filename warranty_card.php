@@ -1355,6 +1355,7 @@ if ($object->fk_expedition || $action == 'edit') {
 print '</table>';
 print '</div>'; // fichehalfright
 print '</div>'; // fichecenter
+print '<div class="clearboth"></div>';
 
 // Coverage terms & exclusions are part of upstream Warranty Type mode.
 if ($duration_source === 'warranty_type') {
@@ -1404,6 +1405,7 @@ if ($action != 'edit' && !empty($object->serial_number)) {
 	$svclog = new SvcServiceLog($db);
 	$log_found = $svclog->fetchBySerial($object->serial_number, $conf->entity);
 
+	print '<div class="clearboth"></div>';
 	print '<br>';
 	print '<div class="div-table-responsive">';
 	print '<table class="noborder centpercent">';
