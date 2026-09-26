@@ -873,7 +873,7 @@ if ($action == 'create') {
 	// VIEW / EDIT
 	// =====================================================================
 	if (!$object->id) {
-		dol_print_error($db, 'Record not found');
+		dol_print_error($db, $langs->trans('ErrorRecordNotFound'));
 		llxFooter();
 		exit;
 	}
