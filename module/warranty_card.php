@@ -215,6 +215,11 @@ if ($action == 'create_from_shipment') {
 	if ($fk_expedition_src > 0) {
 		$expedition = new Expedition($db);
 		$presoc     = ($expedition->fetch($fk_expedition_src) > 0) ? (int) $expedition->socid : 0;
+		$shipment_start_date = warrantysvc_resolve_shipment_start_date($db, $expedition);
+		if ($shipment_start_date === null) {
+			$shipment_start_date = dol_now();
+		}
+		$product_month_field = trim(getDolGlobalString('WARRANTYSVC_PRODUCT_WARRANTY_MONTHS_FIELD'));
 
 		// Serials in this shipment that don't yet have a warranty.
 		// Candidate serials and module warranty rows are queried separately: comparing
@@ -257,7 +262,27 @@ if ($action == 'create_from_shipment') {
 					}
 					$opt_label = $obj_ser->serial_number.' — '.$obj_ser->product_ref.($obj_ser->product_label ? ' '.$obj_ser->product_label : '');
 					$serial_options[$obj_ser->serial_number] = $opt_label;
-					$serial_product_map .= '"'.dol_escape_js($obj_ser->serial_number).'":{"fk_product":'.((int) $obj_ser->fk_product).',"label":"'.dol_escape_js($obj_ser->product_ref.($obj_ser->product_label ? ' — '.$obj_ser->product_label : '')).'"},';
+
+					$product_months = null;
+					$product_coverage_days = 0;
+					if ($product_month_field !== '') {
+						$month_error = '';
+						$product_months = warrantysvc_get_product_warranty_months($db, (int) $obj_ser->fk_product, (int) $conf->entity, $month_error);
+						if ($month_error !== '') {
+							$serial_query_error = true;
+							setEventMessages($month_error, null, 'errors');
+							break;
+						}
+						if ($product_months !== null && $product_months > 0) {
+							$product_expiry = warrantysvc_add_months_clamped($shipment_start_date, $product_months);
+							$product_coverage_days = $product_expiry ? (int) warrantysvc_calendar_days_between($shipment_start_date, $product_expiry) : 0;
+						}
+					}
+
+					$serial_product_map .= '"'.dol_escape_js($obj_ser->serial_number).'":{"fk_product":'.((int) $obj_ser->fk_product)
+						.',"label":"'.dol_escape_js($obj_ser->product_ref.($obj_ser->product_label ? ' — '.$obj_ser->product_label : '')).'"'
+						.',"coverage_months":'.((int) ($product_months ?: 0))
+						.',"coverage_days":'.((int) $product_coverage_days).'},';
 				}
 			}
 		}
@@ -322,7 +347,7 @@ if ($action == 'create_from_shipment') {
 			// Start date
 			print '<tr><td class="fieldrequired">'.$langs->trans('StartDate').'</td>';
 			print '<td>';
-			print $form->selectDate(dol_now(), 'start_date', 0, 0, 0, 'formship', 1, 1);
+			print $form->selectDate($shipment_start_date, 'start_date', 0, 0, 0, 'formship', 1, 1);
 			print '</td></tr>';
 
 			// Coverage days
@@ -361,6 +386,8 @@ if ($action == 'create_from_shipment') {
 	var inpCov  = document.getElementById("coverage_days");
 	var hint    = document.getElementById("coverage_auto_hint");
 	var btn     = document.getElementById("btn_save_ship");
+	var fromTypeText = "'.dol_escape_js($langs->trans('CoverageFromType')).'";
+	var fromProductText = "'.dol_escape_js($langs->trans('CoverageFromProductMonths')).'";
 	function syncSerial(){
 		var s = selSer ? selSer.value : "";
 		if(s && smap[s]){
@@ -372,12 +399,21 @@ if ($action == 'create_from_shipment') {
 			if(lblProd) lblProd.textContent = "'.dol_escape_js($langs->trans('AutoFilledFromSerial')).'";
 			if(btn)     btn.disabled = true;
 		}
+		syncType();
 	}
 	function syncType(){
+		var serial = selSer ? selSer.value : "";
+		if(serial && smap[serial] && smap[serial].coverage_days > 0){
+			inpCov.value = smap[serial].coverage_days;
+			inpCov.readOnly = true;
+			inpCov.style.opacity = "0.5";
+			if(hint){ hint.textContent = fromProductText.replace("%s", smap[serial].coverage_months); hint.style.display = ""; }
+			return;
+		}
 		var code = selType ? selType.value : "";
 		if(code && wtdef[code] !== undefined){
 			inpCov.value = wtdef[code]; inpCov.readOnly = true; inpCov.style.opacity = "0.5";
-			if(hint) hint.style.display = "";
+			if(hint){ hint.textContent = fromTypeText; hint.style.display = ""; }
 		} else {
 			inpCov.readOnly = false; inpCov.style.opacity = "";
 			if(hint) hint.style.display = "none";
