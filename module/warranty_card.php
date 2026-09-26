@@ -523,62 +523,88 @@ if ($action == 'create_from_shipment') {
 			print '</form>';
 
 			print '<script>(function(){
-	var smap  = '.$serial_product_map.';
+	var items = '.$item_map_js.';
 	var wtdef = '.$wtype_defaults_js.';
 	var usesProductMonths = '.($duration_source === 'product_field' ? 'true' : 'false').';
-	var selSer  = document.querySelector("[name=serial_number]");
+	var selItem = document.querySelector("[name=shipment_item]");
 	var selType = document.querySelector("[name=warranty_type]");
 	var inpProd = document.getElementById("fk_product");
+	var inpExpDet = document.getElementById("fk_expeditiondet");
+	var inpSerial = document.getElementById("serial_number");
+	var inpQty = document.getElementById("covered_qty");
 	var lblProd = document.getElementById("product_label");
-	var inpCov  = document.getElementById("coverage_days");
-	var hint    = document.getElementById("coverage_auto_hint");
-	var btn     = document.getElementById("btn_save_ship");
+	var serialRow = document.getElementById("serial_display_row");
+	var serialDisplay = document.getElementById("serial_display");
+	var inpCov = document.getElementById("coverage_days");
+	var hint = document.getElementById("coverage_auto_hint");
+	var btn = document.getElementById("btn_save_ship");
 	var fromTypeText = "'.dol_escape_js($langs->trans('CoverageFromType')).'";
 	var fromProductText = "'.dol_escape_js($langs->trans('CoverageFromProductMonths', '__MONTHS__')).'";
 	var missingProductText = "'.dol_escape_js($langs->trans('ProductWarrantyPeriodMissing')).'";
-	function syncSerial(){
-		var s = selSer ? selSer.value : "";
-		if(s && smap[s]){
-			if(inpProd) inpProd.value = smap[s].fk_product;
-			if(lblProd) lblProd.textContent = smap[s].label;
-			if(btn)     btn.disabled = false;
+
+	function currentItem(){
+		var key = selItem ? selItem.value : "";
+		return (key && items[key]) ? items[key] : null;
+	}
+
+	function syncItem(){
+		var item = currentItem();
+		if(item){
+			if(inpProd) inpProd.value = item.fk_product;
+			if(inpExpDet) inpExpDet.value = item.fk_expeditiondet;
+			if(inpSerial) inpSerial.value = item.serial_number || "";
+			if(inpQty) inpQty.value = item.covered_qty;
+			if(lblProd) lblProd.textContent = item.label;
+			if(serialDisplay) serialDisplay.textContent = item.serial_number || "";
+			if(serialRow) serialRow.style.display = item.serial_number ? "" : "none";
 		} else {
 			if(inpProd) inpProd.value = "";
-			if(lblProd) lblProd.textContent = "'.dol_escape_js($langs->trans('AutoFilledFromSerial')).'";
-			if(btn)     btn.disabled = true;
+			if(inpExpDet) inpExpDet.value = "";
+			if(inpSerial) inpSerial.value = "";
+			if(inpQty) inpQty.value = "1";
+			if(lblProd) lblProd.textContent = "'.dol_escape_js($langs->trans('AutoFilledFromShipmentItem')).'";
+			if(serialDisplay) serialDisplay.textContent = "";
+			if(serialRow) serialRow.style.display = "none";
 		}
-		syncType();
+		syncDuration();
 	}
-	function syncType(){
-		var serial = selSer ? selSer.value : "";
-		if(serial && smap[serial] && smap[serial].coverage_days > 0){
-			inpCov.value = smap[serial].coverage_days;
-			inpCov.readOnly = true;
-			inpCov.style.opacity = "0.5";
-			if(hint){ hint.textContent = fromProductText.replace("__MONTHS__", smap[serial].coverage_months); hint.style.display = ""; }
-			if(btn) btn.disabled = false;
-			return;
-		}
+
+	function syncDuration(){
+		var item = currentItem();
 		if(usesProductMonths){
-			inpCov.value = "";
-			inpCov.readOnly = true;
-			inpCov.style.opacity = "0.5";
-			if(hint){ hint.textContent = missingProductText; hint.style.display = ""; }
-			if(btn) btn.disabled = true;
+			if(item && item.coverage_days > 0){
+				inpCov.value = item.coverage_days;
+				inpCov.readOnly = true;
+				inpCov.style.opacity = "0.5";
+				if(hint){ hint.textContent = fromProductText.replace("__MONTHS__", item.coverage_months); hint.style.display = ""; }
+				if(btn) btn.disabled = false;
+			} else {
+				inpCov.value = "";
+				inpCov.readOnly = true;
+				inpCov.style.opacity = "0.5";
+				if(hint){ hint.textContent = item ? missingProductText : "'.dol_escape_js($langs->trans('SelectShipmentItemForWarrantyPeriod')).'"; hint.style.display = ""; }
+				if(btn) btn.disabled = true;
+			}
 			return;
 		}
+
+		if(btn) btn.disabled = !item;
 		var code = selType ? selType.value : "";
 		if(code && wtdef[code] !== undefined){
-			inpCov.value = wtdef[code]; inpCov.readOnly = true; inpCov.style.opacity = "0.5";
+			inpCov.value = wtdef[code];
+			inpCov.readOnly = true;
+			inpCov.style.opacity = "0.5";
 			if(hint){ hint.textContent = fromTypeText; hint.style.display = ""; }
 		} else {
-			inpCov.readOnly = false; inpCov.style.opacity = "";
+			inpCov.readOnly = false;
+			inpCov.style.opacity = "";
 			if(hint) hint.style.display = "none";
 		}
 	}
-	if(selSer)  selSer.addEventListener("change", syncSerial);
-	if(selType) selType.addEventListener("change", syncType);
-	syncSerial(); syncType();
+
+	if(selItem) selItem.addEventListener("change", syncItem);
+	if(selType) selType.addEventListener("change", syncDuration);
+	syncItem();
 })();</script>';
 		}
 	}
