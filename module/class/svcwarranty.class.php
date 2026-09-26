@@ -99,12 +99,13 @@ class SvcWarranty extends CommonObject
 		$sql .= " AND fk_soc <> ".((int) $this->fk_soc);
 		$sql .= " AND status = '".self::STATUS_ACTIVE."'";
 
-		if (!$this->db->query($sql)) {
+		$resql = $this->db->query($sql);
+		if (!$resql) {
 			$this->error = $this->db->lasterror();
 			return -1;
 		}
 
-		return (int) $this->db->affected_rows($this->db->lastquery);
+		return (int) $this->db->affected_rows($resql);
 	}
 
 	/**
