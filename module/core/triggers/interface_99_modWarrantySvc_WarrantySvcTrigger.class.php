@@ -761,9 +761,13 @@ class InterfaceWarrantySvcTrigger extends DolibarrTriggers
 				}
 			}
 
-			if ($product_months !== null && $product_months > 0) {
-				// Positive Product month value wins. expiry_date is computed using
-				// calendar-month arithmetic and stored explicitly as the warranty truth.
+			if ($product_month_field !== '') {
+				// A configured Product month field is the single source of truth for
+				// automatic customer-warranty duration. Warranty type never overrides it.
+				if ($product_months === null || $product_months <= 0) {
+					dol_syslog('WarrantySvcTrigger: skipped automatic warranty for product '.$line->fk_product.' because the configured Product warranty period is blank/zero', LOG_WARNING);
+					continue;
+				}
 				$warranty->expiry_date = warrantysvc_add_months_clamped($warranty_start, $product_months);
 				if ($warranty->expiry_date === null) {
 					dol_syslog('WarrantySvcTrigger: failed to calculate calendar-month expiry for product '.$line->fk_product, LOG_ERR);
@@ -771,14 +775,14 @@ class InterfaceWarrantySvcTrigger extends DolibarrTriggers
 				}
 				$warranty->coverage_days = warrantysvc_calendar_days_between($warranty_start, $warranty->expiry_date);
 			} elseif ($product_coverage_days > 0) {
-				// Legacy mode only: product-specific day override.
+				// Legacy mode only, for installations that do not configure Product months.
 				$warranty->coverage_days = $product_coverage_days;
 			} elseif ($matched_type && $matched_type->default_coverage_days > 0) {
 				$warranty->coverage_days = (int) $matched_type->default_coverage_days;
 			} else {
 				$warranty->coverage_days = $global_coverage_days;
 			}
-			// In day-based fallback mode create() computes expiry_date.
+			// In legacy day-based mode create() computes expiry_date.
 
 			$result = $warranty->create($user);
 			if ($result > 0) {
