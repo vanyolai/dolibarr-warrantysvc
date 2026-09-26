@@ -29,7 +29,7 @@ class pdf_svcrequest_standard extends ModelePDFWarrantySvc
 	public $name = 'standard';
 
 	/** @var string Model description */
-	public $description = 'Standard Service Request authorization slip';
+	public $description = 'SvcRequestPdfStandardDesc';
 
 	/** @var int Version */
 	public $version = 1;
@@ -71,7 +71,8 @@ class pdf_svcrequest_standard extends ModelePDFWarrantySvc
 		$this->db = $db;
 
 		$this->name              = 'standard';
-		$this->description       = 'Standard Service Request authorization slip';
+		$langs->loadLangs(array('warrantysvc@warrantysvc'));
+		$this->description       = $langs->trans('SvcRequestPdfStandardDesc');
 		$this->page_orientation  = 'P';
 		$this->type              = 'pdf';
 		$this->page_format       = pdf_getFormat();
@@ -112,7 +113,7 @@ class pdf_svcrequest_standard extends ModelePDFWarrantySvc
 
 		$dir = $conf->warrantysvc->multidir_output[$object->entity] ?? $conf->warrantysvc->dir_output;
 		if (empty($dir)) {
-			$this->error = 'warrantysvc output dir not configured';
+			$this->error = $langs->trans('ErrorWarrantySvcOutputDirNotConfigured');
 			return -1;
 		}
 
@@ -141,7 +142,7 @@ class pdf_svcrequest_standard extends ModelePDFWarrantySvc
 		}
 
 		$pdf->SetTitle($outputlangs->convToOutputCharset($object->ref));
-		$pdf->SetSubject($outputlangs->transnoentities('ServiceRequest'));
+		$pdf->SetSubject($outputlangs->transnoentities('SvcRequest'));
 		$pdf->SetCreator('Dolibarr '.DOL_VERSION);
 		$pdf->SetAuthor($outputlangs->convToOutputCharset($mysoc->name));
 		$pdf->SetKeywords($object->ref);
