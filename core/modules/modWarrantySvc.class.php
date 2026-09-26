@@ -286,7 +286,7 @@ class modWarrantySvc extends DolibarrModules
 			'url'      => '/warrantysvc/warranty_type_list.php',
 			'langs'    => 'warrantysvc@warrantysvc',
 			'position' => 220,
-			'enabled'  => 'isModEnabled("warrantysvc")',
+			'enabled'  => 'isModEnabled("warrantysvc") && (getDolGlobalString("WARRANTYSVC_DURATION_SOURCE") == "warranty_type" || (getDolGlobalString("WARRANTYSVC_DURATION_SOURCE") == "" && getDolGlobalString("WARRANTYSVC_PRODUCT_WARRANTY_MONTHS_FIELD") == ""))',
 			'perms'    => '$user->hasRight("warrantysvc", "svcwarranty", "read")',
 			'target'   => '',
 			'user'     => 0,

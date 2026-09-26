@@ -48,6 +48,7 @@ if ($action == 'update') {
 		'WARRANTYSVC_AUTO_WARRANTY_ON_SHIPMENT',
 		'WARRANTYSVC_WARRANTY_TRIGGER_EVENT',
 		'WARRANTYSVC_AUTO_WARRANTY_ON_ORDER_CLOSE',
+		'WARRANTYSVC_DURATION_SOURCE',
 		'WARRANTYSVC_PRODUCT_WARRANTY_MONTHS_FIELD',
 		'WARRANTYSVC_DEFAULT_COVERAGE_DAYS',
 		'WARRANTYSVC_NOTIFY_WARRANTY_CREATED',
@@ -58,6 +59,9 @@ if ($action == 'update') {
 
 	foreach ($settings as $key) {
 		$val = GETPOST($key, 'alpha');
+		if ($key === 'WARRANTYSVC_DURATION_SOURCE' && !in_array($val, array('product_field', 'warranty_type'), true)) {
+			$val = 'product_field';
+		}
 		if ($key === 'WARRANTYSVC_PRODUCT_WARRANTY_MONTHS_FIELD' && $val !== '' && !isset($product_month_fields[$val])) {
 			setEventMessages($langs->trans('ErrorInvalidProductWarrantyMonthsField'), null, 'errors');
 			continue;
@@ -203,23 +207,40 @@ $chk_oc = getDolGlobalString('WARRANTYSVC_AUTO_WARRANTY_ON_ORDER_CLOSE') ? ' che
 print '<input type="checkbox" name="WARRANTYSVC_AUTO_WARRANTY_ON_ORDER_CLOSE" value="1"'.$chk_oc.'>';
 print '</td></tr>';
 
-// Product integer extrafield used as the customer warranty duration in calendar months
+// Warranty duration source
+$duration_source = getDolGlobalString(
+	'WARRANTYSVC_DURATION_SOURCE',
+	getDolGlobalString('WARRANTYSVC_PRODUCT_WARRANTY_MONTHS_FIELD') !== '' ? 'product_field' : 'warranty_type'
+);
 print '<tr class="oddeven">';
-print '<td>'.$langs->trans('ProductWarrantyMonthsField').'<br><span class="opacitymedium">'
-	.$langs->trans('ProductWarrantyMonthsFieldDesc').'</span></td>';
+print '<td>'.$langs->trans('WarrantyDurationSource').'<br><span class="opacitymedium">'
+	.$langs->trans('WarrantyDurationSourceDesc').'</span></td>';
 print '<td>';
-$current_month_field = getDolGlobalString('WARRANTYSVC_PRODUCT_WARRANTY_MONTHS_FIELD');
-print '<select name="WARRANTYSVC_PRODUCT_WARRANTY_MONTHS_FIELD" class="flat minwidth300">';
-print '<option value="">--- '.$langs->trans('ProductWarrantyMonthsFieldNone').' ---</option>';
-foreach ($product_month_fields as $field_name => $field_label) {
-	$sel = ($current_month_field === $field_name) ? ' selected' : '';
-	print '<option value="'.dol_escape_htmltag($field_name).'"'.$sel.'>'.dol_escape_htmltag($field_label).'</option>';
-}
+print '<select name="WARRANTYSVC_DURATION_SOURCE" class="flat minwidth300">';
+print '<option value="product_field"'.($duration_source === 'product_field' ? ' selected' : '').'>'.$langs->trans('WarrantyDurationSourceProductField').'</option>';
+print '<option value="warranty_type"'.($duration_source === 'warranty_type' ? ' selected' : '').'>'.$langs->trans('WarrantyDurationSourceWarrantyType').'</option>';
 print '</select>';
 print '</td></tr>';
 
-// Default day-based coverage is legacy fallback only when no Product month field is configured.
-if (getDolGlobalString('WARRANTYSVC_PRODUCT_WARRANTY_MONTHS_FIELD') === '') {
+// Product integer extrafield used as the customer warranty duration in calendar months
+if ($duration_source === 'product_field') {
+	print '<tr class="oddeven">';
+	print '<td>'.$langs->trans('ProductWarrantyMonthsField').'<br><span class="opacitymedium">'
+		.$langs->trans('ProductWarrantyMonthsFieldDesc').'</span></td>';
+	print '<td>';
+	$current_month_field = getDolGlobalString('WARRANTYSVC_PRODUCT_WARRANTY_MONTHS_FIELD');
+	print '<select name="WARRANTYSVC_PRODUCT_WARRANTY_MONTHS_FIELD" class="flat minwidth300">';
+	print '<option value="">--- '.$langs->trans('ProductWarrantyMonthsFieldNone').' ---</option>';
+	foreach ($product_month_fields as $field_name => $field_label) {
+		$sel = ($current_month_field === $field_name) ? ' selected' : '';
+		print '<option value="'.dol_escape_htmltag($field_name).'"'.$sel.'>'.dol_escape_htmltag($field_label).'</option>';
+	}
+	print '</select>';
+	print '</td></tr>';
+}
+
+// Day-based coverage belongs to upstream Warranty Type mode.
+if ($duration_source === 'warranty_type') {
 	print '<tr class="oddeven">';
 	print '<td>'.$langs->trans('DefaultCoverageDays').'<br><span class="opacitymedium">'
 		.$langs->trans('DefaultCoverageDaysDesc').'</span></td>';
