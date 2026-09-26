@@ -459,7 +459,7 @@ function warrantysvc_resolve_shipment_item($db, $shipmentId, $itemKey, &$error =
 	$rowId = (int) $matches[2];
 
 	if ($type === 'b') {
-		$sql  = "SELECT e.fk_soc, ed.rowid AS fk_expeditiondet, ed.fk_product,";
+		$sql  = "SELECT e.fk_soc, e.date_expedition, e.date_delivery, ed.rowid AS fk_expeditiondet, ed.fk_product,";
 		$sql .= " edl.batch AS serial_number, edl.qty AS covered_qty";
 		$sql .= " FROM ".MAIN_DB_PREFIX."expeditiondet_batch edl";
 		$sql .= " JOIN ".MAIN_DB_PREFIX."expeditiondet ed ON ed.rowid = edl.fk_expeditiondet";
@@ -468,7 +468,7 @@ function warrantysvc_resolve_shipment_item($db, $shipmentId, $itemKey, &$error =
 		$sql .= " AND ed.fk_expedition = ".$shipmentId;
 		$sql .= " AND edl.batch IS NOT NULL AND edl.batch != ''";
 	} else {
-		$sql  = "SELECT e.fk_soc, ed.rowid AS fk_expeditiondet, ed.fk_product,";
+		$sql  = "SELECT e.fk_soc, e.date_expedition, e.date_delivery, ed.rowid AS fk_expeditiondet, ed.fk_product,";
 		$sql .= " NULL AS serial_number, ed.qty AS covered_qty";
 		$sql .= " FROM ".MAIN_DB_PREFIX."expeditiondet ed";
 		$sql .= " JOIN ".MAIN_DB_PREFIX."expedition e ON e.rowid = ed.fk_expedition";
@@ -499,12 +499,22 @@ function warrantysvc_resolve_shipment_item($db, $shipmentId, $itemKey, &$error =
 		return null;
 	}
 
+	$startDate = warrantysvc_normalize_date($obj->date_expedition);
+	if ($startDate === null) {
+		$startDate = warrantysvc_normalize_date($obj->date_delivery);
+	}
+	if ($startDate === null) {
+		$error = 'The shipment has no usable shipment date.';
+		return null;
+	}
+
 	return array(
 		'fk_soc' => (int) $obj->fk_soc,
 		'fk_product' => (int) $obj->fk_product,
 		'fk_expeditiondet' => (int) $obj->fk_expeditiondet,
 		'serial_number' => !empty($obj->serial_number) ? (string) $obj->serial_number : '',
 		'covered_qty' => $coveredQty,
+		'start_date' => (int) $startDate,
 	);
 }
 
