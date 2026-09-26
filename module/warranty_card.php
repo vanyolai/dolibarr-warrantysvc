@@ -1348,43 +1348,47 @@ print '</table>';
 print '</div>'; // fichehalfright
 print '</div>'; // fichecenter
 
-// Coverage terms & exclusions
-print '<div class="clearboth"></div>';
-print '<div class="fichecenter">';
-
-print '<div class="fichehalfleft">';
-print '<div class="underbanner clearboth"></div>';
-print '<table class="border centpercent tableforfield">';
-print '<tr><td class="titlefield tdtop">'.$langs->trans('CoverageTerms').'</td>';
-print '<td>';
-if ($action == 'edit') {
-	require_once DOL_DOCUMENT_ROOT.'/core/class/doleditor.class.php';
-	$doleditor = new DolEditor('coverage_terms', $object->coverage_terms, '', 120, 'dolibarr_notes', '', false, true, getDolGlobalInt('FCKEDITOR_ENABLE_DETAILS'), ROWS_4, '95%');
-	$doleditor->Create();
-} else {
-	print dol_htmlentitiesbr($object->coverage_terms);
+// Coverage terms & exclusions are part of upstream Warranty Type mode.
+if ($duration_source === 'warranty_type') {
+	// Coverage terms & exclusions
+	print '<div class="clearboth"></div>';
+	print '<div class="fichecenter">';
+	
+	print '<div class="fichehalfleft">';
+	print '<div class="underbanner clearboth"></div>';
+	print '<table class="border centpercent tableforfield">';
+	print '<tr><td class="titlefield tdtop">'.$langs->trans('CoverageTerms').'</td>';
+	print '<td>';
+	if ($action == 'edit') {
+		require_once DOL_DOCUMENT_ROOT.'/core/class/doleditor.class.php';
+		$doleditor = new DolEditor('coverage_terms', $object->coverage_terms, '', 120, 'dolibarr_notes', '', false, true, getDolGlobalInt('FCKEDITOR_ENABLE_DETAILS'), ROWS_4, '95%');
+		$doleditor->Create();
+	} else {
+		print dol_htmlentitiesbr($object->coverage_terms);
+	}
+	print '</td></tr>';
+	print '</table>';
+	print '</div>';
+	
+	print '<div class="fichehalfright">';
+	print '<table class="border centpercent tableforfield">';
+	print '<tr><td class="titlefield tdtop">'.$langs->trans('Exclusions').'</td>';
+	print '<td>';
+	if ($action == 'edit') {
+		require_once DOL_DOCUMENT_ROOT.'/core/class/doleditor.class.php';
+		$doleditor3 = new DolEditor('exclusions', $object->exclusions, '', 120, 'dolibarr_notes', '', false, true, getDolGlobalInt('FCKEDITOR_ENABLE_DETAILS'), ROWS_4, '95%');
+		$doleditor3->Create();
+	} else {
+		print dol_htmlentitiesbr($object->exclusions);
+	}
+	print '</td></tr>';
+	print '</table>';
+	print '</div>';
+	
+	print '</div>'; // fichecenter
+	print '<div class="clearboth"></div>';
+	
 }
-print '</td></tr>';
-print '</table>';
-print '</div>';
-
-print '<div class="fichehalfright">';
-print '<table class="border centpercent tableforfield">';
-print '<tr><td class="titlefield tdtop">'.$langs->trans('Exclusions').'</td>';
-print '<td>';
-if ($action == 'edit') {
-	require_once DOL_DOCUMENT_ROOT.'/core/class/doleditor.class.php';
-	$doleditor3 = new DolEditor('exclusions', $object->exclusions, '', 120, 'dolibarr_notes', '', false, true, getDolGlobalInt('FCKEDITOR_ENABLE_DETAILS'), ROWS_4, '95%');
-	$doleditor3->Create();
-} else {
-	print dol_htmlentitiesbr($object->exclusions);
-}
-print '</td></tr>';
-print '</table>';
-print '</div>';
-
-print '</div>'; // fichecenter
-print '<div class="clearboth"></div>';
 
 // ---- Unit Service History ----
 if ($action != 'edit' && !empty($object->serial_number)) {
