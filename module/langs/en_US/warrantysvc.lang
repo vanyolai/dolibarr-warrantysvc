@@ -538,3 +538,5 @@ ErrorShipmentWarrantyStartDateMissing = The shipment has no usable shipment date
 ErrorWarrantyDoesNotMatchClaim = The selected warranty does not match the claim customer, Product or serial number.
 ErrorWarrantyNotFound = The selected warranty could not be found.
 ErrorVoidedWarrantyClaim = A voided warranty cannot be linked to a new claim.
+
+WarrantyStartFromShipment = From shipment date
