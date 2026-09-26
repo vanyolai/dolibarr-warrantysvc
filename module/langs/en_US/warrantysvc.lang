@@ -111,7 +111,7 @@ WarrantyTypeUpdated = Warranty type updated.
 WarrantyTypeDeleted = Warranty type deleted.
 WarrantyTypeLabel = e.g. Standard Warranty
 NoPredefinedType = No predefined type (manual)
-CoverageFromType = Coverage period set by warranty type
+CoverageFromType = Legacy duration from warranty type
 DeleteWarrantyType = Delete Warranty Type
 ConfirmDeleteWarrantyType = Are you sure you want to delete this warranty type? Existing warranties using this type will retain their coverage but lose the type label.
 SelectWarrantyType = Select a warranty type...
@@ -349,11 +349,11 @@ OnShipmentBoth = On both validate and close
 AutoWarrantyOnOrderClose = Auto-create warranty on order delivery
 AutoWarrantyOnOrderCloseDesc = When a sales order is classified as delivered (closed), automatically register warranties for any serialized products in linked shipments that do not already have one.
 ProductWarrantyMonthsField = Product warranty duration field
-ProductWarrantyMonthsFieldDesc = Product integer extra field containing the customer warranty duration in calendar months. When configured, positive Product values take precedence over day-based defaults.
-ProductWarrantyMonthsFieldNone = Not configured (use legacy day-based defaults)
+ProductWarrantyMonthsFieldDesc = Product integer extra field containing the customer warranty duration in calendar months. When configured, this field is the sole source of automatic warranty duration; warranty types define terms only.
+ProductWarrantyMonthsFieldNone = Not configured (use legacy day-based duration logic)
 ErrorInvalidProductWarrantyMonthsField = The selected Product warranty duration field is not a valid integer Product extra field.
 DefaultCoverageDays = Default warranty coverage (days)
-DefaultCoverageDaysDesc = Fallback coverage period in days when the configured Product month field is blank/zero and no more specific day-based default applies.
+DefaultCoverageDaysDesc = Legacy fallback coverage period used only when no Product warranty-month field is configured.
 SvcDays = days
 NotifyWarrantyCreated = Email customer on warranty creation
 NotifyWarrantyCreatedDesc = Send an email notification to the customer when a new warranty record is created for their unit.
@@ -432,7 +432,7 @@ TooltipIssueDate = The date the customer reported the issue — not necessarily 
 TooltipSerialOut = Serial number of the replacement or component unit being sent to the customer.
 TooltipSerialIn = Serial number of the unit being returned by the customer for repair or analysis.
 TooltipWarrantySerial = The unique serial number of the unit covered by this warranty. Must match the serial recorded on the original shipment.
-TooltipWarrantyType = Predefined warranty terms/exclusions template. Its default duration is used only when the configured Product warranty-month field is blank or zero.
+TooltipWarrantyType = Warranty terms/exclusions profile. When a Product warranty-duration field is configured, this selection never changes the warranty duration.
 TooltipCoverageDays = Stored equivalent duration in days. If the configured Product warranty-month field has a value, expiry is calculated from calendar months and this day count is derived from that result. Warranty type duration is only a fallback.
 CoverageFromProductMonths = Product warranty period: %s calendar months
 ExpiryDateOverride = Expiry Date Override
@@ -448,7 +448,7 @@ TooltipWTypeLabel = Human-readable name shown in warranty type dropdowns and on 
 TooltipWTypeDescription = Optional description of what this warranty type covers. Visible to staff when choosing a type.
 TooltipWTypeCoverageTerms = Default coverage terms template for this warranty type. Auto-fills the Coverage Terms field on the warranty form when this type is selected. Can be edited per warranty.
 TooltipWTypeExclusions = Default exclusions template for this warranty type. Auto-fills the Exclusions field on the warranty form when this type is selected. Can be edited per warranty.
-TooltipWTypeDefaultDays = Coverage duration that auto-fills the warranty form when this type is selected. Can be overridden per warranty.
+TooltipWTypeDefaultDays = Legacy duration used only when no Product warranty-duration field is configured.
 TooltipWTypePosition = Controls display order in dropdown menus. Lower numbers appear first.
 CoverageTermsPlaceholder = e.g. Covers defects in materials and workmanship under normal use conditions...
 ExclusionsPlaceholder = e.g. Physical damage, consumables, accessories, damage caused by misuse...
@@ -472,7 +472,7 @@ SerialNumberOverridePlaceholder = Enter serial number manually...
 #
 # Product default warranty attributes
 #
-WarrantyDefaultType = Warranty Default Type
+WarrantyDefaultType = Default Warranty Terms
 WarrantyDefaultDays = Default Coverage Days
 WarrantyDefaultDaysPlaceholder = Leave blank to use type default
 WarrantyDefaultDaysFromType = days from type default
@@ -508,3 +508,6 @@ ServiceRequestExtraFields = Claim Extra Fields
 WarrantyExtraFields = Warranty Extra Fields
 
 ErrorWarrantyCalendarExpiry = Unable to calculate the warranty expiry date from the configured Product warranty period.
+
+ProductWarrantyPeriodMissing = No warranty period is configured for this Product.
+ErrorProductWarrantyPeriodMissing = No warranty period is configured for this Product. Set the configured Product warranty-duration field before creating the warranty.
