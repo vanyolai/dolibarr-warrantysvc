@@ -1,0 +1,570 @@
+# Copyright (C) 2026 DPG Supply
+#
+# Ez a fájl a WarrantySvc modul magyar (hu_HU) fordításait tartalmazza.
+
+#
+# Module
+#
+WarrantySvc = Warranty
+WarrantySvcDescription = Manage warranty claims, warranties, and RMA workflows for serialized equipment.
+
+#
+# Menu
+#
+WarrantySvcMenu = Warranty & Service
+SvcRequests = Warranty Claims
+ServiceRequests = Warranty Claims
+NewSvcRequest = New Warranty Claim
+Warranties = Warranties
+NewWarranty = New Warranty
+
+#
+# Object labels
+#
+SvcRequest = Warranty Claim
+SvcRequests = Warranty Claims
+SvcWarranty = Warranty
+SvcWarranties = Warranties
+ServiceLog = Service Log
+LinkToWarranty = Link to warranty
+LinkToServiceRequest = Link to warranty claim
+
+#
+# Status labels
+#
+SvcDraft = Draft
+SvcValidated = Validated
+SvcDiagnosing = Diagnosing
+SvcInProgress = In Progress
+AwaitingReturn = Awaiting Return
+SvcResolved = Resolved
+SvcClosed = Closed
+SvcCancelled = Cancelled
+
+#
+# Resolution types
+#
+ResolutionType = Resolution Type
+ResolutionTypeSelect = Select resolution type...
+ResolutionComponent = Component Shipment
+ResolutionComponentDesc = Ship a part to the customer. No return required.
+ResolutionComponentReturn = Component Shipment + Return
+ResolutionComponentReturnDesc = Ship a part and request the old part be returned for analysis.
+ResolutionSwapCross = Full Unit Swap — Cross Ship
+ResolutionSwapCrossDesc = Send a refurbished replacement now; customer returns faulty unit after.
+ResolutionSwapWait = Full Unit Swap — Wait for Return
+ResolutionSwapWaitDesc = Customer ships faulty unit first; we send replacement after receipt.
+ResolutionIntervention = On-Site Service
+ResolutionInterventionDesc = Technician visits the customer site. Optionally creates an Intervention.
+ResolutionGuidance = Guidance Only
+ResolutionGuidanceDesc = Provide troubleshooting steps or documentation. No physical action.
+ResolutionInformational = Informational
+ResolutionInformationalDesc = Customer call with no fault found. Machine operating as intended. Logged for audit.
+
+#
+# Field labels
+#
+SvcSerialNumber = Serial Number
+SerialIn = Returning Serial
+SerialOut = Replacement Serial
+IssueDescription = Issue Description
+IssueDate = Issue Date
+ReportedVia = Reported Via
+CustomerSite = Customer Site / Location
+ResolutionNotes = Resolution Notes
+WarrantyStatus = Warranty Status
+OutboundCarrier = Outbound Carrier
+OutboundTracking = Outbound Tracking
+DateShipped = Date Shipped
+ReturnCarrier = Return Carrier
+ReturnTracking = Return Tracking
+DateReturnExpected = Return Expected By
+DateReturnReceived = Return Received
+ReturnReminderCount = Reminders Sent
+SvcWarehouseSource = Replacement From Warehouse
+SvcWarehouseReturn = Return To Warehouse
+SealNumber = Security Seal #
+TooltipSealNumber = The unique number from the security sticker shipped with the repaired parts. Once applied by the customer, an intact seal confirms authorized warranty service was performed. A missing or broken seal voids warranty coverage.
+SealNumberPlaceholder = e.g. SEAL-2026-00001
+ConditionScore = Condition Score
+ConditionStatus = Condition
+ServiceHours = Service Hours
+ServiceCount = Times Serviced
+LastServiceDate = Last Service Date
+
+#
+# Reported via options
+#
+ReportedViaPhone = Phone
+ReportedViaEmail = Email
+ReportedViaOnSite = On-Site
+ReportedViaOther = Other
+
+#
+# Warranty type management
+#
+WarrantyType = Warranty Type
+WarrantyTypes = Warranty Types
+AddWarrantyType = Add Warranty Type
+WarrantyTypeAdded = Warranty type added.
+WarrantyTypeUpdated = Warranty type updated.
+WarrantyTypeDeleted = Warranty type deleted.
+WarrantyTypeLabel = e.g. Standard Warranty
+NoPredefinedType = No predefined type (manual)
+CoverageFromType = Legacy duration from warranty type
+DeleteWarrantyType = Delete Warranty Type
+ConfirmDeleteWarrantyType = Are you sure you want to delete this warranty type? Existing warranties using this type will retain their coverage but lose the type label.
+SelectWarrantyType = Select a warranty type...
+ErrorWarrantyTypeCodeLabelRequired = Code and label are required.
+StartDate = Start Date
+ExpiryDateCalculated = End date calculated from start date + warranty type duration
+CoverageDays = Coverage (days)
+CoverageTerms = Coverage Terms
+Exclusions = Exclusions
+ClaimCount = Claims Filed
+TotalClaimedValue = Total Claimed Value
+
+#
+# Warranty status badges
+#
+SvcActive = Active
+SvcExpired = Expired
+SvcVoided = Voided
+NoCoverage = No Coverage
+
+#
+# Condition status labels
+#
+ConditionGood = Good
+ConditionFair = Fair
+ConditionPoor = Poor
+ConditionScrap = Scrap / Write-Off
+
+#
+# Replacement selection strategies
+#
+StrategyFIFO = FIFO (oldest refurb stock first)
+StrategyLeastServiced = Least Serviced (lowest service count)
+StrategyBestCondition = Best Condition (lowest condition score)
+StrategyManual = Manual Selection
+
+#
+# Action buttons
+#
+ValidateSvcRequest = Validate
+BeginDiagnosis = Begin Diagnosis
+OpenTroubleshoot = Open Troubleshoot
+SetInProgress = Set In Progress
+SendReplacement = Send Replacement
+ReceiveReturn = Receive Return
+CreateIntervention = Create Intervention
+MarkResolved = Mark Resolved
+CloseSvcRequest = Close
+ReopenSvcRequest = Re-open
+CancelSvcRequest = Cancel
+DeleteSvcRequest = Delete Warranty Claim
+SvcRequestCancelledWithShipmentWarning = Warranty claim cancelled. Linked shipment (ID: %s) still exists — <a href="%s">view it in the Shipments module</a> and cancel or delete it manually if no longer needed.
+ConfirmCancelSvcRequest = Are you sure you want to cancel this warranty claim? This cannot be undone without re-opening.
+ConfirmReopenSvcRequest = Are you sure you want to re-open this warranty claim?
+ConfirmDeleteSvcRequest = Are you sure you want to permanently delete warranty claim %s? This action cannot be undone.
+SendReminder = Send Return Reminder
+SvcDiagnosingStarted = Diagnosis started
+SvcChooseResolutionAfterDiagnosis = Choose a resolution type once diagnosis is complete
+SvcRequestNotInValidatedStatus = This warranty claim must be validated before it can enter diagnosis.
+SvcRequestNotInDiagnosingStatus = This warranty claim is not in a state that allows moving to In Progress.
+SvcRequestResolutionTypeRequiredBeforeProgress = Choose a resolution type before moving to In Progress.
+InvoiceNonReturn = Invoice for Non-Return
+VoidWarranty = Void Warranty
+
+#
+# Section headings
+#
+SectionResolution = Resolution
+SectionComponents = Components / Parts
+SectionWarranty = Warranty Coverage
+SectionShipping = Outbound Shipment
+SectionReturn = Return Tracking
+SectionLinkedObjects = Linked Objects
+
+#
+# Info/status banners
+#
+WarrantyCoveredBanner = This warranty claim is covered under active warranty.
+WarrantyExpiredBanner = Warranty has expired. This claim is billable.
+WarrantyNoneBanner = No warranty on file for this serial number. This claim is billable.
+NoSerialSelected = No serial number selected — warranty cannot be checked.
+
+#
+# PDF document labels
+#
+SvcRequestSlip = Warranty Claim Authorization
+ReturnInstructions = Return Instructions
+ReturnShipTo = Please return the unit to:
+EstimatedResolution = Estimated Resolution
+DatePrinted = Printed
+ComponentLines = Component Lines
+TrackingInfo = Tracking Information
+LineType = Type
+SvcShipped = Shipped
+LineTypeComponentOut = Outbound Part
+LineTypeComponentIn = Return Part
+LineTypeConsumedSite = Consumed On-Site
+TechnicianSignature = Technician Signature
+CustomerSignature = Customer Signature
+DateSigned = Date
+SerialOut = Replacement Serial
+SerialIn = Returned Serial
+OutboundCarrier = Outbound Carrier
+OutboundTracking = Outbound Tracking #
+ReturnCarrier = Return Carrier
+ReturnTracking = Return Tracking #
+IssueDescription = Issue Description
+ResolutionNotes = Resolution Notes
+
+#
+# Tabs
+#
+SvcDetails = Details
+SvcNotes = Notes
+SvcDocuments = Documents
+Troubleshoot = Troubleshoot
+
+#
+# Troubleshooting workflow
+#
+TroubleshootSaved = Troubleshoot findings saved.
+TroubleshootSummary = Summary
+TroubleshootOutcome = Outcome
+SelectOutcome = Select outcome...
+TroubleshootOutcome_resolved = Issue resolved during call — no action needed
+TroubleshootOutcome_no_fault = No fault found — machine operating correctly
+TroubleshootOutcome_escalate = Escalate to senior technician
+TroubleshootOutcome_parts_needed = Parts needed — follow up with component shipment
+TroubleshootOutcome_intervention = On-site service required
+SvcDone = Done
+DiagnosticStep = Diagnostic Step
+Finding = Finding
+FindingOptional = Optional note
+PreviousTroubleshootSessions = Previous Troubleshoot Sessions
+SaveFindings = Save Findings
+
+# Checklist steps — Safety
+ChecklistSafetyPowerOff = Confirm unit is powered off before inspection
+ChecklistSafetyPowerOffDesc = Ask customer to power off and unplug before remote guidance begins.
+ChecklistSafetyExterior = Inspect exterior for damage
+ChecklistSafetyExteriorDesc = Cracks, dents, burn marks, or moisture ingress.
+
+# Checklist steps — Power
+ChecklistPowerSupply = Verify power supply and outlet
+ChecklistPowerSupplyDesc = Confirm correct voltage, working outlet, and undamaged cord.
+ChecklistPowerStartup = Power on — observe startup behavior
+ChecklistPowerStartupDesc = Note any error lights, unusual sounds, or failure to start.
+
+# Checklist steps — Oxygen compressor specific
+ChecklistCompIntakeFilter = Inspect intake filter
+ChecklistCompIntakeFilterDesc = Remove and inspect for clogging or saturation. Replace if dirty.
+ChecklistCompOutputPressure = Measure output pressure (PSI)
+ChecklistCompOutputPressureDesc = Should read within spec. Note actual reading.
+ChecklistCompFlowRate = Verify flow rate (LPM)
+ChecklistCompFlowRateDesc = Measure LPM at output port. Compare to product spec sheet.
+ChecklistCompMoistureTrap = Check moisture trap / desiccant
+ChecklistCompMoistureTrapDesc = Inspect color indicator or saturation level. Replace if exhausted.
+ChecklistCompOutletPurity = Test outlet oxygen purity
+ChecklistCompOutletPurityDesc = Use analyzer if available. Normal is 90–96% O2.
+ChecklistCompVibrationNoise = Listen for abnormal vibration or noise
+ChecklistCompVibrationNoiseDesc = Rattling, grinding, or high-pitched squealing may indicate piston or valve wear.
+ChecklistCompHeatTemp = Check unit temperature after 10-minute run
+ChecklistCompHeatTempDesc = Excessive heat on cabinet top or sides may indicate blocked vents or failing components.
+
+# Checklist steps — General
+ChecklistCustomerSteps = Review customer-reported steps to reproduce
+ChecklistCustomerStepsDesc = Ask customer to describe exactly when the issue occurs.
+ChecklistReproduce = Attempt to reproduce the issue
+ChecklistReproduceDesc = Walk through the reported scenario step by step.
+ChecklistFirmware = Verify firmware / software version
+ChecklistFirmwareDesc = Check if unit is on current firmware. Note version.
+
+#
+# Email notifications — trigger-based
+#
+NotifTechValidateSubject = [New Assignment] Warranty Claim %s assigned to you
+NotifTechValidateBody = Hello %s,\n\nWarranty claim %s has been validated and assigned to you.
+NotifTechInProgressSubject = [In Progress] Warranty Claim %s
+NotifTechInProgressBody = Hello %s,\n\nWarranty claim %s has been moved to In Progress status.
+NotifCustAwaitReturnSubject = [Action Required] Please return unit — Warranty Claim %s
+NotifCustAwaitReturnBody = Dear customer,\n\nA replacement unit has been shipped for warranty claim %s (serial: %s).\n\nPlease arrange the return of the original unit.
+NotifCustResolvedSubject = [Resolved] Warranty Claim %s
+NotifCustResolvedBody = Dear customer,\n\nYour warranty claim %s has been resolved.
+NotifWarrantyCreatedSubject = Warranty Registration — %s
+NotifWarrantyCreatedBody = Dear customer,\n\nYour warranty %s for serial number %s has been registered.\n\nCoverage expires: %s
+NoExpiryDate = No expiry date
+
+#
+# Email notifications — cron reminders
+#
+ReminderReturnSubject = [ACTION REQUIRED] Please return unit for warranty claim %s
+ReminderReturnBody = Dear customer,\n\nThis is a reminder that we are waiting for the return of serial number %s related to warranty claim %s.\n\nPlease arrange return shipment at your earliest convenience.
+ReminderReturnFooter = Thank you for your cooperation.\n\nWarranty & Service Team
+NoEmailForCustomer = No email address on file for this customer.
+NoSenderEmailConfigured = No sender email address configured in Dolibarr settings.
+
+#
+# Error messages (must start with Error)
+#
+ErrorSvcRequestNotInDraftStatus = This warranty claim is not in draft status.
+ErrorSvcRequestNotInValidatedStatus = This warranty claim must be validated before proceeding.
+ErrorSvcRequestCannotClose = This warranty claim cannot be closed from its current status.
+ErrorSvcRequestAlreadyClosedOrCancelled = This warranty claim is already closed or cancelled.
+ErrorNoSerialForSwap = A serial number must be set before creating a unit swap shipment.
+ErrorNoSerialInWarehouse = Serial/lot %s not found in the source warehouse. Check stock or select a different warehouse.
+ErrorNoWarehouseSelected = Please select a warehouse before creating a shipment.
+ErrorInterventionModuleDisabled = The Interventions module is not enabled.
+ErrorExpeditionModuleDisabled = The Shipments module is not enabled.
+ErrorFactureModuleDisabled = The Invoicing module is not enabled.
+ErrorWarrantySerialRequired = A serial number is required to create a warranty record.
+
+#
+# Admin / Setup page
+#
+SvcSetup = Setup
+SvcSetupSaved = Settings saved.
+SvcSelectWarehouse = Select a warehouse
+SvcWarehouseRefurbDesc = Warehouse where refurbished units available for swap are stored.
+SvcWarehouseReturnDesc = Warehouse where returned / in-repair units are received.
+ReturnGraceDays = Return reminder delay
+ReturnGraceDaysDesc = Days after the expected return date before the first reminder email is sent.
+ReturnInvoiceDays = Auto-invoice after
+ReturnInvoiceDaysDesc = Days after the expected return date before an invoice is automatically generated for unreturned units.
+ReplacementStrategy = Default replacement selection strategy
+ReplacementStrategyDesc = How the system suggests a serial number when creating a unit swap.
+AutoWarrantyCheck = Auto-check warranty on creation
+AutoWarrantyCheckDesc = Automatically look up warranty coverage when a warranty claim is created.
+AutoWarrantyOnShipment = Auto-create warranty on shipment
+AutoWarrantyOnShipmentDesc = Automatically register a warranty for each serialized product line that does not already have one, using the configured trigger event below.
+WarrantyTriggerEvent = Warranty creation trigger
+WarrantyTriggerEventDesc = Which shipment event triggers automatic warranty creation.
+OnShipmentValidate = On shipment validation (confirmed for dispatch)
+OnShipmentClose = On shipment close (delivery confirmed)
+OnShipmentBoth = On both validate and close
+AutoWarrantyOnOrderClose = Auto-create warranty on order delivery
+AutoWarrantyOnOrderCloseDesc = When a sales order is classified as delivered (closed), automatically register warranties for any serialized products in linked shipments that do not already have one.
+ProductWarrantyMonthsField = Product warranty duration field
+ProductWarrantyMonthsFieldDesc = Product integer extra field containing the customer warranty duration in calendar months. When configured, this field is the sole source of automatic warranty duration; warranty types define terms only.
+ProductWarrantyMonthsFieldNone = Not configured (use legacy day-based duration logic)
+ErrorInvalidProductWarrantyMonthsField = The selected Product warranty duration field is not a valid integer Product extra field.
+DefaultCoverageDays = Default warranty coverage (days)
+DefaultCoverageDaysDesc = Legacy fallback coverage period used only when no Product warranty-month field is configured.
+SvcDays = days
+NotifyWarrantyCreated = Email customer on warranty creation
+NotifyWarrantyCreatedDesc = Send an email notification to the customer when a new warranty record is created for their unit.
+WarrantyRequiresLots = Restrict warranty claims to serialized products
+WarrantyRequiresLotsDesc = When enabled, the product selector on warranty claim forms will only show products that have serial number or lot tracking enabled in the Stocks module.
+UseCustomerReturns = Use Customer Returns module for inbound returns
+UseCustomerReturnsDesc = When enabled, the "Create Return" button on warranty claims will open the Customer Returns module instead of creating a native Reception. This provides stock movement tracking, credit note generation, and a dedicated return document.
+CustomerReturnModuleNotInstalled = The Customer Returns module is not installed or enabled. Install it from the Modules page to use this feature.
+CreateCustomerReturn = Create Customer Return
+NumberingModule = Reference Numbering Module
+
+# Movement tracker panel
+MovementTracker = Movement Tracker
+OutboundToCustomer = → Outbound to Customer
+ReturnFromCustomer = ← Return from Customer
+OnSiteIntervention = On-Site Intervention
+OnSiteVisit = On-Site Visit
+LinkedCall = Linked Call
+TooltipLinkedCall = PBX call record that originated this warranty claim. Set automatically when created from the call summary tab, or link manually.
+ShipComponents = Ship Components
+ShipReplacementUnit = Ship Replacement Unit
+LogReturnReceived = Log Return Received
+ReturnLogged = Return logged successfully.
+NotYetDispatched = Not yet dispatched
+NotYetScheduled = Not yet scheduled
+ReturnPending = Awaiting return
+ExpectedBy = Expected by
+ShipmentRef = Shipment
+ComponentLines = Component Lines
+ScheduleIntervention = Schedule Intervention
+Overdue = Overdue
+SvcConfirm = Confirm
+ReplacementSerial = Replacement Serial #
+CreateReplacementOrder = Create Replacement Order
+AddReplacementOrder = Add Replacement Order
+ReplacementOrderCreated = Replacement order created.
+NoReplacementOrderYet = No replacement order yet
+SvcCreateShipment = Create Shipment
+ShipmentCreated = Shipment created.
+ReplacementForSR = Replacement unit for warranty claim %s
+ValidateShipment = Validate Shipment
+ShipmentValidated = Shipment validated.
+CreateReturnReception = Create Return Reception
+ReceptionCreated = Return reception created.
+SvcReceptionValidated = Return reception validated.
+WaitingForShipmentValidation = Waiting for outbound shipment to be validated
+
+#
+# Create warranty from shipment
+#
+NewWarrantyFromShipment = New Warranty from Shipment
+CreateWarrantyFromShipment = Create from existing shipment
+SwitchToManualWarranty = Enter details manually instead
+SelectShipmentStep = Step 1 — Select a validated shipment
+SelectShipment = Select a shipment...
+SelectSerial = Select a serial number...
+AutoFilledFromSerial = Auto-filled when a serial is selected
+NoUncoveredSerialsInShipment = All serialized units in this shipment already have warranty coverage.
+Load = Load
+WarrantyVoided = Warranty has been voided.
+
+#
+# Tooltips — shown as hover help icons on form field labels
+#
+IssueDescriptionPlaceholder = Describe the fault, symptoms, or customer complaint in detail...
+NotePublicPlaceholder = Notes or comments visible to the customer...
+TooltipSerialNumber = The serial or lot number of the customer's defective unit. Used to automatically look up warranty coverage.
+TooltipSvcWarranty = Optional — link to an existing warranty record. If left blank, the system will auto-match by serial number on save.
+TooltipResolutionType = Determines the workflow: whether components are shipped, a unit is swapped, an on-site visit is scheduled, or guidance only is provided.
+TooltipIssueDescription = Describe the fault or complaint as reported by the customer. This text appears on the service authorization PDF.
+TooltipCustomerSite = Physical location or site name where the unit is installed. Helpful for on-site service calls.
+TooltipBillable = When checked, this request will be invoiced to the customer. Automatically set based on warranty status — override here if needed.
+TooltipResolutionNotes = Internal notes on how the issue was resolved. Visible on the closed case record and printed on service summaries.
+TooltipReportedVia = The channel through which the customer reported the issue. Used for intake volume reporting.
+TooltipIssueDate = The date the customer reported the issue — not necessarily today's date.
+TooltipSerialOut = Serial number of the replacement or component unit being sent to the customer.
+TooltipSerialIn = Serial number of the unit being returned by the customer for repair or analysis.
+TooltipWarrantySerial = The unique serial number of the unit covered by this warranty. Must match the serial recorded on the original shipment.
+TooltipWarrantyType = Warranty terms/exclusions profile. When a Product warranty-duration field is configured, this selection never changes the warranty duration.
+TooltipCoverageDays = Stored equivalent duration in days. If the configured Product warranty-month field has a value, expiry is calculated from calendar months and this day count is derived from that result. Warranty type duration is only a fallback.
+CoverageFromProductMonths = Product warranty period: %s calendar months
+ExpiryDateOverride = Expiry Date Override
+ExpiryAutoComputed = (auto-computed from start date + coverage days)
+TooltipExpiryDateOverride = Optionally set an exact expiry date. Leave blank to auto-compute from start date + coverage days.
+TooltipCoverageTerms = Describe what this warranty covers — parts, labour, on-site service, etc. Printed on warranty documents.
+TooltipExclusions = Explicitly list what is not covered — physical damage, accessories, misuse, etc. Printed on warranty documents.
+OriginOrder = Origin Order
+TooltipOriginOrder = Dolibarr order ID this warranty originated from. Optional — used for purchase traceability.
+TooltipNotePublic = Notes visible to the customer. Included in warranty registration emails if notifications are enabled.
+TooltipWTypeCode = Short machine-readable identifier, e.g. "standard" or "extended_2yr". Used internally — no spaces allowed.
+TooltipWTypeLabel = Human-readable name shown in warranty type dropdowns and on warranty records.
+TooltipWTypeDescription = Optional description of what this warranty type covers. Visible to staff when choosing a type.
+TooltipWTypeCoverageTerms = Default coverage terms template for this warranty type. Auto-fills the Coverage Terms field on the warranty form when this type is selected. Can be edited per warranty.
+TooltipWTypeExclusions = Default exclusions template for this warranty type. Auto-fills the Exclusions field on the warranty form when this type is selected. Can be edited per warranty.
+TooltipWTypeDefaultDays = Legacy duration used only when no Product warranty-duration field is configured.
+TooltipWTypePosition = Controls display order in dropdown menus. Lower numbers appear first.
+CoverageTermsPlaceholder = e.g. Covers defects in materials and workmanship under normal use conditions...
+ExclusionsPlaceholder = e.g. Physical damage, consumables, accessories, damage caused by misuse...
+TroubleshootSummaryPlaceholder = Summarise what was checked, what symptoms were observed, and what action was recommended...
+TooltipTroubleshootSummary = Overall summary of this diagnostic session — what was checked, what was found, and recommended next steps.
+TooltipTroubleshootOutcome = The result of this session. Selecting "No fault found" will update the resolution type on the warranty claim to Informational.
+SelectProductFirst = Select a product first
+NoSerialsAvailable = No known serials for this product
+SelectCustomerFirst = Select a customer first
+SelectProject = Select a project...
+NoProjectForCustomer = No open projects for this customer
+NoProductForCustomer = No shipped products found for this customer
+NoProductsWithUnassignedSerials = All registered serials are already covered by a warranty. Register a new shipment or add serial numbers via the Stocks module before creating a manual warranty.
+WarrantyModeStandard = Standard
+WarrantyModeOverride = Override / Special Case
+WarrantyModeManual = Manual Entry
+WarrantyOverrideWarning = Override mode — only products with a validated shipment on record are shown. Serial number is entered manually and will not be validated against stock records. For special cases only (e.g. warranty transfers).
+WarrantyManualWarning = Manual entry mode — no module data is used. Both product and serial are entered freely. Use only when the Expedition or Stocks modules are not configured.
+SerialNumberOverridePlaceholder = Enter serial number manually...
+
+#
+# Product default warranty attributes
+#
+WarrantyDefaultType = Default Warranty Terms
+WarrantyDefaultDays = Default Coverage Days
+WarrantyDefaultDaysPlaceholder = Leave blank to use type default
+WarrantyDefaultDaysFromType = days from type default
+WarrantyNoDefault = Not defined
+WarrantyInheritParent = Inherit from parent: %s
+WarrantyBlankInherits = Blank = inherit parent default (%s)
+WarrantyInheritDays = Inherit %d days from parent
+WarrantyInheritedFromParent = inherited from parent
+WarrantyVariantOverride = variant override
+
+# Unit Service History
+UnitServiceHistory = Unit Service History
+ServiceCount = Times Serviced
+ServiceHours = Total Service Hours
+ConditionStatus = Condition
+ConditionScore = Condition Score
+ConditionNotes = Condition Notes
+LastServiceDate = Last Service Date
+LowerIsBetter = lower is better
+NoServiceHistory = No service history recorded for this serial.
+ConditionGood = Good
+ConditionFair = Fair
+ConditionPoor = Poor
+ConditionScrap = Scrap
+
+# Debug
+DebugMode = Debug Mode
+DebugModeDesc = Exposes diagnostic endpoints at /custom/warrantysvc/ajax/debug.php for troubleshooting linked objects, element properties, triggers, hooks, and module configuration. Admin-only access.
+
+# Admin / Extrafields
+WarrantySvcSetup = Warranty & Service Setup
+ServiceRequestExtraFields = Claim Extra Fields
+WarrantyExtraFields = Warranty Extra Fields
+
+ErrorWarrantyCalendarExpiry = Unable to calculate the warranty expiry date from the configured Product warranty period.
+
+ProductWarrantyPeriodMissing = No warranty period is configured for this Product.
+ErrorProductWarrantyPeriodMissing = No warranty period is configured for this Product. Set the configured Product warranty-duration field before creating the warranty.
+
+WarrantyDurationSource = Warranty duration source
+WarrantyDurationSourceDesc = Choose how warranty duration is determined.
+WarrantyDurationSourceProductField = Product field (calendar months)
+WarrantyDurationSourceWarrantyType = Warranty Type / upstream logic
+WarrantyDuration = Warranty duration
+WarrantyDurationFromProductField = Calculated from the configured Product warranty-duration field when saved.
+SelectSerialForWarrantyPeriod = Select a serial number to load the Product warranty period.
+ErrorProductWarrantyFieldNotConfigured = Product-field duration mode is active, but no Product warranty-duration field is configured.
+
+SvcMonths = months
+WarrantyDurationLegacyUnknown = Legacy record: calendar-month snapshot not stored
+
+ShipmentItem = Shipment item
+TooltipShipmentItem = Select a shipped serial/lot allocation or a non-serialized shipment line to create a warranty for.
+SelectShipmentItem = Select a shipment item
+AutoFilledFromShipmentItem = Auto-filled from shipment item
+SelectShipmentItemForWarrantyPeriod = Select a shipment item to load the Product warranty period.
+NoUncoveredItemsInShipment = All eligible items in this shipment already have warranty coverage.
+NoSerialShipmentItem = no serial, qty %s
+
+ErrorInvalidShipmentItem = The selected shipment item is invalid.
+ErrorShipmentWarrantyStartDateMissing = The shipment has no usable shipment date, so warranty start cannot be determined.
+
+ErrorWarrantyDoesNotMatchClaim = The selected warranty does not match the claim customer, Product or serial number.
+ErrorWarrantyNotFound = The selected warranty could not be found.
+ErrorVoidedWarrantyClaim = A voided warranty cannot be linked to a new claim.
+
+WarrantyStartFromShipment = From shipment date
+
+#
+# Additional module metadata, permissions and validation messages
+#
+ModuleWarrantySvcDesc = RMA (Return Merchandise Authorization), customer warranty and service workflow management.
+CheckOverdueRMAReturns = Check overdue warranty returns
+CheckOverdueRMAReturnsDesc = Check for overdue warranty/RMA unit returns and send reminders.
+PermissionReadSvcRequests = Read warranty claims
+PermissionWriteSvcRequests = Create and edit warranty claims
+PermissionDeleteSvcRequests = Delete warranty claims
+PermissionValidateSvcRequests = Validate warranty claims
+PermissionCloseSvcRequests = Close warranty claims
+PermissionReadWarranties = Read warranties
+PermissionWriteWarranties = Create and edit warranties
+PermissionDeleteWarranties = Delete warranties
+SvcRequestPdfStandardDesc = Standard warranty claim authorization slip
+ErrorWarrantySvcOutputDirNotConfigured = Warranty & Service output directory is not configured.
+CustomerSitePlaceholder = e.g. Main warehouse, Building A
+WarrantyTypeCodePlaceholder = e.g. standard
+WarrantyTypeDescriptionPlaceholder = e.g. Covers parts and labour for standard equipment
+ErrorCreatingReplacementShipment = Unable to create the replacement shipment.
+ErrorInvalidProductWarrantyMonthsFieldName = Invalid Product warranty-duration field name: %s
+ErrorProductWarrantyMonthsFieldMissingOrInvalid = Configured Product warranty-duration field does not exist or is not an integer extra field: %s
+ErrorShipmentItemNotInShipment = Shipment item not found or does not belong to the selected shipment.
+ErrorShipmentItemQuantityInvalid = Shipment item quantity is invalid.
+ErrorWarrantyStartDateMissing = Warranty start date is missing or invalid.
+ErrorWarrantyCoverageDaysCalculation = Unable to calculate the equivalent warranty coverage in days.
+ErrorDuplicateShipmentWarranty = A non-voided warranty already exists for this shipment item (warranty ID %s).
