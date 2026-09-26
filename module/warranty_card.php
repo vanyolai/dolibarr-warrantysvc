@@ -28,7 +28,7 @@ $id     = GETPOST('id', 'int');
 $ref    = GETPOST('ref', 'alpha');
 $action = GETPOST('action', 'aZ09');
 $cancel = GETPOST('cancel', 'alpha');
-$duration_source = getDolGlobalString('WARRANTYSVC_DURATION_SOURCE', getDolGlobalString('WARRANTYSVC_PRODUCT_WARRANTY_MONTHS_FIELD') !== '' ? 'product_field' : 'warranty_type');
+$duration_source = warrantysvc_get_duration_source();
 
 $object = new SvcWarranty($db);
 $extrafields = new ExtraFields($db);
@@ -75,39 +75,33 @@ if ($action == 'add' && $permwrite) {
 	$object->note_public    = GETPOST('note_public', 'restricthtml');
 	$object->note_private   = GETPOST('note_private', 'restricthtml');
 
-	// Manual expiry overrides all automatic duration policies.
-	$manual_expiry = dol_mktime(12, 0, 0, GETPOST('expiry_datemonth', 'int'), GETPOST('expiry_dateday', 'int'), GETPOST('expiry_dateyear', 'int'));
-	if ($manual_expiry) {
-		$object->expiry_date = $manual_expiry;
+	if ($duration_source === 'product_field') {
+		$period_error = '';
+		$period = warrantysvc_compute_product_warranty_period(
+			$db,
+			(int) $object->fk_product,
+			(int) $conf->entity,
+			(int) $object->start_date,
+			$period_error
+		);
+		if ($period_error !== '') {
+			$object->error = $period_error;
+		} elseif ($period === null) {
+			$object->error = $langs->trans('ErrorProductWarrantyPeriodMissing');
+		} else {
+			$object->coverage_months = $period['months'];
+			$object->coverage_days = $period['days'];
+			$object->expiry_date = $period['expiry'];
+		}
 	} else {
-		// When configured, the Product warranty-month field is the single source
-		// of truth for duration. Warranty type is a terms/exclusions profile only.
-		$product_month_field = $duration_source === 'product_field' ? trim(getDolGlobalString('WARRANTYSVC_PRODUCT_WARRANTY_MONTHS_FIELD')) : '';
-		if ($duration_source === 'product_field') {
-			if ($product_month_field === '') {
-				$object->error = $langs->trans('ErrorProductWarrantyFieldNotConfigured');
-			} else {
-			$month_error = '';
-			$product_months = warrantysvc_get_product_warranty_months($db, (int) $object->fk_product, (int) $conf->entity, $month_error);
-			if ($month_error !== '') {
-				$object->error = $month_error;
-			} elseif ($product_months === null || $product_months <= 0) {
-				$object->error = $langs->trans('ErrorProductWarrantyPeriodMissing');
-			} else {
-				$calendar_expiry = warrantysvc_add_months_clamped($object->start_date, $product_months);
-				if ($calendar_expiry === null) {
-					$object->error = $langs->trans('ErrorWarrantyCalendarExpiry');
-				} else {
-					$object->expiry_date = $calendar_expiry;
-					$object->coverage_days = warrantysvc_calendar_days_between($object->start_date, $calendar_expiry);
-				}
-			}
-			}
+		// Preserve upstream behaviour: an explicit expiry date overrides day-based coverage.
+		$manual_expiry = dol_mktime(12, 0, 0, GETPOST('expiry_datemonth', 'int'), GETPOST('expiry_dateday', 'int'), GETPOST('expiry_dateyear', 'int'));
+		if ($manual_expiry) {
+			$object->expiry_date = $manual_expiry;
 		}
 	}
 
-	// Warranty type defines terms/exclusions. Its default duration is only a
-	// fallback when no Product month value applies.
+	// Warranty Type mode keeps the upstream terms/exclusions template behaviour.
 	if ($duration_source === 'warranty_type' && !empty($object->warranty_type)) {
 		$type = new SvcWarrantyType($db);
 		if ($type->fetch(0, $object->warranty_type) > 0) {
@@ -149,40 +143,61 @@ if ($action == 'add' && $permwrite) {
 
 // ---- UPDATE ----
 if ($action == 'update' && $permwrite) {
+	$existing_warranty_type = $object->warranty_type;
+	$existing_coverage_terms = $object->coverage_terms;
+	$existing_exclusions = $object->exclusions;
+	$existing_coverage_months = (int) $object->coverage_months;
 	$object->fk_soc         = GETPOST('fk_soc', 'int');
 	$object->fk_product     = GETPOST('fk_product', 'int');
 	$object->serial_number  = GETPOST('serial_number', 'alpha');
-	$object->warranty_type  = $duration_source === 'warranty_type' ? GETPOST('warranty_type', 'alpha') : '';
+	$object->warranty_type  = $duration_source === 'warranty_type' ? GETPOST('warranty_type', 'alpha') : $existing_warranty_type;
 	$object->start_date     = dol_mktime(12, 0, 0, GETPOST('start_datemonth', 'int'), GETPOST('start_dateday', 'int'), GETPOST('start_dateyear', 'int'));
-	$object->coverage_days= GETPOST('coverage_days', 'int');
-	$object->coverage_terms = $duration_source === 'warranty_type' ? GETPOST('coverage_terms', 'restricthtml') : '';
-	$object->exclusions     = $duration_source === 'warranty_type' ? GETPOST('exclusions', 'restricthtml') : '';
+	$object->coverage_days  = $duration_source === 'warranty_type' ? GETPOST('coverage_days', 'int') : $object->coverage_days;
+	$object->coverage_terms = $duration_source === 'warranty_type' ? GETPOST('coverage_terms', 'restricthtml') : $existing_coverage_terms;
+	$object->exclusions     = $duration_source === 'warranty_type' ? GETPOST('exclusions', 'restricthtml') : $existing_exclusions;
 	$object->fk_commande    = GETPOST('fk_commande', 'int');
 	$object->fk_expedition  = GETPOST('fk_expedition', 'int');
 	$object->note_public    = GETPOST('note_public', 'restricthtml');
 	$object->note_private   = GETPOST('note_private', 'restricthtml');
 
-	$manual_expiry = dol_mktime(12, 0, 0, GETPOST('expiry_datemonth', 'int'), GETPOST('expiry_dateday', 'int'), GETPOST('expiry_dateyear', 'int'));
-	if ($manual_expiry) {
-		$object->expiry_date = $manual_expiry;
-	} elseif ($duration_source === 'product_field') {
-		$product_month_field = $duration_source === 'product_field' ? trim(getDolGlobalString('WARRANTYSVC_PRODUCT_WARRANTY_MONTHS_FIELD')) : '';
-		if ($product_month_field === '') {
-			$object->error = $langs->trans('ErrorProductWarrantyFieldNotConfigured');
-		} else {
-			$month_error = '';
-			$product_months = warrantysvc_get_product_warranty_months($db, (int) $object->fk_product, (int) $conf->entity, $month_error);
-			if ($month_error !== '') {
-				$object->error = $month_error;
-			} elseif ($product_months === null || $product_months <= 0) {
+	if ($duration_source === 'product_field') {
+		$months = $existing_coverage_months;
+		if ($months <= 0) {
+			$period_error = '';
+			$period = warrantysvc_compute_product_warranty_period(
+				$db,
+				(int) $object->fk_product,
+				(int) $conf->entity,
+				(int) $object->start_date,
+				$period_error
+			);
+			if ($period_error !== '') {
+				$object->error = $period_error;
+			} elseif ($period === null) {
 				$object->error = $langs->trans('ErrorProductWarrantyPeriodMissing');
 			} else {
-				$object->expiry_date = warrantysvc_add_months_clamped($object->start_date, $product_months);
-				$object->coverage_days = warrantysvc_calendar_days_between($object->start_date, $object->expiry_date);
+				$months = $period['months'];
 			}
 		}
-	} elseif ($object->coverage_days && $object->start_date) {
-		$object->expiry_date = dol_time_plus_duree($object->start_date, $object->coverage_days, 'd');
+		if (empty($object->error) && $months > 0) {
+			$expiry = warrantysvc_add_months_clamped((int) $object->start_date, $months);
+			$days = $expiry ? warrantysvc_calendar_days_between((int) $object->start_date, (int) $expiry) : null;
+			if ($expiry === null || $days === null) {
+				$object->error = $langs->trans('ErrorWarrantyCalendarExpiry');
+			} else {
+				$object->coverage_months = $months;
+				$object->coverage_days = $days;
+				$object->expiry_date = $expiry;
+			}
+		}
+	} else {
+		$object->coverage_months = null;
+		$manual_expiry = dol_mktime(12, 0, 0, GETPOST('expiry_datemonth', 'int'), GETPOST('expiry_dateday', 'int'), GETPOST('expiry_dateyear', 'int'));
+		if ($manual_expiry) {
+			$object->expiry_date = $manual_expiry;
+		} elseif ($object->coverage_days && $object->start_date) {
+			$object->expiry_date = dol_time_plus_duree($object->start_date, $object->coverage_days, 'd');
+		}
 	}
 
 	// Retrieve extrafields from POST
