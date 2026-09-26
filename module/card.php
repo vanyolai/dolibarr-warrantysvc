@@ -101,15 +101,26 @@ if ($action == 'add' && $permwrite) {
 	if ($fk_warranty_posted > 0) {
 		$w = new SvcWarranty($db);
 		if ($w->fetch($fk_warranty_posted) > 0) {
-			$warranty_matches = ((int) $w->fk_soc === (int) $object->fk_soc)
+			$warranty_matches = ((int) $w->entity === (int) $conf->entity)
+				&& ((int) $w->fk_soc === (int) $object->fk_soc)
 				&& ((int) $w->fk_product === (int) $object->fk_product);
-			if ($warranty_matches && $object->serial_number !== '' && $w->serial_number !== null && $w->serial_number !== '') {
-				$warranty_matches = ((string) $w->serial_number === (string) $object->serial_number);
+
+			$warranty_serial = trim((string) $w->serial_number);
+			$claim_serial = trim((string) $object->serial_number);
+			if ($warranty_matches) {
+				if ($warranty_serial !== '') {
+					$warranty_matches = ($warranty_serial === $claim_serial);
+				} elseif ($claim_serial !== '') {
+					$warranty_matches = false;
+				}
 			}
 
 			if (!$warranty_matches) {
 				$error++;
 				setEventMessages($langs->trans('ErrorWarrantyDoesNotMatchClaim'), null, 'errors');
+			} elseif ($w->status === SvcWarranty::STATUS_VOIDED) {
+				$error++;
+				setEventMessages($langs->trans('ErrorVoidedWarrantyClaim'), null, 'errors');
 			} else {
 				$effective_warranty_status = $w->getStatusAt($object->issue_date);
 				$object->fk_warranty     = $w->id;
