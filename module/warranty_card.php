@@ -166,7 +166,7 @@ if ($action == 'update' && $permwrite) {
 	if ($manual_expiry) {
 		$object->expiry_date = $manual_expiry;
 	} elseif ($duration_source === 'product_field') {
-		$product_month_field = trim(getDolGlobalString('WARRANTYSVC_PRODUCT_WARRANTY_MONTHS_FIELD'));
+		$product_month_field = $duration_source === 'product_field' ? trim(getDolGlobalString('WARRANTYSVC_PRODUCT_WARRANTY_MONTHS_FIELD')) : '';
 		if ($product_month_field === '') {
 			$object->error = $langs->trans('ErrorProductWarrantyFieldNotConfigured');
 		} else {
@@ -349,20 +349,28 @@ if ($action == 'create_from_shipment') {
 		} elseif (count($serial_options) <= 1) {
 			print '<div class="warning" style="margin-top:10px">'.$langs->trans('NoUncoveredSerialsInShipment').'</div>';
 		} else {
-			$wtype_items       = SvcWarrantyType::fetchAllForForm($db);
-			$wtype_options     = array('' => '— '.$langs->trans('NoPredefinedType').' —');
-			$wtype_defaults_js = '{';
-			foreach ($wtype_items as $wt) {
-				$wtype_options[$wt->code] = dol_escape_htmltag($wt->label);
-				$wtype_defaults_js .= '"'.dol_escape_js($wt->code).'":'.((int) $wt->default_coverage_days).',';
+			$wtype_items       = array();
+			$wtype_options     = array();
+			$wtype_defaults_js = '{}';
+			$selected_wtype    = '';
+			$initial_days      = 0;
+			$days_disabled     = '';
+			if ($duration_source === 'warranty_type') {
+				$wtype_items       = SvcWarrantyType::fetchAllForForm($db);
+				$wtype_options     = array('' => '— '.$langs->trans('NoPredefinedType').' —');
+				$wtype_defaults_js = '{';
+				foreach ($wtype_items as $wt) {
+					$wtype_options[$wt->code] = dol_escape_htmltag($wt->label);
+					$wtype_defaults_js .= '"'.dol_escape_js($wt->code).'":'.((int) $wt->default_coverage_days).',';
+				}
+				$wtype_defaults_js = rtrim($wtype_defaults_js, ',').'}';
+				$selected_wtype    = GETPOST('warranty_type', 'alpha');
+				$initial_days      = 365;
+				foreach ($wtype_items as $wt) {
+					if ($wt->code === $selected_wtype) { $initial_days = (int) $wt->default_coverage_days; break; }
+				}
+				$days_disabled = ($selected_wtype ? ' readonly style="opacity:0.5"' : '');
 			}
-			$wtype_defaults_js = rtrim($wtype_defaults_js, ',').'}';
-			$selected_wtype    = GETPOST('warranty_type', 'alpha');
-			$initial_days      = 365;
-			foreach ($wtype_items as $wt) {
-				if ($wt->code === $selected_wtype) { $initial_days = (int) $wt->default_coverage_days; break; }
-			}
-			$days_disabled = ($selected_wtype ? ' readonly style="opacity:0.5"' : '');
 
 			print '<br>';
 			print '<form action="'.$_SERVER['PHP_SELF'].'" method="POST">';
@@ -394,11 +402,13 @@ if ($action == 'create_from_shipment') {
 			print '<tr><td>'.$langs->trans('Product').'</td>';
 			print '<td><span id="product_label" class="opacitymedium">'.$langs->trans('AutoFilledFromSerial').'</span></td></tr>';
 
-			// Warranty type
-			print '<tr><td>'.$form->textwithpicto($langs->trans('WarrantyType'), $langs->trans('TooltipWarrantyType')).'</td>';
-			print '<td>';
-			print Form::selectarray('warranty_type', $wtype_options, $selected_wtype, 0, 0, 0, '', 0, 0, 0, '', 'flat minwidth200', 0, '', '', true);
-			print '</td></tr>';
+			// Warranty Type is upstream duration/policy UI and is hidden in Product-field mode.
+			if ($duration_source === 'warranty_type') {
+				print '<tr><td>'.$form->textwithpicto($langs->trans('WarrantyType'), $langs->trans('TooltipWarrantyType')).'</td>';
+				print '<td>';
+				print Form::selectarray('warranty_type', $wtype_options, $selected_wtype, 0, 0, 0, '', 0, 0, 0, '', 'flat minwidth200', 0, '', '', true);
+				print '</td></tr>';
+			}
 
 			// Start date
 			print '<tr><td class="fieldrequired">'.$langs->trans('StartDate').'</td>';
@@ -406,13 +416,18 @@ if ($action == 'create_from_shipment') {
 			print $form->selectDate($shipment_start_date, 'start_date', 0, 0, 0, 'formship', 1, 1);
 			print '</td></tr>';
 
-			// Coverage days
-			print '<tr><td>'.$form->textwithpicto($langs->trans('CoverageDays'), $langs->trans('TooltipCoverageDays')).'</td>';
-			print '<td>';
-			print '<input type="number" id="coverage_days" name="coverage_days" value="'.$initial_days.'" class="flat width75" min="1" max="3650"'.$days_disabled.'>';
-			print ' '.$langs->trans('SvcDays');
-			print ' &nbsp;<span id="coverage_auto_hint" class="opacitymedium"'.($selected_wtype ? '' : ' style="display:none"').'>'.$langs->trans('CoverageFromType').'</span>';
-			print '</td></tr>';
+			if ($duration_source === 'product_field') {
+				print '<tr><td>'.$langs->trans('WarrantyDuration').'</td>';
+				print '<td><input type="hidden" id="coverage_days" name="coverage_days" value="0">';
+				print '<span id="coverage_auto_hint" class="opacitymedium">'.$langs->trans('SelectSerialForWarrantyPeriod').'</span></td></tr>';
+			} else {
+				print '<tr><td>'.$form->textwithpicto($langs->trans('CoverageDays'), $langs->trans('TooltipCoverageDays')).'</td>';
+				print '<td>';
+				print '<input type="number" id="coverage_days" name="coverage_days" value="'.$initial_days.'" class="flat width75" min="1" max="3650"'.$days_disabled.'>';
+				print ' '.$langs->trans('SvcDays');
+				print ' &nbsp;<span id="coverage_auto_hint" class="opacitymedium"'.($selected_wtype ? '' : ' style="display:none"').'>'.$langs->trans('CoverageFromType').'</span>';
+				print '</td></tr>';
+			}
 
 			// Notes
 			print '<tr><td>'.$form->textwithpicto($langs->trans('NotePublic'), $langs->trans('TooltipNotePublic')).'</td>';
@@ -435,7 +450,7 @@ if ($action == 'create_from_shipment') {
 			print '<script>(function(){
 	var smap  = '.$serial_product_map.';
 	var wtdef = '.$wtype_defaults_js.';
-	var usesProductMonths = '.(trim(getDolGlobalString('WARRANTYSVC_PRODUCT_WARRANTY_MONTHS_FIELD')) !== '' ? 'true' : 'false').';
+	var usesProductMonths = '.($duration_source === 'product_field' ? 'true' : 'false').';
 	var selSer  = document.querySelector("[name=serial_number]");
 	var selType = document.querySelector("[name=warranty_type]");
 	var inpProd = document.getElementById("fk_product");
