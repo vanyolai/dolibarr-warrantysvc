@@ -63,6 +63,7 @@ $types_no_movement     = array('guidance', 'informational');
 /*
  * Actions
  */
+$error = 0;
 $backurlforlist = DOL_URL_ROOT.'/custom/warrantysvc/list.php';
 
 if (empty($backtopage) || ($cancel && empty($id))) {
