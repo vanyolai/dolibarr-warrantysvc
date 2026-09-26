@@ -100,6 +100,7 @@ if ($action == 'add' && $permwrite) {
 			$object->fk_expeditiondet = (int) $shipment_item['fk_expeditiondet'];
 			$object->serial_number = (string) $shipment_item['serial_number'];
 			$object->covered_qty = (float) $shipment_item['covered_qty'];
+			$object->start_date = (int) $shipment_item['start_date'];
 		}
 	}
 
