@@ -367,7 +367,9 @@ class SvcWarranty extends CommonObject
 		if ($this->status == self::STATUS_VOIDED) {
 			return;
 		}
-		if (!empty($this->expiry_date) && $this->expiry_date < dol_now()) {
+		$today = dol_print_date(dol_now(), '%Y-%m-%d', 'tzserver');
+		$expiry_day = !empty($this->expiry_date) ? dol_print_date($this->expiry_date, '%Y-%m-%d', 'tzserver') : '';
+		if ($expiry_day !== '' && $expiry_day < $today) {
 			$this->status = self::STATUS_EXPIRED;
 		} else {
 			$this->status = self::STATUS_ACTIVE;
