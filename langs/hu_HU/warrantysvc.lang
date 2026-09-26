@@ -1,0 +1,597 @@
+# Copyright (C) 2026 DPG Supply
+#
+# Ez a fájl a WarrantySvc modul magyar (hu_HU) fordításait tartalmazza.
+
+#
+# Module
+#
+WarrantySvc = Garancia
+WarrantySvcDescription = Garanciális igények, garanciák és RMA folyamatok kezelése sorozatszámos eszközökhöz.
+
+#
+# Menu
+#
+WarrantySvcMenu = Garancia és szerviz
+SvcRequests = Garanciális igények
+ServiceRequests = Garanciális igények
+NewSvcRequest = Új garanciális igény
+Warranties = Garanciák
+NewWarranty = Új garancia
+
+#
+# Object labels
+#
+SvcRequest = Garanciális igény
+SvcRequests = Garanciális igények
+SvcWarranty = Garancia
+SvcWarranties = Garanciák
+ServiceLog = Szerviznapló
+LinkToWarranty = Hivatkozás garanciára
+LinkToServiceRequest = Hivatkozás garanciális igényre
+
+#
+# Status labels
+#
+SvcDraft = Piszkozat
+SvcValidated = Hitelesítve
+SvcDiagnosing = Diagnosztika
+SvcInProgress = Folyamatban
+AwaitingReturn = Visszaküldésre vár
+SvcResolved = Megoldva
+SvcClosed = Lezárva
+SvcCancelled = Törölve
+
+#
+# Resolution types
+#
+ResolutionType = Megoldás típusa
+ResolutionTypeSelect = Válassz megoldástípust...
+ResolutionComponent = Alkatrész küldése
+ResolutionComponentDesc = Alkatrész küldése az ügyfélnek. Visszaküldés nem szükséges.
+ResolutionComponentReturn = Alkatrész küldése + visszaküldés
+ResolutionComponentReturnDesc = Alkatrész küldése, a régi alkatrész visszakérése bevizsgálásra.
+ResolutionSwapCross = Teljes készülékcsere — keresztküldés
+ResolutionSwapCrossDesc = Felújított cserekészülék azonnali küldése; a hibás készüléket az ügyfél ezt követően küldi vissza.
+ResolutionSwapWait = Teljes készülékcsere — visszaérkezés után
+ResolutionSwapWaitDesc = Az ügyfél előbb visszaküldi a hibás készüléket; a csere ezután kerül kiküldésre.
+ResolutionIntervention = Helyszíni szerviz
+ResolutionInterventionDesc = Technikus kiszáll az ügyfél helyszínére. Igény szerint Beavatkozás hozható létre.
+ResolutionGuidance = Csak útmutatás
+ResolutionGuidanceDesc = Hibaelhárítási lépések vagy dokumentáció biztosítása. Nincs fizikai művelet.
+ResolutionInformational = Tájékoztató
+ResolutionInformationalDesc = Ügyfélhívás, amelynél nem igazolódott hiba. A berendezés rendeltetésszerűen működik; naplózva ellenőrzési célból.
+
+#
+# Field labels
+#
+SvcSerialNumber = Sorozatszám
+SerialIn = Visszaérkező sorozatszám
+SerialOut = Cserekészülék sorozatszáma
+IssueDescription = Hibaleírás
+IssueDate = Bejelentés dátuma
+ReportedVia = Bejelentés módja
+CustomerSite = Ügyfél telephelye / helyszín
+ResolutionNotes = Megoldási megjegyzések
+WarrantyStatus = Garancia állapota
+OutboundCarrier = Kimenő fuvarozó
+OutboundTracking = Kimenő nyomkövetés
+DateShipped = Küldés dátuma
+ReturnCarrier = Visszaküldés fuvarozója
+ReturnTracking = Visszaküldés nyomkövetése
+DateReturnExpected = Visszaérkezés várható
+DateReturnReceived = Visszaérkezett
+ReturnReminderCount = Kiküldött emlékeztetők
+SvcWarehouseSource = Csere forrásraktára
+SvcWarehouseReturn = Visszáru raktára
+SealNumber = Biztonsági plombaszám
+TooltipSealNumber = A javított alkatrészekkel küldött biztonsági matrica egyedi száma. Az ép plomba igazolja, hogy engedélyezett garanciális javítás történt.
+SealNumberPlaceholder = pl. SEAL-2026-00001
+ConditionScore = Állapot pontszáma
+ConditionStatus = Állapot
+ServiceHours = Szervizórák
+ServiceCount = Szervizelések száma
+LastServiceDate = Utolsó szerviz dátuma
+
+#
+# Reported via options
+#
+ReportedViaPhone = Telefon
+ReportedViaEmail = E-mail
+ReportedViaOnSite = Helyszínen
+ReportedViaOther = Egyéb
+
+#
+# Warranty type management
+#
+WarrantyType = Garanciatípus
+WarrantyTypes = Garanciatípusok
+AddWarrantyType = Garanciatípus hozzáadása
+WarrantyTypeAdded = Garanciatípus hozzáadva.
+WarrantyTypeUpdated = Garanciatípus frissítve.
+WarrantyTypeDeleted = Garanciatípus törölve.
+WarrantyTypeLabel = pl. Normál garancia
+NoPredefinedType = Nincs előre definiált típus (kézi)
+CoverageFromType = Örökölt időtartam a garanciatípusból
+DeleteWarrantyType = Garanciatípus törlése
+ConfirmDeleteWarrantyType = Biztosan törlöd ezt a garanciatípust? A már meglévő garanciák időtartama megmarad, de a típusmegnevezés elveszik.
+SelectWarrantyType = Válassz garanciatípust...
+ErrorWarrantyTypeCodeLabelRequired = A kód és a megnevezés kötelező.
+StartDate = Kezdő dátum
+ExpiryDateCalculated = A lejárat a kezdő dátum és a garanciatípus időtartama alapján számítódik
+CoverageDays = Garancia időtartama (nap)
+CoverageTerms = Garanciális feltételek
+Exclusions = Kizárások
+ClaimCount = Bejelentett igények
+TotalClaimedValue = Igények összértéke
+
+#
+# Warranty status badges
+#
+SvcActive = Aktív
+SvcExpired = Lejárt
+SvcVoided = Érvénytelenített
+NoCoverage = Nincs garancia
+
+#
+# Condition status labels
+#
+ConditionGood = Jó
+ConditionFair = Közepes
+ConditionPoor = Gyenge
+ConditionScrap = Selejt / leírandó
+
+#
+# Replacement selection strategies
+#
+StrategyFIFO = FIFO (legrégebbi felújított készlet először)
+StrategyLeastServiced = Legkevesebbet szervizelt
+StrategyBestCondition = Legjobb állapot
+StrategyManual = Kézi kiválasztás
+
+#
+# Action buttons
+#
+ValidateSvcRequest = Hitelesítés
+BeginDiagnosis = Diagnosztika indítása
+OpenTroubleshoot = Hibaelhárítás megnyitása
+SetInProgress = Folyamatban állapotra
+SendReplacement = Csere küldése
+ReceiveReturn = Visszáru átvétele
+CreateIntervention = Beavatkozás létrehozása
+MarkResolved = Megoldottnak jelölés
+CloseSvcRequest = Lezárás
+ReopenSvcRequest = Újranyitás
+CancelSvcRequest = Garanciális igény törlése
+DeleteSvcRequest = Garanciális igény végleges törlése
+SvcRequestCancelledWithShipmentWarning = A garanciális igény törölve. A kapcsolt szállítmány (ID: %s) továbbra is létezik — <a href="%s">nyisd meg a Szállítmányok modulban</a>, és szükség esetén kézzel töröld vagy érvénytelenítsd.
+ConfirmCancelSvcRequest = Biztosan törölni szeretnéd ezt a garanciális igényt? Ez csak újranyitással vonható vissza.
+ConfirmReopenSvcRequest = Biztosan újra szeretnéd nyitni ezt a garanciális igényt?
+ConfirmDeleteSvcRequest = Biztosan véglegesen törölni szeretnéd a(z) %s garanciális igényt? A művelet nem vonható vissza.
+SendReminder = Visszaküldési emlékeztető küldése
+SvcDiagnosingStarted = Diagnosztika elindítva
+SvcChooseResolutionAfterDiagnosis = A diagnosztika befejezése után válassz megoldástípust
+SvcRequestNotInValidatedStatus = A garanciális igényt a diagnosztika megkezdése előtt hitelesíteni kell.
+SvcRequestNotInDiagnosingStatus = A garanciális igény jelenlegi állapotából nem helyezhető Folyamatban állapotba.
+SvcRequestResolutionTypeRequiredBeforeProgress = A Folyamatban állapotba helyezés előtt válassz megoldástípust.
+InvoiceNonReturn = Nem visszaküldött tétel számlázása
+VoidWarranty = Garancia érvénytelenítése
+
+#
+# Section headings
+#
+SectionResolution = Megoldás
+SectionComponents = Alkatrészek
+SectionWarranty = Garancia
+SectionShipping = Kimenő szállítás
+SectionReturn = Visszaküldés követése
+SectionLinkedObjects = Kapcsolódó objektumok
+
+#
+# Info/status banners
+#
+WarrantyCoveredBanner = A garanciális igény aktív garancia alá tartozik.
+WarrantyExpiredBanner = A garancia lejárt. Az igény számlázható.
+WarrantyNoneBanner = Ehhez a sorozatszámhoz nincs nyilvántartott garancia. Az igény számlázható.
+NoSerialSelected = Nincs sorozatszám kiválasztva — a garancia nem ellenőrizhető.
+
+#
+# PDF document labels
+#
+SvcRequestSlip = Garanciális igény engedélyezése
+ReturnInstructions = Visszaküldési utasítások
+ReturnShipTo = A készüléket ide küldje vissza:
+EstimatedResolution = Várható megoldás
+DatePrinted = Nyomtatás dátuma
+ComponentLines = Alkatrésztételek
+TrackingInfo = Nyomkövetési adatok
+LineType = Típus
+SvcShipped = Kiszállítva
+LineTypeComponentOut = Kimenő alkatrész
+LineTypeComponentIn = Visszaérkező alkatrész
+LineTypeConsumedSite = Helyszínen felhasznált
+TechnicianSignature = Technikus aláírása
+CustomerSignature = Ügyfél aláírása
+DateSigned = Dátum
+SerialOut = Cserekészülék sorozatszáma
+SerialIn = Visszaérkező sorozatszám
+OutboundCarrier = Kimenő fuvarozó
+OutboundTracking = Kimenő nyomkövetés
+ReturnCarrier = Visszaküldés fuvarozója
+ReturnTracking = Visszaküldés nyomkövetése
+IssueDescription = Hibaleírás
+ResolutionNotes = Megoldási megjegyzések
+
+#
+# Tabs
+#
+SvcDetails = Részletek
+SvcNotes = Megjegyzések
+SvcDocuments = Dokumentumok
+Troubleshoot = Hibaelhárítás
+
+#
+# Troubleshooting workflow
+#
+TroubleshootSaved = Hibaelhárítási eredmények elmentve.
+TroubleshootSummary = Összefoglaló
+TroubleshootOutcome = Eredmény
+SelectOutcome = Válassz eredményt...
+TroubleshootOutcome_resolved = A probléma a hívás során megoldódott — nincs további teendő
+TroubleshootOutcome_no_fault = Nem találtunk hibát — a berendezés megfelelően működik
+TroubleshootOutcome_escalate = Továbbítás tapasztaltabb technikushoz
+TroubleshootOutcome_parts_needed = Alkatrész szükséges — alkatrészküldés következik
+TroubleshootOutcome_intervention = Helyszíni szerviz szükséges
+SvcDone = Kész
+DiagnosticStep = Diagnosztikai lépés
+Finding = Megállapítás
+FindingOptional = Opcionális megjegyzés
+PreviousTroubleshootSessions = Korábbi hibaelhárítások
+SaveFindings = Eredmények mentése
+
+# Checklist steps — Safety
+ChecklistSafetyPowerOff = Győződj meg róla, hogy a készülék ki van kapcsolva az ellenőrzés előtt
+ChecklistSafetyPowerOffDesc = Kérd meg az ügyfelet, hogy kapcsolja ki és húzza ki a készüléket, mielőtt távoli hibaelhárítás kezdődik.
+ChecklistSafetyExterior = Külső sérülések ellenőrzése
+ChecklistSafetyExteriorDesc = Repedések, horpadások, égésnyomok vagy nedvesség bejutásának ellenőrzése.
+
+# Checklist steps — Power
+ChecklistPowerSupply = Tápegység és hálózati aljzat ellenőrzése
+ChecklistPowerSupplyDesc = Ellenőrizd a megfelelő feszültséget, a működő aljzatot és a sértetlen kábelt.
+ChecklistPowerStartup = Bekapcsolás — indulási viselkedés megfigyelése
+ChecklistPowerStartupDesc = Jegyezd fel a hibajelzőket, szokatlan hangokat vagy az indulás elmaradását.
+
+# Checklist steps — Oxygen compressor specific
+ChecklistCompIntakeFilter = Szívóoldali szűrő ellenőrzése
+ChecklistCompIntakeFilterDesc = Vedd ki és ellenőrizd eltömődés vagy telítettség szempontjából. Szükség esetén cseréld.
+ChecklistCompOutputPressure = Kimeneti nyomás mérése (PSI)
+ChecklistCompOutputPressureDesc = Az értéknek a specifikáción belül kell lennie. Jegyezd fel a mért értéket.
+ChecklistCompFlowRate = Térfogatáram ellenőrzése (LPM)
+ChecklistCompFlowRateDesc = Mérd meg a kimeneti LPM értéket, és hasonlítsd össze a termék specifikációjával.
+ChecklistCompMoistureTrap = Nedvességleválasztó / szárítóanyag ellenőrzése
+ChecklistCompMoistureTrapDesc = Ellenőrizd a színjelzőt vagy a telítettséget. Szükség esetén cseréld.
+ChecklistCompOutletPurity = Kimeneti oxigéntisztaság ellenőrzése
+ChecklistCompOutletPurityDesc = Ha rendelkezésre áll analizátor, mérd meg. A normál érték 90–96% O2.
+ChecklistCompVibrationNoise = Rendellenes rezgés vagy zaj ellenőrzése
+ChecklistCompVibrationNoiseDesc = Zörgés, csiszoló vagy magas hang dugattyú- vagy szelepkopásra utalhat.
+ChecklistCompHeatTemp = Készülékhőmérséklet ellenőrzése 10 perc működés után
+ChecklistCompHeatTempDesc = A burkolat túlzott melegedése eltömődött szellőzésre vagy hibás alkatrészre utalhat.
+
+# Checklist steps — General
+ChecklistCustomerSteps = Az ügyfél által jelzett reprodukciós lépések áttekintése
+ChecklistCustomerStepsDesc = Kérd meg az ügyfelet, hogy pontosan írja le, mikor jelentkezik a probléma.
+ChecklistReproduce = A hiba reprodukálásának megkísérlése
+ChecklistReproduceDesc = Lépésről lépésre hajtsd végre a bejelentett forgatókönyvet.
+ChecklistFirmware = Firmware / szoftververzió ellenőrzése
+ChecklistFirmwareDesc = Ellenőrizd, hogy a készülék aktuális firmware-t használ-e. Jegyezd fel a verziót.
+
+#
+# Email notifications — trigger-based
+#
+NotifTechValidateSubject = [Új feladat] A(z) %s garanciális igény hozzád lett rendelve
+NotifTechValidateBody = Üdv %s!\n\nA(z) %s garanciális igényt hitelesítették és hozzád rendelték.
+NotifTechInProgressSubject = [Folyamatban] Garanciális igény: %s
+NotifTechInProgressBody = Üdv %s!\n\nA(z) %s garanciális igény Folyamatban állapotba került.
+NotifCustAwaitReturnSubject = [Teendő] Kérjük, küldje vissza a készüléket — garanciális igény: %s
+NotifCustAwaitReturnBody = Tisztelt Ügyfelünk!\n\nA(z) %s garanciális igényhez cserekészüléket küldtünk (sorozatszám: %s).\n\nKérjük, gondoskodjon az eredeti készülék visszaküldéséről.
+NotifCustResolvedSubject = [Megoldva] Garanciális igény: %s
+NotifCustResolvedBody = Tisztelt Ügyfelünk!\n\nA(z) %s garanciális igényt megoldottuk.
+NotifWarrantyCreatedSubject = Garanciaregisztráció — %s
+NotifWarrantyCreatedBody = Tisztelt Ügyfelünk!\n\nA(z) %s garancia a(z) %s sorozatszámú készülékhez regisztrálva lett.\n\nGarancia vége: %s
+NoExpiryDate = Nincs lejárati dátum
+
+#
+# Email notifications — cron reminders
+#
+ReminderReturnSubject = [TEENDŐ] Kérjük, küldje vissza a készüléket — garanciális igény: %s
+ReminderReturnBody = Tisztelt Ügyfelünk!\n\nEmlékeztetjük, hogy továbbra is várjuk a(z) %s sorozatszámú készüléket a(z) %s garanciális igényhez.\n\nKérjük, mielőbb intézze a visszaküldést.
+ReminderReturnFooter = Köszönjük együttműködését.\n\nGarancia és szerviz
+NoEmailForCustomer = Ehhez az ügyfélhez nincs e-mail-cím rögzítve.
+NoSenderEmailConfigured = A Dolibarr beállításaiban nincs feladó e-mail-cím megadva.
+
+#
+# Error messages (must start with Error)
+#
+ErrorSvcRequestNotInDraftStatus = A garanciális igény nincs piszkozat állapotban.
+ErrorSvcRequestNotInValidatedStatus = A garanciális igényt a folytatás előtt hitelesíteni kell.
+ErrorSvcRequestCannotClose = A garanciális igény ebből az állapotból nem zárható le.
+ErrorSvcRequestAlreadyClosedOrCancelled = A garanciális igény már lezárt vagy törölt.
+ErrorNoSerialForSwap = Készülékcsere létrehozása előtt sorozatszámot kell megadni.
+ErrorNoSerialInWarehouse = A(z) %s sorozat-/LOT-szám nem található a forrásraktárban. Ellenőrizd a készletet vagy válassz másik raktárat.
+ErrorNoWarehouseSelected = Szállítmány létrehozása előtt válassz raktárat.
+ErrorInterventionModuleDisabled = A Beavatkozások modul nincs engedélyezve.
+ErrorExpeditionModuleDisabled = A Szállítmányok modul nincs engedélyezve.
+ErrorFactureModuleDisabled = A Számlázás modul nincs engedélyezve.
+ErrorWarrantySerialRequired = Garanciarekord létrehozásához sorozatszám szükséges.
+
+#
+# Admin / Setup page
+#
+SvcSetup = Beállítás
+SvcSetupSaved = Beállítások mentve.
+SvcSelectWarehouse = Válassz raktárat
+SvcWarehouseRefurbDesc = A felújított cserekészülékek raktára.
+SvcWarehouseReturnDesc = A visszaérkezett / javítás alatt lévő eszközök raktára.
+ReturnGraceDays = Visszaküldési emlékeztető késleltetése
+ReturnGraceDaysDesc = A várható visszaküldési dátum után ennyi nappal menjen ki az első emlékeztető.
+ReturnInvoiceDays = Automatikus számlázás ennyi nap után
+ReturnInvoiceDaysDesc = A várható visszaküldési dátum után ennyi nappal készüljön automatikusan számla a vissza nem küldött egységről.
+ReplacementStrategy = Alapértelmezett cserekészülék-kiválasztási stratégia
+ReplacementStrategyDesc = A rendszer e szabály alapján javasol sorozatszámot készülékcserénél.
+AutoWarrantyCheck = Garancia automatikus ellenőrzése létrehozáskor
+AutoWarrantyCheckDesc = Garanciális igény létrehozásakor automatikusan ellenőrzi a garanciális fedezetet.
+AutoWarrantyOnShipment = Garancia automatikus létrehozása szállítmányból
+AutoWarrantyOnShipmentDesc = A kiválasztott eseménynél automatikusan regisztrálja a garanciát a jogosult kiszállított tételekre.
+WarrantyTriggerEvent = Garancialétrehozási esemény
+WarrantyTriggerEventDesc = Melyik szállítmányesemény indítsa az automatikus garancialétrehozást.
+OnShipmentValidate = Szállítmány hitelesítésekor
+OnShipmentClose = Szállítmány lezárásakor
+OnShipmentBoth = Hitelesítéskor és lezáráskor is
+AutoWarrantyOnOrderClose = Garancia automatikus létrehozása rendelés teljesítésekor
+AutoWarrantyOnOrderCloseDesc = Ha egy vevői rendelés teljesített állapotba kerül, automatikusan regisztrálja a kapcsolódó szállítmányok garanciáit.
+ProductWarrantyMonthsField = Termék garanciaidő mezője
+ProductWarrantyMonthsFieldDesc = Egész szám típusú Termék kiegészítő mező, amely a vevőnek adott garancia időtartamát naptári hónapban tartalmazza. Product-field módban ez az egyetlen időtartamforrás.
+ProductWarrantyMonthsFieldNone = Nincs beállítva (örökölt napalapú logika)
+ErrorInvalidProductWarrantyMonthsField = A kiválasztott garanciaidő-mező nem érvényes egész szám típusú Termék kiegészítő mező.
+DefaultCoverageDays = Alapértelmezett garanciaidő (nap)
+DefaultCoverageDaysDesc = Örökölt alapértelmezett időtartam, csak Warranty Type módban használatos.
+SvcDays = nap
+NotifyWarrantyCreated = Ügyfél értesítése garancia létrehozásakor
+NotifyWarrantyCreatedDesc = Új garancia létrehozásakor e-mail-értesítést küld az ügyfélnek.
+WarrantyRequiresLots = Garanciális igények korlátozása sorozatszámos/LOT-os termékekre
+WarrantyRequiresLotsDesc = Bekapcsolva a garanciális igény termékválasztója csak LOT-/sorozatszám-kezelésű termékeket mutat.
+UseCustomerReturns = Customer Returns modul használata beérkező visszárukhoz
+UseCustomerReturnsDesc = Bekapcsolva a Visszáru létrehozása művelet a Customer Returns modult használja natív Bevét helyett.
+CustomerReturnModuleNotInstalled = A Customer Returns modul nincs telepítve vagy engedélyezve.
+CreateCustomerReturn = Ügyfél-visszáru létrehozása
+NumberingModule = Hivatkozásszámozási modul
+
+# Movement tracker panel
+MovementTracker = Anyag- és eszközmozgások
+OutboundToCustomer = → Kimenő az ügyfélhez
+ReturnFromCustomer = ← Vissza az ügyféltől
+OnSiteIntervention = Helyszíni beavatkozás
+OnSiteVisit = Helyszíni látogatás
+LinkedCall = Kapcsolt hívás
+TooltipLinkedCall = A garanciális igényt létrehozó PBX-hívás. Hívásösszegzésből automatikusan beállítható, vagy kézzel kapcsolható.
+ShipComponents = Alkatrészek küldése
+ShipReplacementUnit = Cserekészülék küldése
+LogReturnReceived = Visszaérkezés rögzítése
+ReturnLogged = Visszaérkezés sikeresen rögzítve.
+NotYetDispatched = Még nincs kiküldve
+NotYetScheduled = Még nincs ütemezve
+ReturnPending = Visszaküldésre vár
+ExpectedBy = Várható
+ShipmentRef = Szállítmány
+ComponentLines = Alkatrésztételek
+ScheduleIntervention = Beavatkozás ütemezése
+Overdue = Lejárt
+SvcConfirm = Megerősítés
+ReplacementSerial = Cserekészülék sorozatszáma
+CreateReplacementOrder = Csere-rendelés létrehozása
+AddReplacementOrder = További csere-rendelés
+ReplacementOrderCreated = Csere-rendelés létrehozva.
+NoReplacementOrderYet = Még nincs csere-rendelés
+SvcCreateShipment = Szállítmány létrehozása
+ShipmentCreated = Szállítmány létrehozva.
+ReplacementForSR = Cserekészülék a(z) %s garanciális igényhez
+ValidateShipment = Szállítmány hitelesítése
+ShipmentValidated = Szállítmány hitelesítve.
+CreateReturnReception = Visszáru-bevét létrehozása
+ReceptionCreated = Visszáru-bevét létrehozva.
+SvcReceptionValidated = Visszáru-bevét hitelesítve.
+WaitingForShipmentValidation = Kimenő szállítmány hitelesítésére vár
+
+#
+# Create warranty from shipment
+#
+NewWarrantyFromShipment = Új garancia szállítmányból
+CreateWarrantyFromShipment = Létrehozás meglévő szállítmányból
+SwitchToManualWarranty = Adatok kézi megadása
+SelectShipmentStep = 1. lépés — Hitelesített szállítmány kiválasztása
+SelectShipment = Válassz szállítmányt...
+SelectSerial = Válassz sorozatszámot...
+AutoFilledFromSerial = Sorozatszám kiválasztásakor automatikusan kitöltve
+NoUncoveredSerialsInShipment = A szállítmány minden sorozatszámos egységéhez tartozik már garancia.
+Load = Betöltés
+WarrantyVoided = A garancia érvénytelenítve.
+
+#
+# Tooltips — shown as hover help icons on form field labels
+#
+IssueDescriptionPlaceholder = Írd le részletesen a hibát, a tüneteket vagy az ügyfél panaszát...
+NotePublicPlaceholder = Az ügyfél számára is látható megjegyzés...
+TooltipSerialNumber = Az ügyfél hibás készülékének sorozat- vagy LOT-száma. A rendszer ezt használja a garancia automatikus kereséséhez.
+TooltipSvcWarranty = Opcionális — meglévő garanciarekord kapcsolása. Ha üres, a rendszer mentéskor megpróbál automatikusan párosítani.
+TooltipResolutionType = Meghatározza a folyamatot: alkatrészküldés, készülékcsere, helyszíni beavatkozás vagy csak útmutatás.
+TooltipIssueDescription = Az ügyfél által bejelentett hiba vagy panasz leírása. A szervizdokumentumon is megjelenhet.
+TooltipCustomerSite = A készülék telepítési helye vagy az ügyfél telephelye. Helyszíni munkánál hasznos.
+TooltipBillable = Bekapcsolva az igény számlázható. A rendszer a garancia állapota alapján automatikusan állítja, de felülbírálható.
+TooltipResolutionNotes = Belső megjegyzés a probléma megoldásáról. A lezárt ügyben és szervizösszesítőkben használható.
+TooltipReportedVia = Az a csatorna, amelyen az ügyfél a hibát bejelentette.
+TooltipIssueDate = Az a dátum, amikor az ügyfél a hibát bejelentette; nem feltétlenül a mai nap.
+TooltipSerialOut = Az ügyfélnek küldött csere- vagy alkatrészegység sorozatszáma.
+TooltipSerialIn = Az ügyféltől javításra vagy bevizsgálásra visszaérkező egység sorozatszáma.
+TooltipWarrantySerial = A garanciával fedett egység egyedi sorozatszáma. Meg kell egyeznie az eredeti kiszállításon rögzített sorozatszámmal.
+TooltipWarrantyType = Garanciális feltételprofil. Product-field módban ez nem módosítja a garancia időtartamát.
+TooltipCoverageDays = A garancia napokban tárolt technikai megfelelője. Product-field módban a lejárat naptári hónapokból számítódik, a napszám ebből származtatott.
+CoverageFromProductMonths = Termék garanciaideje: %s naptári hónap
+ExpiryDateOverride = Lejárati dátum felülbírálása
+ExpiryAutoComputed = (automatikusan számítva a kezdő dátum és az időtartam alapján)
+TooltipExpiryDateOverride = Opcionálisan pontos lejárati dátum adható meg. Üresen hagyva a rendszer automatikusan számítja.
+TooltipCoverageTerms = Annak leírása, hogy mire terjed ki a garancia — például alkatrészre, munkadíjra vagy helyszíni szervizre.
+TooltipExclusions = A garanciából kizárt esetek felsorolása — például fizikai sérülés, fogyóeszköz, helytelen használat.
+OriginOrder = Forrásrendelés
+TooltipOriginOrder = A Dolibarr-rendelés, amelyből a garancia származik. Opcionális nyomonkövetési adat.
+TooltipNotePublic = Az ügyfél számára látható megjegyzés. Értesítés esetén a garanciaregisztrációs kommunikációban is használható.
+TooltipWTypeCode = Rövid, géppel feldolgozható azonosító, például „standard” vagy „extended_2yr”. Szóköz nem használható.
+TooltipWTypeLabel = A garanciatípus ember számára olvasható megnevezése.
+TooltipWTypeDescription = Opcionális leírás arról, hogy ez a garanciatípus mit jelent.
+TooltipWTypeCoverageTerms = A garanciatípus alapértelmezett feltételei.
+TooltipWTypeExclusions = A garanciatípus alapértelmezett kizárásai.
+TooltipWTypeDefaultDays = Örökölt időtartam, csak akkor használatos, ha nincs Product garanciahónap-mező konfigurálva.
+TooltipWTypePosition = A legördülő listában való sorrendet szabályozza. Az alacsonyabb szám előrébb jelenik meg.
+CoverageTermsPlaceholder = pl. Normál használat mellett az anyag- és gyártási hibákra terjed ki...
+ExclusionsPlaceholder = pl. Fizikai sérülés, fogyóeszközök, tartozékok, helytelen használatból eredő kár...
+TroubleshootSummaryPlaceholder = Foglald össze, mit ellenőriztetek, milyen tünetek jelentkeztek és milyen lépést javasoltál...
+TooltipTroubleshootSummary = A diagnosztikai munkamenet összefoglalója: mi lett ellenőrizve, mi derült ki és mi a javasolt következő lépés.
+TooltipTroubleshootOutcome = A munkamenet eredménye. A „Nem találtunk hibát” választás a garanciális igény megoldástípusát Tájékoztató értékre állítja.
+SelectProductFirst = Előbb válassz terméket
+NoSerialsAvailable = Nincs ismert sorozatszám ehhez a termékhez
+SelectCustomerFirst = Előbb válassz ügyfelet
+SelectProject = Válassz projektet...
+NoProjectForCustomer = Nincs nyitott projekt ehhez az ügyfélhez
+NoProductForCustomer = Nincs kiszállított termék ehhez az ügyfélhez
+NoProductsWithUnassignedSerials = Minden regisztrált sorozatszámhoz tartozik már garancia. Rögzíts új szállítmányt vagy adj hozzá sorozatszámot a Készlet modulban.
+WarrantyModeStandard = Normál
+WarrantyModeOverride = Felülbírálás / különleges eset
+WarrantyModeManual = Kézi bevitel
+WarrantyOverrideWarning = Felülbírálási mód — csak hitelesített szállítmánnyal rendelkező termékek jelennek meg. A sorozatszám kézzel adható meg és nem kerül készletadat alapján ellenőrzésre.
+WarrantyManualWarning = Kézi bevitel — a modul nem használ forrásadatokat. A termék és a sorozatszám szabadon megadható. Csak különleges esetben használd.
+SerialNumberOverridePlaceholder = Sorozatszám kézi megadása...
+
+#
+# Product default warranty attributes
+#
+WarrantyDefaultType = Alapértelmezett garanciális feltétel
+WarrantyDefaultDays = Alapértelmezett garanciaidő napban
+WarrantyDefaultDaysPlaceholder = Üresen hagyva a típus alapértéke érvényes
+WarrantyDefaultDaysFromType = nap a típus alapértékéből
+WarrantyNoDefault = Nincs megadva
+WarrantyInheritParent = Öröklés a szülőtől: %s
+WarrantyBlankInherits = Üresen = szülő alapértékének öröklése (%s)
+WarrantyInheritDays = %d nap öröklése a szülőtől
+WarrantyInheritedFromParent = a szülőtől örökölve
+WarrantyVariantOverride = változat saját felülbírálása
+
+# Unit Service History
+UnitServiceHistory = Eszköz szervizelőzményei
+ServiceCount = Szervizelések száma
+ServiceHours = Szervizórák
+ConditionStatus = Állapot
+ConditionScore = Állapot pontszáma
+ConditionNotes = Állapotmegjegyzés
+LastServiceDate = Utolsó szerviz dátuma
+LowerIsBetter = az alacsonyabb jobb
+NoServiceHistory = Ehhez a sorozatszámhoz még nincs rögzített szervizelőzmény.
+ConditionGood = Jó
+ConditionFair = Közepes
+ConditionPoor = Gyenge
+ConditionScrap = Selejt / leírandó
+
+# Debug
+DebugMode = Hibakeresési mód
+DebugModeDesc = Hibakeresési végpontokat engedélyez a /custom/warrantysvc/ajax/debug.php alatt. Csak rendszergazdák számára.
+
+# Admin / Extrafields
+WarrantySvcSetup = Garancia és szerviz beállításai
+ServiceRequestExtraFields = Garanciális igény kiegészítő mezői
+WarrantyExtraFields = Garancia kiegészítő mezői
+
+ErrorWarrantyCalendarExpiry = Nem sikerült kiszámítani a garancia lejáratát a terméken megadott garanciaidőből.
+
+ProductWarrantyPeriodMissing = Ehhez a termékhez nincs garanciaidő beállítva.
+ErrorProductWarrantyPeriodMissing = Ehhez a termékhez nincs garanciaidő beállítva. Garancia létrehozása előtt töltsd ki a konfigurált Termék garanciaidő mezőt.
+
+WarrantyDurationSource = Garancia időtartamának forrása
+WarrantyDurationSourceDesc = Válaszd ki, hogy a garancia időtartamát a Termék mezője vagy az örökölt Warranty Type logika határozza meg.
+WarrantyDurationSourceProductField = Termék mezője (naptári hónap)
+WarrantyDurationSourceWarrantyType = Warranty Type / örökölt logika
+WarrantyDuration = Garancia időtartama
+WarrantyDurationFromProductField = Mentéskor a konfigurált Termék garanciaidő mezőből számítódik.
+SelectSerialForWarrantyPeriod = Válassz sorozatszámot a termék garanciaidejének betöltéséhez.
+ErrorProductWarrantyFieldNotConfigured = Product-field mód aktív, de nincs Termék garanciaidő mező konfigurálva.
+
+SvcMonths = hónap
+WarrantyDurationLegacyUnknown = Örökölt rekord: a naptári hónapok száma nincs külön eltárolva
+
+ShipmentItem = Szállítmánytétel
+TooltipShipmentItem = Válassz kiszállított sorozat-/LOT-egységet vagy nem sorozatszámos szállítmánytételt a garancia létrehozásához.
+SelectShipmentItem = Válassz szállítmánytételt
+AutoFilledFromShipmentItem = A szállítmánytételből automatikusan kitöltve
+SelectShipmentItemForWarrantyPeriod = Válassz szállítmánytételt a termék garanciaidejének betöltéséhez.
+NoUncoveredItemsInShipment = A szállítmány minden jogosult tételéhez tartozik már garancia.
+NoSerialShipmentItem = nincs sorozatszám, mennyiség: %s
+
+ErrorInvalidShipmentItem = A kiválasztott szállítmánytétel érvénytelen.
+ErrorShipmentWarrantyStartDateMissing = A szállítmányhoz nincs használható szállítási dátum, ezért a garancia kezdete nem határozható meg.
+
+ErrorWarrantyDoesNotMatchClaim = A kiválasztott garancia nem egyezik a garanciális igény ügyfelével, termékével vagy sorozatszámával.
+ErrorWarrantyNotFound = A kiválasztott garancia nem található.
+ErrorVoidedWarrantyClaim = Érvénytelenített garancia nem kapcsolható új garanciális igényhez.
+
+WarrantyStartFromShipment = A szállítmány dátumából
+
+#
+# Additional module metadata, permissions and validation messages
+#
+ModuleWarrantySvcDesc = RMA, ügyfélgarancia és szervizfolyamatok kezelése.
+CheckOverdueRMAReturns = Lejárt RMA-visszaküldések ellenőrzése
+CheckOverdueRMAReturnsDesc = Lejárt garanciális/RMA visszaküldések ellenőrzése és emlékeztetők küldése.
+PermissionReadSvcRequests = Garanciális igények olvasása
+PermissionWriteSvcRequests = Garanciális igények létrehozása és szerkesztése
+PermissionDeleteSvcRequests = Garanciális igények törlése
+PermissionValidateSvcRequests = Garanciális igények hitelesítése
+PermissionCloseSvcRequests = Garanciális igények lezárása
+PermissionReadWarranties = Garanciák olvasása
+PermissionWriteWarranties = Garanciák létrehozása és szerkesztése
+PermissionDeleteWarranties = Garanciák törlése
+SvcRequestPdfStandardDesc = Szabványos garanciális igény engedélyezőlap
+ErrorWarrantySvcOutputDirNotConfigured = A Garancia és szerviz kimeneti könyvtára nincs beállítva.
+CustomerSitePlaceholder = pl. Főraktár, A épület
+WarrantyTypeCodePlaceholder = pl. standard
+WarrantyTypeDescriptionPlaceholder = pl. Normál készülékek alkatrész- és munkadíj-fedezete
+ErrorCreatingReplacementShipment = Nem sikerült létrehozni a cserekészülék szállítmányát.
+ErrorInvalidProductWarrantyMonthsFieldName = Érvénytelen Termék garanciaidő-mezőnév: %s
+ErrorProductWarrantyMonthsFieldMissingOrInvalid = A konfigurált Termék garanciaidő mező nem létezik vagy nem egész szám típusú kiegészítő mező: %s
+ErrorShipmentItemNotInShipment = A szállítmánytétel nem található vagy nem a kiválasztott szállítmányhoz tartozik.
+ErrorShipmentItemQuantityInvalid = A szállítmánytétel mennyisége érvénytelen.
+ErrorWarrantyStartDateMissing = A garancia kezdő dátuma hiányzik vagy érvénytelen.
+ErrorWarrantyCoverageDaysCalculation = Nem sikerült kiszámítani a garancia napokban kifejezett technikai időtartamát.
+ErrorDuplicateShipmentWarranty = Ehhez a szállítmánytételhez már tartozik nem érvénytelenített garancia (garanciaazonosító: %s).
+
+#
+# WarrantySvc-specific UI labels
+#
+Warranty = Garancia
+ServiceRequest = Garanciális igény
+Claims = Igények
+ClaimHistory = Igényelőzmények
+NoClaims = Nincs kapcsolódó igény
+ViewWarranty = Garancia megtekintése
+OriginShipment = Forrásszállítmány
+RMAActions = RMA-műveletek
+ReplacementOrder = Csere-rendelés
+ReturnReception = Visszáru-bevét
+NoReturnReceptionYet = Még nincs visszáru-bevét
+InterventionCreated = Beavatkozás létrehozva
+InvoiceCreated = Számla létrehozva
+ReminderSent = Emlékeztető elküldve
+MyOpenRequests = Saját nyitott garanciális igényeim
+ExpiringSoon = Hamarosan lejár
+ConfirmDeleteWarranty = Biztosan véglegesen törölni szeretnéd ezt a garanciát?
+ConfirmVoidWarranty = Biztosan érvényteleníteni szeretnéd ezt a garanciát?
+DeleteWarranty = Garancia törlése
+Billable = Számlázható
+ExpiryDate = Garancia vége
+ComponentOut = Kimenő alkatrész
+ComponentIn = Visszaérkező alkatrész

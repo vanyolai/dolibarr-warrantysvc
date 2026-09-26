@@ -331,13 +331,15 @@ function warrantysvc_get_product_month_field_options($db, $entity)
  */
 function warrantysvc_get_product_month_field($db, $entity, &$error = '')
 {
+	global $langs;
+	$langs->loadLangs(array('warrantysvc@warrantysvc'));
 	$error = '';
 	$field = trim(getDolGlobalString('WARRANTYSVC_PRODUCT_WARRANTY_MONTHS_FIELD'));
 	if ($field === '') {
 		return '';
 	}
 	if (!preg_match('/^[A-Za-z][A-Za-z0-9_]*$/', $field)) {
-		$error = 'Invalid Product warranty-month extrafield name: '.$field;
+		$error = $langs->trans('ErrorInvalidProductWarrantyMonthsFieldName', $field);
 		return '';
 	}
 
@@ -354,7 +356,7 @@ function warrantysvc_get_product_month_field($db, $entity, &$error = '')
 		return '';
 	}
 	if (!$db->fetch_object($resql)) {
-		$error = 'Configured Product warranty-month field does not exist or is not an integer extrafield: '.$field;
+		$error = $langs->trans('ErrorProductWarrantyMonthsFieldMissingOrInvalid', $field);
 		return '';
 	}
 
@@ -447,11 +449,13 @@ function warrantysvc_get_product_warranty_months($db, $productId, $entity, &$err
  */
 function warrantysvc_resolve_shipment_item($db, $shipmentId, $itemKey, &$error = '')
 {
+	global $langs;
+	$langs->loadLangs(array('warrantysvc@warrantysvc'));
 	$error = '';
 	$shipmentId = (int) $shipmentId;
 	$itemKey = trim((string) $itemKey);
 	if ($shipmentId <= 0 || !preg_match('/^([bl]):(\\d+)$/', $itemKey, $matches)) {
-		$error = 'Invalid shipment item.';
+		$error = $langs->trans('ErrorInvalidShipmentItem');
 		return null;
 	}
 
@@ -489,13 +493,13 @@ function warrantysvc_resolve_shipment_item($db, $shipmentId, $itemKey, &$error =
 
 	$obj = $db->fetch_object($resql);
 	if (!$obj) {
-		$error = 'Shipment item not found or does not belong to the selected shipment.';
+		$error = $langs->trans('ErrorShipmentItemNotInShipment');
 		return null;
 	}
 
 	$coveredQty = (float) $obj->covered_qty;
 	if ($coveredQty <= 0) {
-		$error = 'Shipment item quantity is invalid.';
+		$error = $langs->trans('ErrorShipmentItemQuantityInvalid');
 		return null;
 	}
 
@@ -504,7 +508,7 @@ function warrantysvc_resolve_shipment_item($db, $shipmentId, $itemKey, &$error =
 		$startDate = warrantysvc_normalize_date($obj->date_delivery);
 	}
 	if ($startDate === null) {
-		$error = 'The shipment has no usable shipment date.';
+		$error = $langs->trans('ErrorShipmentWarrantyStartDateMissing');
 		return null;
 	}
 
@@ -531,13 +535,15 @@ function warrantysvc_resolve_shipment_item($db, $shipmentId, $itemKey, &$error =
  */
 function warrantysvc_compute_product_warranty_period($db, $productId, $entity, $startDate, &$error = '')
 {
+	global $langs;
+	$langs->loadLangs(array('warrantysvc@warrantysvc'));
 	$error = '';
 	if (!warrantysvc_uses_product_months()) {
 		return null;
 	}
 
 	if ((int) $startDate <= 0) {
-		$error = 'Warranty start date is missing or invalid.';
+		$error = $langs->trans('ErrorWarrantyStartDateMissing');
 		return null;
 	}
 
@@ -551,13 +557,13 @@ function warrantysvc_compute_product_warranty_period($db, $productId, $entity, $
 
 	$expiry = warrantysvc_add_months_clamped((int) $startDate, (int) $months);
 	if ($expiry === null) {
-		$error = 'Unable to calculate warranty expiry from Product calendar months.';
+		$error = $langs->trans('ErrorWarrantyCalendarExpiry');
 		return null;
 	}
 
 	$days = warrantysvc_calendar_days_between((int) $startDate, (int) $expiry);
 	if ($days === null) {
-		$error = 'Unable to calculate warranty coverage days.';
+		$error = $langs->trans('ErrorWarrantyCoverageDaysCalculation');
 		return null;
 	}
 

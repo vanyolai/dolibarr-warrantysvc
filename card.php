@@ -296,7 +296,7 @@ if ($action == 'validate_return_reception' && $permwrite && isModEnabled('recept
 // Create replacement shipment directly (no sales order required)
 if ($action == 'createreplacementshipment' && $permwrite) {
 	if (!isModEnabled('shipping') && !isModEnabled('expedition')) {
-		setEventMessages('Shipment module is not enabled', null, 'errors');
+		setEventMessages($langs->trans('ErrorExpeditionModuleDisabled'), null, 'errors');
 		header('Location: '.$_SERVER['PHP_SELF'].'?id='.$object->id);
 		exit;
 	}
@@ -307,7 +307,7 @@ if ($action == 'createreplacementshipment' && $permwrite) {
 		header('Location: '.DOL_URL_ROOT.'/expedition/dispatch.php?id='.$shipment_id);
 		exit;
 	} else {
-		setEventMessages($object->error ?: 'Unknown error creating shipment', $object->errors, 'errors');
+		setEventMessages($object->error ?: $langs->trans('ErrorCreatingReplacementShipment'), $object->errors, 'errors');
 		header('Location: '.$_SERVER['PHP_SELF'].'?id='.$object->id);
 		exit;
 	}
@@ -637,7 +637,7 @@ if ($action == 'create') {
 
 	// Customer site note
 	print '<tr><td>'.$form->textwithpicto($langs->trans('CustomerSite'), $langs->trans('TooltipCustomerSite')).'</td>';
-	print '<td><input type="text" name="customer_site" class="minwidth300" placeholder="e.g. Main warehouse, Building A"></td></tr>';
+	print '<td><input type="text" name="customer_site" class="minwidth300" placeholder="'.dol_escape_htmltag($langs->trans('CustomerSitePlaceholder')).'"></td></tr>';
 
 	// Assigned to
 	print '<tr><td>'.$langs->trans('AssignedTo').'</td>';
@@ -873,7 +873,7 @@ if ($action == 'create') {
 	// VIEW / EDIT
 	// =====================================================================
 	if (!$object->id) {
-		dol_print_error($db, 'Record not found');
+		dol_print_error($db, $langs->trans('ErrorRecordNotFound'));
 		llxFooter();
 		exit;
 	}

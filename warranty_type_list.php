@@ -229,13 +229,13 @@ if ($permwrite && $action != 'edit') {
 	print '<table class="border centpercent tableforfieldcreate">';
 
 	print '<tr><td class="fieldrequired">'.$form->textwithpicto($langs->trans('Code'), $langs->trans('TooltipWTypeCode')).'</td>';
-	print '<td><input type="text" name="code" class="flat maxwidth100" placeholder="e.g. standard" required></td></tr>';
+	print '<td><input type="text" name="code" class="flat maxwidth100" placeholder="'.dol_escape_htmltag($langs->trans('WarrantyTypeCodePlaceholder')).'" required></td></tr>';
 
 	print '<tr><td class="fieldrequired">'.$form->textwithpicto($langs->trans('Label'), $langs->trans('TooltipWTypeLabel')).'</td>';
 	print '<td><input type="text" name="label" class="flat minwidth300" placeholder="'.$langs->trans('WarrantyTypeLabel').'" required></td></tr>';
 
 	print '<tr><td>'.$form->textwithpicto($langs->trans('Description'), $langs->trans('TooltipWTypeDescription')).'</td>';
-	print '<td><input type="text" name="description" class="flat minwidth300" placeholder="e.g. Covers parts and labour for standard equipment"></td></tr>';
+	print '<td><input type="text" name="description" class="flat minwidth300" placeholder="'.dol_escape_htmltag($langs->trans('WarrantyTypeDescriptionPlaceholder')).'"></td></tr>';
 
 	print '<tr><td class="tdtop">'.$form->textwithpicto($langs->trans('CoverageTerms'), $langs->trans('TooltipWTypeCoverageTerms')).'</td>';
 	print '<td><textarea name="coverage_terms" class="flat" rows="4" style="width:90%" placeholder="'.$langs->trans('CoverageTermsPlaceholder').'"></textarea></td></tr>';
