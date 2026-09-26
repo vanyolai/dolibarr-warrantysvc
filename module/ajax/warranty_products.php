@@ -30,10 +30,10 @@ if ($socid <= 0) {
 	exit;
 }
 
-// Products shipped to this customer that still have at least one unassigned serial
-// (serial exists in product_lot but not yet in svc_warranty)
-// Note: batch/serial is in product_lot.batch, referenced via expeditiondet_batch.fk_lot
-$sql  = "SELECT DISTINCT p.rowid, p.ref, p.label";
+// Products shipped to this customer that still have at least one unassigned serial.
+// Fetch candidate shipment serials and existing warranty serials separately so the
+// module never compares text columns with potentially different database collations.
+$sql  = "SELECT DISTINCT p.rowid, p.ref, p.label, edb.batch AS serial_number";
 $sql .= " FROM ".MAIN_DB_PREFIX."product p";
 $sql .= " INNER JOIN ".MAIN_DB_PREFIX."expeditiondet ed ON ed.fk_product = p.rowid";
 $sql .= " INNER JOIN ".MAIN_DB_PREFIX."expedition e ON e.rowid = ed.fk_expedition";
@@ -43,26 +43,44 @@ $sql .= " AND e.fk_statut >= 1";
 $sql .= " AND e.entity IN (".getEntity('expedition').")";
 $sql .= " AND p.entity IN (".getEntity('product').")";
 $sql .= " AND edb.batch IS NOT NULL AND edb.batch != ''";
-$sql .= " AND NOT EXISTS (";
-$sql .= "   SELECT 1 FROM ".MAIN_DB_PREFIX."svc_warranty w";
-$sql .= "   WHERE w.serial_number = edb.batch";
-$sql .= "   AND w.fk_product = p.rowid";
-$sql .= "   AND w.status != 'voided'";
-$sql .= "   AND w.serial_number IS NOT NULL AND w.serial_number != ''";
-$sql .= "   AND w.entity IN (".getEntity('svcwarranty').")";
-$sql .= " )";
-$sql .= " ORDER BY p.ref ASC";
+$sql .= " ORDER BY p.ref ASC, edb.batch ASC";
 
 $resql = $db->query($sql);
-$products = array();
-if ($resql) {
-	while ($obj = $db->fetch_object($resql)) {
-		$products[] = array(
-			'rowid' => (int) $obj->rowid,
-			'label' => $obj->ref.($obj->label ? ' — '.$obj->label : ''),
-		);
-	}
+if (!$resql) {
+	http_response_code(500);
+	header('Content-Type: application/json');
+	print json_encode(array('error' => $db->lasterror()));
+	exit;
 }
 
+$covered = array();
+$sqlw  = "SELECT fk_product, serial_number FROM ".MAIN_DB_PREFIX."svc_warranty";
+$sqlw .= " WHERE status != 'voided'";
+$sqlw .= " AND serial_number IS NOT NULL AND serial_number != ''";
+$sqlw .= " AND entity IN (".getEntity('svcwarranty').")";
+$resw = $db->query($sqlw);
+if (!$resw) {
+	http_response_code(500);
+	header('Content-Type: application/json');
+	print json_encode(array('error' => $db->lasterror()));
+	exit;
+}
+while ($ow = $db->fetch_object($resw)) {
+	$covered[((int) $ow->fk_product).'\0'.(string) $ow->serial_number] = true;
+}
+
+$products_by_id = array();
+while ($obj = $db->fetch_object($resql)) {
+	$key = ((int) $obj->rowid).'\0'.(string) $obj->serial_number;
+	if (isset($covered[$key])) {
+		continue;
+	}
+	$products_by_id[(int) $obj->rowid] = array(
+		'rowid' => (int) $obj->rowid,
+		'label' => $obj->ref.($obj->label ? ' — '.$obj->label : ''),
+	);
+}
+
+$products = array_values($products_by_id);
 header('Content-Type: application/json');
 print json_encode($products);
