@@ -1185,7 +1185,7 @@ if (initMode === "standard") {
 // VIEW / EDIT
 // ============================================================
 if (empty($object->id)) {
-	dol_print_error($db, 'Object not found');
+	dol_print_error($db, $langs->trans('ErrorRecordNotFound'));
 	exit;
 }
 
@@ -1539,7 +1539,7 @@ if ($action != 'edit' && !empty($object->serial_number)) {
 		print '<td><strong>'.((int) $svclog->service_count).'</strong></td></tr>';
 
 		print '<tr class="oddeven"><td>'.$langs->trans('ServiceHours').'</td>';
-		print '<td>'.((float) $svclog->service_hours).' hrs</td></tr>';
+		print '<td>'.((float) $svclog->service_hours).' '.$langs->trans('Hours').'</td></tr>';
 
 		print '<tr class="oddeven"><td>'.$langs->trans('ConditionStatus').'</td>';
 		print '<td><span class="badge '.($condition_badges[$svclog->condition_status] ?? 'status0').'">'
