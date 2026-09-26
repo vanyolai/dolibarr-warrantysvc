@@ -1167,56 +1167,60 @@ if ($action == 'edit') {
 }
 print '</td></tr>';
 
-// Warranty type
-print '<tr><td>'.$form->textwithpicto($langs->trans('WarrantyType'), $langs->trans('TooltipWarrantyType')).'</td>';
-print '<td>';
-if ($action == 'edit') {
-	$wtype_items_edit   = SvcWarrantyType::fetchAllForForm($db);
-	$wtype_options_edit = array('' => '— '.$langs->trans('NoPredefinedType').' —');
-	$wtype_defaults_edit_js = '{';
-	foreach ($wtype_items_edit as $wt) {
-		$wtype_options_edit[$wt->code] = dol_escape_htmltag($wt->label);
-		$wtype_defaults_edit_js .= '"'.dol_escape_js($wt->code).'":{"days":'.((int) $wt->default_coverage_days).',"terms":'.json_encode((string) $wt->coverage_terms).',"excl":'.json_encode((string) $wt->exclusions).'},';
-	}
-	$wtype_defaults_edit_js = rtrim($wtype_defaults_edit_js, ',').'}';
-	print Form::selectarray('warranty_type', $wtype_options_edit, $object->warranty_type, 0, 0, 0, '', 0, 0, 0, '', 'flat minwidth200', 0, '', '', true);
-	print '<script>
-(function(){
-	var defaults = '.$wtype_defaults_edit_js.';
-	var sel = document.getElementById("warranty_type");
-	var cm  = document.getElementById("coverage_days");
-	function setEditorValue(name, val){
-		if(typeof CKEDITOR !== "undefined" && CKEDITOR.instances[name]){
-			CKEDITOR.instances[name].setData(val);
-		} else {
-			var el = document.getElementById(name);
-			if(el) el.value = val;
+// Warranty Type is part of upstream mode only.
+if ($duration_source === 'warranty_type') {
+	// Warranty type
+	print '<tr><td>'.$form->textwithpicto($langs->trans('WarrantyType'), $langs->trans('TooltipWarrantyType')).'</td>';
+	print '<td>';
+	if ($action == 'edit') {
+		$wtype_items_edit   = SvcWarrantyType::fetchAllForForm($db);
+		$wtype_options_edit = array('' => '— '.$langs->trans('NoPredefinedType').' —');
+		$wtype_defaults_edit_js = '{';
+		foreach ($wtype_items_edit as $wt) {
+			$wtype_options_edit[$wt->code] = dol_escape_htmltag($wt->label);
+			$wtype_defaults_edit_js .= '"'.dol_escape_js($wt->code).'":{"days":'.((int) $wt->default_coverage_days).',"terms":'.json_encode((string) $wt->coverage_terms).',"excl":'.json_encode((string) $wt->exclusions).'},';
 		}
-	}
-	var userChanged = false;
-	function sync(){
-		var code = sel ? sel.value : "";
-		if(code && defaults[code] !== undefined){
-			var d = defaults[code];
-			cm.value = d.days; cm.disabled = true; cm.style.opacity = "0.5";
-			if(userChanged){
-				setEditorValue("coverage_terms", d.terms || "");
-				setEditorValue("exclusions",     d.excl  || "");
+		$wtype_defaults_edit_js = rtrim($wtype_defaults_edit_js, ',').'}';
+		print Form::selectarray('warranty_type', $wtype_options_edit, $object->warranty_type, 0, 0, 0, '', 0, 0, 0, '', 'flat minwidth200', 0, '', '', true);
+		print '<script>
+	(function(){
+		var defaults = '.$wtype_defaults_edit_js.';
+		var sel = document.getElementById("warranty_type");
+		var cm  = document.getElementById("coverage_days");
+		function setEditorValue(name, val){
+			if(typeof CKEDITOR !== "undefined" && CKEDITOR.instances[name]){
+				CKEDITOR.instances[name].setData(val);
+			} else {
+				var el = document.getElementById(name);
+				if(el) el.value = val;
 			}
-		} else { cm.disabled = false; cm.style.opacity = ""; }
+		}
+		var userChanged = false;
+		function sync(){
+			var code = sel ? sel.value : "";
+			if(code && defaults[code] !== undefined){
+				var d = defaults[code];
+				cm.value = d.days; cm.disabled = true; cm.style.opacity = "0.5";
+				if(userChanged){
+					setEditorValue("coverage_terms", d.terms || "");
+					setEditorValue("exclusions",     d.excl  || "");
+				}
+			} else { cm.disabled = false; cm.style.opacity = ""; }
+		}
+		if(sel){
+			sel.addEventListener("change", function(){ userChanged = true; sync(); });
+			sync();
+		}
+	})();
+	</script>';
+	} else {
+		print $object->warranty_type
+			? dol_escape_htmltag(SvcWarrantyType::getLabelByCode($db, $object->warranty_type))
+			: '<span class="opacitymedium">&mdash;</span>';
 	}
-	if(sel){
-		sel.addEventListener("change", function(){ userChanged = true; sync(); });
-		sync();
-	}
-})();
-</script>';
-} else {
-	print $object->warranty_type
-		? dol_escape_htmltag(SvcWarrantyType::getLabelByCode($db, $object->warranty_type))
-		: '<span class="opacitymedium">&mdash;</span>';
+	print '</td></tr>';
+	
 }
-print '</td></tr>';
 
 // Status
 print '<tr><td>'.$langs->trans('Status').'</td>';
