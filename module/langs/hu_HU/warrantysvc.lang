@@ -524,7 +524,7 @@ ErrorProductWarrantyFieldNotConfigured = Product-field mód aktív, de nincs Ter
 SvcMonths = hónap
 WarrantyDurationLegacyUnknown = Örökölt rekord: a naptári hónapok száma nincs külön eltárolva
 
-ShipmentItem = Szállítmánytételelem
+ShipmentItem = Szállítmánytétel
 TooltipShipmentItem = Válassz kiszállított sorozat-/LOT-egységet vagy nem sorozatszámos szállítmánytételt a garancia létrehozásához.
 SelectShipmentItem = Válassz szállítmánytételt
 AutoFilledFromShipmentItem = A szállítmánytételből automatikusan kitöltve
@@ -568,3 +568,30 @@ ErrorShipmentItemQuantityInvalid = A szállítmánytétel mennyisége érvényte
 ErrorWarrantyStartDateMissing = A garancia kezdő dátuma hiányzik vagy érvénytelen.
 ErrorWarrantyCoverageDaysCalculation = Nem sikerült kiszámítani a garancia napokban kifejezett technikai időtartamát.
 ErrorDuplicateShipmentWarranty = Ehhez a szállítmánytételhez már tartozik nem érvénytelenített garancia (garanciaazonosító: %s).
+
+#
+# WarrantySvc-specific UI labels
+#
+Warranty = Garancia
+ServiceRequest = Garanciális igény
+Claims = Igények
+ClaimHistory = Igényelőzmények
+NoClaims = Nincs kapcsolódó igény
+ViewWarranty = Garancia megtekintése
+OriginShipment = Forrásszállítmány
+RMAActions = RMA-műveletek
+ReplacementOrder = Csere-rendelés
+ReturnReception = Visszáru-bevét
+NoReturnReceptionYet = Még nincs visszáru-bevét
+InterventionCreated = Beavatkozás létrehozva
+InvoiceCreated = Számla létrehozva
+ReminderSent = Emlékeztető elküldve
+MyOpenRequests = Saját nyitott garanciális igényeim
+ExpiringSoon = Hamarosan lejár
+ConfirmDeleteWarranty = Biztosan véglegesen törölni szeretnéd ezt a garanciát?
+ConfirmVoidWarranty = Biztosan érvényteleníteni szeretnéd ezt a garanciát?
+DeleteWarranty = Garancia törlése
+Billable = Számlázható
+ExpiryDate = Garancia vége
+ComponentOut = Kimenő alkatrész
+ComponentIn = Visszaérkező alkatrész
