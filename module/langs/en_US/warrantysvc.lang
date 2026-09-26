@@ -595,3 +595,21 @@ Billable = Billable
 ExpiryDate = Expiry Date
 ComponentOut = Outbound component
 ComponentIn = Returned component
+
+#
+# Warranty claim unit picker
+#
+WarrantyCoveredUnit = Unit / warranty
+SearchWarrantyUnitPlaceholder = Search by Product, serial/LOT or warranty reference...
+SelectCustomerForWarrantyUnits = Select a customer to show registered warranty units.
+NoWarrantiesForCustomer = No warranty records are registered for this customer.
+NoWarrantiesMatchFilter = No warranty records match the search.
+SerialOrLot = Serial / LOT
+NoSerialNumber = No serial number
+WarrantyCoveredQuantity = Qty: %s
+CreateClaimWithoutWarranty = Create without warranty
+CreateClaimWithoutWarrantyDesc = Use this for warranty-less or other billable service cases.
+BackToWarrantySelection = Back to warranty selection
+ManualClaimEntryWarning = Warranty-less service intake: no WarrantySvc warranty will be linked and the case starts as billable.
+ErrorLoadingWarrantyUnits = Could not load the customer's warranty records.
+ErrorWarrantyRequiredForClaim = Select a warranty record or switch to warranty-less service intake.
