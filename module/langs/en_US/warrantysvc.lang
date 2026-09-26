@@ -568,3 +568,30 @@ ErrorShipmentItemQuantityInvalid = Shipment item quantity is invalid.
 ErrorWarrantyStartDateMissing = Warranty start date is missing or invalid.
 ErrorWarrantyCoverageDaysCalculation = Unable to calculate the equivalent warranty coverage in days.
 ErrorDuplicateShipmentWarranty = A non-voided warranty already exists for this shipment item (warranty ID %s).
+
+#
+# WarrantySvc-specific UI labels
+#
+Warranty = Warranty
+ServiceRequest = Warranty Claim
+Claims = Claims
+ClaimHistory = Claim History
+NoClaims = No claims
+ViewWarranty = View Warranty
+OriginShipment = Origin Shipment
+RMAActions = RMA Actions
+ReplacementOrder = Replacement Order
+ReturnReception = Return Reception
+NoReturnReceptionYet = No return reception yet
+InterventionCreated = Intervention created
+InvoiceCreated = Invoice created
+ReminderSent = Reminder sent
+MyOpenRequests = My open warranty claims
+ExpiringSoon = Expiring soon
+ConfirmDeleteWarranty = Are you sure you want to permanently delete this warranty?
+ConfirmVoidWarranty = Are you sure you want to void this warranty?
+DeleteWarranty = Delete Warranty
+Billable = Billable
+ExpiryDate = Expiry Date
+ComponentOut = Outbound component
+ComponentIn = Returned component
