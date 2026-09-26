@@ -249,171 +249,171 @@ PreviousTroubleshootSessions = Korábbi hibaelhárítások
 SaveFindings = Eredmények mentése
 
 # Checklist steps — Safety
-ChecklistSafetyPowerOff = Confirm unit is powered off before inspection
-ChecklistSafetyPowerOffDesc = Ask customer to power off and unplug before remote guidance begins.
-ChecklistSafetyExterior = Inspect exterior for damage
-ChecklistSafetyExteriorDesc = Cracks, dents, burn marks, or moisture ingress.
+ChecklistSafetyPowerOff = Győződj meg róla, hogy a készülék ki van kapcsolva az ellenőrzés előtt
+ChecklistSafetyPowerOffDesc = Kérd meg az ügyfelet, hogy kapcsolja ki és húzza ki a készüléket, mielőtt távoli hibaelhárítás kezdődik.
+ChecklistSafetyExterior = Külső sérülések ellenőrzése
+ChecklistSafetyExteriorDesc = Repedések, horpadások, égésnyomok vagy nedvesség bejutásának ellenőrzése.
 
 # Checklist steps — Power
-ChecklistPowerSupply = Verify power supply and outlet
-ChecklistPowerSupplyDesc = Confirm correct voltage, working outlet, and undamaged cord.
-ChecklistPowerStartup = Power on — observe startup behavior
-ChecklistPowerStartupDesc = Note any error lights, unusual sounds, or failure to start.
+ChecklistPowerSupply = Tápegység és hálózati aljzat ellenőrzése
+ChecklistPowerSupplyDesc = Ellenőrizd a megfelelő feszültséget, a működő aljzatot és a sértetlen kábelt.
+ChecklistPowerStartup = Bekapcsolás — indulási viselkedés megfigyelése
+ChecklistPowerStartupDesc = Jegyezd fel a hibajelzőket, szokatlan hangokat vagy az indulás elmaradását.
 
 # Checklist steps — Oxygen compressor specific
-ChecklistCompIntakeFilter = Inspect intake filter
-ChecklistCompIntakeFilterDesc = Remove and inspect for clogging or saturation. Replace if dirty.
-ChecklistCompOutputPressure = Measure output pressure (PSI)
-ChecklistCompOutputPressureDesc = Should read within spec. Note actual reading.
-ChecklistCompFlowRate = Verify flow rate (LPM)
-ChecklistCompFlowRateDesc = Measure LPM at output port. Compare to product spec sheet.
-ChecklistCompMoistureTrap = Check moisture trap / desiccant
-ChecklistCompMoistureTrapDesc = Inspect color indicator or saturation level. Replace if exhausted.
-ChecklistCompOutletPurity = Test outlet oxygen purity
-ChecklistCompOutletPurityDesc = Use analyzer if available. Normal is 90–96% O2.
-ChecklistCompVibrationNoise = Listen for abnormal vibration or noise
-ChecklistCompVibrationNoiseDesc = Rattling, grinding, or high-pitched squealing may indicate piston or valve wear.
-ChecklistCompHeatTemp = Check unit temperature after 10-minute run
-ChecklistCompHeatTempDesc = Excessive heat on cabinet top or sides may indicate blocked vents or failing components.
+ChecklistCompIntakeFilter = Szívóoldali szűrő ellenőrzése
+ChecklistCompIntakeFilterDesc = Vedd ki és ellenőrizd eltömődés vagy telítettség szempontjából. Szükség esetén cseréld.
+ChecklistCompOutputPressure = Kimeneti nyomás mérése (PSI)
+ChecklistCompOutputPressureDesc = Az értéknek a specifikáción belül kell lennie. Jegyezd fel a mért értéket.
+ChecklistCompFlowRate = Térfogatáram ellenőrzése (LPM)
+ChecklistCompFlowRateDesc = Mérd meg a kimeneti LPM értéket, és hasonlítsd össze a termék specifikációjával.
+ChecklistCompMoistureTrap = Nedvességleválasztó / szárítóanyag ellenőrzése
+ChecklistCompMoistureTrapDesc = Ellenőrizd a színjelzőt vagy a telítettséget. Szükség esetén cseréld.
+ChecklistCompOutletPurity = Kimeneti oxigéntisztaság ellenőrzése
+ChecklistCompOutletPurityDesc = Ha rendelkezésre áll analizátor, mérd meg. A normál érték 90–96% O2.
+ChecklistCompVibrationNoise = Rendellenes rezgés vagy zaj ellenőrzése
+ChecklistCompVibrationNoiseDesc = Zörgés, csiszoló vagy magas hang dugattyú- vagy szelepkopásra utalhat.
+ChecklistCompHeatTemp = Készülékhőmérséklet ellenőrzése 10 perc működés után
+ChecklistCompHeatTempDesc = A burkolat túlzott melegedése eltömődött szellőzésre vagy hibás alkatrészre utalhat.
 
 # Checklist steps — General
-ChecklistCustomerSteps = Review customer-reported steps to reproduce
-ChecklistCustomerStepsDesc = Ask customer to describe exactly when the issue occurs.
-ChecklistReproduce = Attempt to reproduce the issue
-ChecklistReproduceDesc = Walk through the reported scenario step by step.
-ChecklistFirmware = Verify firmware / software version
-ChecklistFirmwareDesc = Check if unit is on current firmware. Note version.
+ChecklistCustomerSteps = Az ügyfél által jelzett reprodukciós lépések áttekintése
+ChecklistCustomerStepsDesc = Kérd meg az ügyfelet, hogy pontosan írja le, mikor jelentkezik a probléma.
+ChecklistReproduce = A hiba reprodukálásának megkísérlése
+ChecklistReproduceDesc = Lépésről lépésre hajtsd végre a bejelentett forgatókönyvet.
+ChecklistFirmware = Firmware / szoftververzió ellenőrzése
+ChecklistFirmwareDesc = Ellenőrizd, hogy a készülék aktuális firmware-t használ-e. Jegyezd fel a verziót.
 
 #
 # Email notifications — trigger-based
 #
-NotifTechValidateSubject = [New Assignment] Warranty Claim %s assigned to you
-NotifTechValidateBody = Hello %s,\n\nWarranty claim %s has been validated and assigned to you.
-NotifTechInProgressSubject = [In Progress] Warranty Claim %s
-NotifTechInProgressBody = Hello %s,\n\nWarranty claim %s has been moved to In Progress status.
-NotifCustAwaitReturnSubject = [Action Required] Please return unit — Warranty Claim %s
-NotifCustAwaitReturnBody = Dear customer,\n\nA replacement unit has been shipped for warranty claim %s (serial: %s).\n\nPlease arrange the return of the original unit.
-NotifCustResolvedSubject = [Resolved] Warranty Claim %s
-NotifCustResolvedBody = Dear customer,\n\nYour warranty claim %s has been resolved.
-NotifWarrantyCreatedSubject = Warranty Registration — %s
-NotifWarrantyCreatedBody = Dear customer,\n\nYour warranty %s for serial number %s has been registered.\n\nCoverage expires: %s
-NoExpiryDate = No expiry date
+NotifTechValidateSubject = [Új feladat] A(z) %s garanciális igény hozzád lett rendelve
+NotifTechValidateBody = Üdv %s!\n\nA(z) %s garanciális igényt hitelesítették és hozzád rendelték.
+NotifTechInProgressSubject = [Folyamatban] Garanciális igény: %s
+NotifTechInProgressBody = Üdv %s!\n\nA(z) %s garanciális igény Folyamatban állapotba került.
+NotifCustAwaitReturnSubject = [Teendő] Kérjük, küldje vissza a készüléket — garanciális igény: %s
+NotifCustAwaitReturnBody = Tisztelt Ügyfelünk!\n\nA(z) %s garanciális igényhez cserekészüléket küldtünk (sorozatszám: %s).\n\nKérjük, gondoskodjon az eredeti készülék visszaküldéséről.
+NotifCustResolvedSubject = [Megoldva] Garanciális igény: %s
+NotifCustResolvedBody = Tisztelt Ügyfelünk!\n\nA(z) %s garanciális igényt megoldottuk.
+NotifWarrantyCreatedSubject = Garanciaregisztráció — %s
+NotifWarrantyCreatedBody = Tisztelt Ügyfelünk!\n\nA(z) %s garancia a(z) %s sorozatszámú készülékhez regisztrálva lett.\n\nGarancia vége: %s
+NoExpiryDate = Nincs lejárati dátum
 
 #
 # Email notifications — cron reminders
 #
-ReminderReturnSubject = [ACTION REQUIRED] Please return unit for warranty claim %s
-ReminderReturnBody = Dear customer,\n\nThis is a reminder that we are waiting for the return of serial number %s related to warranty claim %s.\n\nPlease arrange return shipment at your earliest convenience.
-ReminderReturnFooter = Thank you for your cooperation.\n\nWarranty & Service Team
-NoEmailForCustomer = No email address on file for this customer.
-NoSenderEmailConfigured = No sender email address configured in Dolibarr settings.
+ReminderReturnSubject = [TEENDŐ] Kérjük, küldje vissza a készüléket — garanciális igény: %s
+ReminderReturnBody = Tisztelt Ügyfelünk!\n\nEmlékeztetjük, hogy továbbra is várjuk a(z) %s sorozatszámú készüléket a(z) %s garanciális igényhez.\n\nKérjük, mielőbb intézze a visszaküldést.
+ReminderReturnFooter = Köszönjük együttműködését.\n\nGarancia és szerviz
+NoEmailForCustomer = Ehhez az ügyfélhez nincs e-mail-cím rögzítve.
+NoSenderEmailConfigured = A Dolibarr beállításaiban nincs feladó e-mail-cím megadva.
 
 #
 # Error messages (must start with Error)
 #
-ErrorSvcRequestNotInDraftStatus = This warranty claim is not in draft status.
-ErrorSvcRequestNotInValidatedStatus = This warranty claim must be validated before proceeding.
-ErrorSvcRequestCannotClose = This warranty claim cannot be closed from its current status.
-ErrorSvcRequestAlreadyClosedOrCancelled = This warranty claim is already closed or cancelled.
-ErrorNoSerialForSwap = A serial number must be set before creating a unit swap shipment.
-ErrorNoSerialInWarehouse = Serial/lot %s not found in the source warehouse. Check stock or select a different warehouse.
-ErrorNoWarehouseSelected = Please select a warehouse before creating a shipment.
-ErrorInterventionModuleDisabled = The Interventions module is not enabled.
-ErrorExpeditionModuleDisabled = The Shipments module is not enabled.
-ErrorFactureModuleDisabled = The Invoicing module is not enabled.
-ErrorWarrantySerialRequired = A serial number is required to create a warranty record.
+ErrorSvcRequestNotInDraftStatus = A garanciális igény nincs piszkozat állapotban.
+ErrorSvcRequestNotInValidatedStatus = A garanciális igényt a folytatás előtt hitelesíteni kell.
+ErrorSvcRequestCannotClose = A garanciális igény ebből az állapotból nem zárható le.
+ErrorSvcRequestAlreadyClosedOrCancelled = A garanciális igény már lezárt vagy törölt.
+ErrorNoSerialForSwap = Készülékcsere létrehozása előtt sorozatszámot kell megadni.
+ErrorNoSerialInWarehouse = A(z) %s sorozat-/LOT-szám nem található a forrásraktárban. Ellenőrizd a készletet vagy válassz másik raktárat.
+ErrorNoWarehouseSelected = Szállítmány létrehozása előtt válassz raktárat.
+ErrorInterventionModuleDisabled = A Beavatkozások modul nincs engedélyezve.
+ErrorExpeditionModuleDisabled = A Szállítmányok modul nincs engedélyezve.
+ErrorFactureModuleDisabled = A Számlázás modul nincs engedélyezve.
+ErrorWarrantySerialRequired = Garanciarekord létrehozásához sorozatszám szükséges.
 
 #
 # Admin / Setup page
 #
-SvcSetup = Setup
-SvcSetupSaved = Settings saved.
-SvcSelectWarehouse = Select a warehouse
-SvcWarehouseRefurbDesc = Warehouse where refurbished units available for swap are stored.
-SvcWarehouseReturnDesc = Warehouse where returned / in-repair units are received.
-ReturnGraceDays = Return reminder delay
-ReturnGraceDaysDesc = Days after the expected return date before the first reminder email is sent.
-ReturnInvoiceDays = Auto-invoice after
-ReturnInvoiceDaysDesc = Days after the expected return date before an invoice is automatically generated for unreturned units.
-ReplacementStrategy = Default replacement selection strategy
-ReplacementStrategyDesc = How the system suggests a serial number when creating a unit swap.
-AutoWarrantyCheck = Auto-check warranty on creation
-AutoWarrantyCheckDesc = Automatically look up warranty coverage when a warranty claim is created.
-AutoWarrantyOnShipment = Auto-create warranty on shipment
-AutoWarrantyOnShipmentDesc = Automatically register a warranty for each serialized product line that does not already have one, using the configured trigger event below.
-WarrantyTriggerEvent = Warranty creation trigger
-WarrantyTriggerEventDesc = Which shipment event triggers automatic warranty creation.
-OnShipmentValidate = On shipment validation (confirmed for dispatch)
-OnShipmentClose = On shipment close (delivery confirmed)
-OnShipmentBoth = On both validate and close
-AutoWarrantyOnOrderClose = Auto-create warranty on order delivery
-AutoWarrantyOnOrderCloseDesc = When a sales order is classified as delivered (closed), automatically register warranties for any serialized products in linked shipments that do not already have one.
-ProductWarrantyMonthsField = Product warranty duration field
-ProductWarrantyMonthsFieldDesc = Product integer extra field containing the customer warranty duration in calendar months. When configured, this field is the sole source of automatic warranty duration; warranty types define terms only.
-ProductWarrantyMonthsFieldNone = Not configured (use legacy day-based duration logic)
-ErrorInvalidProductWarrantyMonthsField = The selected Product warranty duration field is not a valid integer Product extra field.
-DefaultCoverageDays = Default warranty coverage (days)
-DefaultCoverageDaysDesc = Legacy fallback coverage period used only when no Product warranty-month field is configured.
-SvcDays = days
-NotifyWarrantyCreated = Email customer on warranty creation
-NotifyWarrantyCreatedDesc = Send an email notification to the customer when a new warranty record is created for their unit.
-WarrantyRequiresLots = Restrict warranty claims to serialized products
-WarrantyRequiresLotsDesc = When enabled, the product selector on warranty claim forms will only show products that have serial number or lot tracking enabled in the Stocks module.
-UseCustomerReturns = Use Customer Returns module for inbound returns
-UseCustomerReturnsDesc = When enabled, the "Create Return" button on warranty claims will open the Customer Returns module instead of creating a native Reception. This provides stock movement tracking, credit note generation, and a dedicated return document.
-CustomerReturnModuleNotInstalled = The Customer Returns module is not installed or enabled. Install it from the Modules page to use this feature.
-CreateCustomerReturn = Create Customer Return
-NumberingModule = Reference Numbering Module
+SvcSetup = Beállítás
+SvcSetupSaved = Beállítások mentve.
+SvcSelectWarehouse = Válassz raktárat
+SvcWarehouseRefurbDesc = A felújított cserekészülékek raktára.
+SvcWarehouseReturnDesc = A visszaérkezett / javítás alatt lévő eszközök raktára.
+ReturnGraceDays = Visszaküldési emlékeztető késleltetése
+ReturnGraceDaysDesc = A várható visszaküldési dátum után ennyi nappal menjen ki az első emlékeztető.
+ReturnInvoiceDays = Automatikus számlázás ennyi nap után
+ReturnInvoiceDaysDesc = A várható visszaküldési dátum után ennyi nappal készüljön automatikusan számla a vissza nem küldött egységről.
+ReplacementStrategy = Alapértelmezett cserekészülék-kiválasztási stratégia
+ReplacementStrategyDesc = A rendszer e szabály alapján javasol sorozatszámot készülékcserénél.
+AutoWarrantyCheck = Garancia automatikus ellenőrzése létrehozáskor
+AutoWarrantyCheckDesc = Garanciális igény létrehozásakor automatikusan ellenőrzi a garanciális fedezetet.
+AutoWarrantyOnShipment = Garancia automatikus létrehozása szállítmányból
+AutoWarrantyOnShipmentDesc = A kiválasztott eseménynél automatikusan regisztrálja a garanciát a jogosult kiszállított tételekre.
+WarrantyTriggerEvent = Garancialétrehozási esemény
+WarrantyTriggerEventDesc = Melyik szállítmányesemény indítsa az automatikus garancialétrehozást.
+OnShipmentValidate = Szállítmány hitelesítésekor
+OnShipmentClose = Szállítmány lezárásakor
+OnShipmentBoth = Hitelesítéskor és lezáráskor is
+AutoWarrantyOnOrderClose = Garancia automatikus létrehozása rendelés teljesítésekor
+AutoWarrantyOnOrderCloseDesc = Ha egy vevői rendelés teljesített állapotba kerül, automatikusan regisztrálja a kapcsolódó szállítmányok garanciáit.
+ProductWarrantyMonthsField = Termék garanciaidő mezője
+ProductWarrantyMonthsFieldDesc = Egész szám típusú Termék kiegészítő mező, amely a vevőnek adott garancia időtartamát naptári hónapban tartalmazza. Product-field módban ez az egyetlen időtartamforrás.
+ProductWarrantyMonthsFieldNone = Nincs beállítva (örökölt napalapú logika)
+ErrorInvalidProductWarrantyMonthsField = A kiválasztott garanciaidő-mező nem érvényes egész szám típusú Termék kiegészítő mező.
+DefaultCoverageDays = Alapértelmezett garanciaidő (nap)
+DefaultCoverageDaysDesc = Örökölt alapértelmezett időtartam, csak Warranty Type módban használatos.
+SvcDays = nap
+NotifyWarrantyCreated = Ügyfél értesítése garancia létrehozásakor
+NotifyWarrantyCreatedDesc = Új garancia létrehozásakor e-mail-értesítést küld az ügyfélnek.
+WarrantyRequiresLots = Garanciális igények korlátozása sorozatszámos/LOT-os termékekre
+WarrantyRequiresLotsDesc = Bekapcsolva a garanciális igény termékválasztója csak LOT-/sorozatszám-kezelésű termékeket mutat.
+UseCustomerReturns = Customer Returns modul használata beérkező visszárukhoz
+UseCustomerReturnsDesc = Bekapcsolva a Visszáru létrehozása művelet a Customer Returns modult használja natív Bevét helyett.
+CustomerReturnModuleNotInstalled = A Customer Returns modul nincs telepítve vagy engedélyezve.
+CreateCustomerReturn = Ügyfél-visszáru létrehozása
+NumberingModule = Hivatkozásszámozási modul
 
 # Movement tracker panel
-MovementTracker = Movement Tracker
-OutboundToCustomer = → Outbound to Customer
-ReturnFromCustomer = ← Return from Customer
-OnSiteIntervention = On-Site Intervention
-OnSiteVisit = On-Site Visit
-LinkedCall = Linked Call
-TooltipLinkedCall = PBX call record that originated this warranty claim. Set automatically when created from the call summary tab, or link manually.
-ShipComponents = Ship Components
-ShipReplacementUnit = Ship Replacement Unit
-LogReturnReceived = Log Return Received
-ReturnLogged = Return logged successfully.
-NotYetDispatched = Not yet dispatched
-NotYetScheduled = Not yet scheduled
-ReturnPending = Awaiting return
-ExpectedBy = Expected by
-ShipmentRef = Shipment
+MovementTracker = Anyag- és eszközmozgások
+OutboundToCustomer = → Kimenő az ügyfélhez
+ReturnFromCustomer = ← Vissza az ügyféltől
+OnSiteIntervention = Helyszíni beavatkozás
+OnSiteVisit = Helyszíni látogatás
+LinkedCall = Kapcsolt hívás
+TooltipLinkedCall = A garanciális igényt létrehozó PBX-hívás. Hívásösszegzésből automatikusan beállítható, vagy kézzel kapcsolható.
+ShipComponents = Alkatrészek küldése
+ShipReplacementUnit = Cserekészülék küldése
+LogReturnReceived = Visszaérkezés rögzítése
+ReturnLogged = Visszaérkezés sikeresen rögzítve.
+NotYetDispatched = Még nincs kiküldve
+NotYetScheduled = Még nincs ütemezve
+ReturnPending = Visszaküldésre vár
+ExpectedBy = Várható
+ShipmentRef = Szállítmány
 ComponentLines = Alkatrésztételek
-ScheduleIntervention = Schedule Intervention
-Overdue = Overdue
-SvcConfirm = Confirm
-ReplacementSerial = Replacement Serial #
-CreateReplacementOrder = Create Replacement Order
-AddReplacementOrder = Add Replacement Order
-ReplacementOrderCreated = Replacement order created.
-NoReplacementOrderYet = No replacement order yet
-SvcCreateShipment = Create Shipment
-ShipmentCreated = Shipment created.
-ReplacementForSR = Replacement unit for warranty claim %s
-ValidateShipment = Validate Shipment
-ShipmentValidated = Shipment validated.
-CreateReturnReception = Create Return Reception
-ReceptionCreated = Return reception created.
-SvcReceptionValidated = Return reception validated.
-WaitingForShipmentValidation = Waiting for outbound shipment to be validated
+ScheduleIntervention = Beavatkozás ütemezése
+Overdue = Lejárt
+SvcConfirm = Megerősítés
+ReplacementSerial = Cserekészülék sorozatszáma
+CreateReplacementOrder = Csere-rendelés létrehozása
+AddReplacementOrder = További csere-rendelés
+ReplacementOrderCreated = Csere-rendelés létrehozva.
+NoReplacementOrderYet = Még nincs csere-rendelés
+SvcCreateShipment = Szállítmány létrehozása
+ShipmentCreated = Szállítmány létrehozva.
+ReplacementForSR = Cserekészülék a(z) %s garanciális igényhez
+ValidateShipment = Szállítmány hitelesítése
+ShipmentValidated = Szállítmány hitelesítve.
+CreateReturnReception = Visszáru-bevét létrehozása
+ReceptionCreated = Visszáru-bevét létrehozva.
+SvcReceptionValidated = Visszáru-bevét hitelesítve.
+WaitingForShipmentValidation = Kimenő szállítmány hitelesítésére vár
 
 #
 # Create warranty from shipment
 #
-NewWarrantyFromShipment = New Warranty from Shipment
-CreateWarrantyFromShipment = Create from existing shipment
-SwitchToManualWarranty = Enter details manually instead
-SelectShipmentStep = Step 1 — Select a validated shipment
-SelectShipment = Select a shipment...
-SelectSerial = Select a serial number...
-AutoFilledFromSerial = Auto-filled when a serial is selected
-NoUncoveredSerialsInShipment = All serialized units in this shipment already have warranty coverage.
-Load = Load
-WarrantyVoided = Warranty has been voided.
+NewWarrantyFromShipment = Új garancia szállítmányból
+CreateWarrantyFromShipment = Létrehozás meglévő szállítmányból
+SwitchToManualWarranty = Adatok kézi megadása
+SelectShipmentStep = 1. lépés — Hitelesített szállítmány kiválasztása
+SelectShipment = Válassz szállítmányt...
+SelectSerial = Válassz sorozatszámot...
+AutoFilledFromSerial = Sorozatszám kiválasztásakor automatikusan kitöltve
+NoUncoveredSerialsInShipment = A szállítmány minden sorozatszámos egységéhez tartozik már garancia.
+Load = Betöltés
+WarrantyVoided = A garancia érvénytelenítve.
 
 #
 # Tooltips — shown as hover help icons on form field labels
