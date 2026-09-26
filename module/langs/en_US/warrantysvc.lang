@@ -531,3 +531,6 @@ AutoFilledFromShipmentItem = Auto-filled from shipment item
 SelectShipmentItemForWarrantyPeriod = Select a shipment item to load the Product warranty period.
 NoUncoveredItemsInShipment = All eligible items in this shipment already have warranty coverage.
 NoSerialShipmentItem = no serial, qty %s
+
+ErrorInvalidShipmentItem = The selected shipment item is invalid.
+ErrorShipmentWarrantyStartDateMissing = The shipment has no usable shipment date, so warranty start cannot be determined.
