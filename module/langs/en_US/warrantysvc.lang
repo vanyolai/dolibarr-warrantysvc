@@ -434,6 +434,7 @@ TooltipSerialIn = Serial number of the unit being returned by the customer for r
 TooltipWarrantySerial = The unique serial number of the unit covered by this warranty. Must match the serial recorded on the original shipment.
 TooltipWarrantyType = Predefined warranty template that auto-fills the coverage period. Select "No predefined type" to set days manually.
 TooltipCoverageDays = Duration of warranty coverage in days from the start date. Auto-filled when a warranty type is selected.
+CoverageFromProductMonths = from Product warranty field (%s calendar months)
 ExpiryDateOverride = Expiry Date Override
 ExpiryAutoComputed = (auto-computed from start date + coverage days)
 TooltipExpiryDateOverride = Optionally set an exact expiry date. Leave blank to auto-compute from start date + coverage days.
