@@ -23,6 +23,7 @@ $id     = GETPOST('id', 'int');
 $cancel = GETPOST('cancel', 'alpha');
 
 $permwrite = $user->hasRight('warrantysvc', 'svcwarranty', 'write');
+$uses_product_months = trim(getDolGlobalString('WARRANTYSVC_PRODUCT_WARRANTY_MONTHS_FIELD')) !== '';
 if (!$user->hasRight('warrantysvc', 'svcwarranty', 'read')) {
 	accessforbidden();
 }
@@ -43,7 +44,7 @@ if ($action == 'add' && $permwrite) {
 	$wtype->description           = GETPOST('description', 'restricthtml');
 	$wtype->coverage_terms        = GETPOST('coverage_terms', 'restricthtml');
 	$wtype->exclusions            = GETPOST('exclusions', 'restricthtml');
-	$wtype->default_coverage_days = GETPOST('default_coverage_days', 'int');
+	$wtype->default_coverage_days = $uses_product_months ? 365 : GETPOST('default_coverage_days', 'int');
 	$wtype->active                = 1;
 	$wtype->position              = GETPOST('position', 'int');
 
@@ -69,7 +70,9 @@ if ($action == 'update' && $permwrite) {
 	$wtype->description           = GETPOST('description', 'restricthtml');
 	$wtype->coverage_terms        = GETPOST('coverage_terms', 'restricthtml');
 	$wtype->exclusions            = GETPOST('exclusions', 'restricthtml');
-	$wtype->default_coverage_days = GETPOST('default_coverage_days', 'int');
+	if (!$uses_product_months) {
+		$wtype->default_coverage_days = GETPOST('default_coverage_days', 'int');
+	}
 	$wtype->position              = GETPOST('position', 'int');
 
 	if (empty($wtype->code) || empty($wtype->label)) {
@@ -148,7 +151,9 @@ print '<td>'.$langs->trans('Label').'</td>';
 print '<td>'.$langs->trans('Description').'</td>';
 print '<td>'.$langs->trans('CoverageTerms').'</td>';
 print '<td>'.$langs->trans('Exclusions').'</td>';
-print '<td class="center">'.$langs->trans('DefaultCoverageDays').'</td>';
+if (!$uses_product_months) {
+	print '<td class="center">'.$langs->trans('DefaultCoverageDays').'</td>';
+}
 print '<td class="center">'.$langs->trans('Position').'</td>';
 print '<td class="center">'.$langs->trans('SvcActive').'</td>';
 print '<td class="center"></td>';
@@ -165,7 +170,9 @@ foreach ($types as $t) {
 		print '<td><input type="text" name="description" class="flat minwidth200" value="'.dol_escape_htmltag($t->description).'"></td>';
 		print '<td><textarea name="coverage_terms" class="flat" rows="3" style="width:100%;min-width:180px">'.dol_escape_htmltag($t->coverage_terms, 1).'</textarea></td>';
 		print '<td><textarea name="exclusions" class="flat" rows="3" style="width:100%;min-width:180px">'.dol_escape_htmltag($t->exclusions, 1).'</textarea></td>';
-		print '<td class="center"><input type="number" name="default_coverage_days" class="flat width50" min="1" max="3650" value="'.((int) $t->default_coverage_days).'"></td>';
+		if (!$uses_product_months) {
+			print '<td class="center"><input type="number" name="default_coverage_days" class="flat width50" min="1" max="3650" value="'.((int) $t->default_coverage_days).'"></td>';
+		}
 		print '<td class="center"><input type="number" name="position" class="flat width50" value="'.((int) $t->position).'"></td>';
 		print '<td class="center">—</td>';
 		print '<td class="center">';
@@ -181,7 +188,9 @@ foreach ($types as $t) {
 		print '<td class="opacitymedium">'.dol_escape_htmltag($t->description).'</td>';
 		print '<td class="opacitymedium">'.($t->coverage_terms ? '<span title="'.dol_escape_htmltag(dol_string_nohtmltag($t->coverage_terms)).'">'.dol_escape_htmltag(dol_trunc(dol_string_nohtmltag($t->coverage_terms), 60)).'</span>' : '').'</td>';
 		print '<td class="opacitymedium">'.($t->exclusions     ? '<span title="'.dol_escape_htmltag(dol_string_nohtmltag($t->exclusions)).'">'.dol_escape_htmltag(dol_trunc(dol_string_nohtmltag($t->exclusions), 60)).'</span>' : '').'</td>';
-		print '<td class="center">'.((int) $t->default_coverage_days).' '.$langs->trans('SvcDays').'</td>';
+		if (!$uses_product_months) {
+			print '<td class="center">'.((int) $t->default_coverage_days).' '.$langs->trans('SvcDays').'</td>';
+		}
 		print '<td class="center">'.((int) $t->position).'</td>';
 		print '<td class="center">';
 		if ($permwrite) {
@@ -234,8 +243,10 @@ if ($permwrite && $action != 'edit') {
 	print '<tr><td class="tdtop">'.$form->textwithpicto($langs->trans('Exclusions'), $langs->trans('TooltipWTypeExclusions')).'</td>';
 	print '<td><textarea name="exclusions" class="flat" rows="3" style="width:90%" placeholder="'.$langs->trans('ExclusionsPlaceholder').'"></textarea></td></tr>';
 
-	print '<tr><td>'.$form->textwithpicto($langs->trans('DefaultCoverageDays'), $langs->trans('TooltipWTypeDefaultDays')).'</td>';
-	print '<td><input type="number" name="default_coverage_days" class="flat width75" value="365" min="1" max="3650"> '.$langs->trans('SvcDays').'</td></tr>';
+	if (!$uses_product_months) {
+		print '<tr><td>'.$form->textwithpicto($langs->trans('DefaultCoverageDays'), $langs->trans('TooltipWTypeDefaultDays')).'</td>';
+		print '<td><input type="number" name="default_coverage_days" class="flat width75" value="365" min="1" max="3650"> '.$langs->trans('SvcDays').'</td></tr>';
+	}
 
 	print '<tr><td>'.$form->textwithpicto($langs->trans('Position'), $langs->trans('TooltipWTypePosition')).'</td>';
 	print '<td><input type="number" name="position" class="flat width75" value="0"></td></tr>';
