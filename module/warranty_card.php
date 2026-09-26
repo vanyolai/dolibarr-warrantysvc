@@ -1257,23 +1257,34 @@ if ($action == 'edit') {
 }
 print '</td></tr>';
 
-// Coverage months
-print '<tr><td>'.$form->textwithpicto($langs->trans('CoverageDays'), $langs->trans('TooltipCoverageDays')).'</td>';
-print '<td>';
-if ($action == 'edit') {
-	$edit_days_disabled = ($object->warranty_type ? ' disabled style="opacity:0.5"' : '');
-	print '<input type="number" id="coverage_days" name="coverage_days" value="'.((int) $object->coverage_days).'" class="flat width75" min="0" max="3650"'.$edit_days_disabled.'>';
-	print ' '.$langs->trans('SvcDays');
-	print ' &nbsp;<span class="opacitymedium" id="coverage_type_hint"'.($object->warranty_type ? '' : ' style="display:none"').'>'.$langs->trans('CoverageFromType').'</span>';
+// Warranty duration
+if ($duration_source === 'product_field') {
+	print '<tr><td>'.$langs->trans('WarrantyDuration').'</td>';
+	print '<td>';
+	if ((int) $object->coverage_months > 0) {
+		print ((int) $object->coverage_months).' '.$langs->trans('SvcMonths');
+	} else {
+		print '<span class="opacitymedium">'.$langs->trans('WarrantyDurationLegacyUnknown').'</span>';
+	}
+	print '</td></tr>';
 } else {
-	print $object->coverage_days ? ((int) $object->coverage_days).' '.$langs->trans('SvcDays') : '<span class="opacitymedium">&mdash;</span>';
+	print '<tr><td>'.$form->textwithpicto($langs->trans('CoverageDays'), $langs->trans('TooltipCoverageDays')).'</td>';
+	print '<td>';
+	if ($action == 'edit') {
+		$edit_days_disabled = ($object->warranty_type ? ' disabled style="opacity:0.5"' : '');
+		print '<input type="number" id="coverage_days" name="coverage_days" value="'.((int) $object->coverage_days).'" class="flat width75" min="0" max="3650"'.$edit_days_disabled.'>';
+		print ' '.$langs->trans('SvcDays');
+		print ' &nbsp;<span class="opacitymedium" id="coverage_type_hint"'.($object->warranty_type ? '' : ' style="display:none"').'>'.$langs->trans('CoverageFromType').'</span>';
+	} else {
+		print $object->coverage_days ? ((int) $object->coverage_days).' '.$langs->trans('SvcDays') : '<span class="opacitymedium">&mdash;</span>';
+	}
+	print '</td></tr>';
 }
-print '</td></tr>';
 
 // Expiry date
 print '<tr><td>'.$langs->trans('ExpiryDate').'</td>';
 print '<td>';
-if ($action == 'edit') {
+if ($action == 'edit' && $duration_source === 'warranty_type') {
 	print $form->selectDate($object->expiry_date, 'expiry_date', 0, 0, 1, 'cardform', 1, 0);
 	print ' <span class="opacitymedium">'.$langs->trans('ExpiryAutoComputed').'</span>';
 } else {
