@@ -75,6 +75,39 @@ class SvcWarranty extends CommonObject
 	}
 
 	/**
+	 * Void older active warranties for the same concrete serialized unit when
+	 * ownership changes. Product is part of the identity to avoid collisions
+	 * between manufacturers that happen to use the same serial text.
+	 *
+	 * Must be called inside the same transaction as creation of the replacement
+	 * warranty so a failed replacement can never invalidate the historical one.
+	 *
+	 * @return int Number of warranties voided, -1 on database error
+	 */
+	private function voidSupersededSerialWarranties()
+	{
+		if (empty($this->serial_number) || empty($this->fk_product) || empty($this->fk_soc) || empty($this->id)) {
+			return 0;
+		}
+
+		$sql = "UPDATE ".MAIN_DB_PREFIX."svc_warranty";
+		$sql .= " SET status = '".self::STATUS_VOIDED."'";
+		$sql .= " WHERE rowid <> ".((int) $this->id);
+		$sql .= " AND entity = ".((int) $this->entity);
+		$sql .= " AND fk_product = ".((int) $this->fk_product);
+		$sql .= " AND serial_number = '".$this->db->escape($this->serial_number)."'";
+		$sql .= " AND fk_soc <> ".((int) $this->fk_soc);
+		$sql .= " AND status = '".self::STATUS_ACTIVE."'";
+
+		if (!$this->db->query($sql)) {
+			$this->error = $this->db->lasterror();
+			return -1;
+		}
+
+		return (int) $this->db->affected_rows($this->db->lastquery);
+	}
+
+	/**
 	 * Create warranty in DB
 	 *
 	 * @param  User $user      User
@@ -94,6 +127,7 @@ class SvcWarranty extends CommonObject
 		$now = dol_now();
 		$this->date_creation = $now;
 		$this->fk_user_creat = $user->id;
+		$this->entity = (int) $conf->entity;
 
 		if (!empty($this->socid) && empty($this->fk_soc)) {
 			$this->fk_soc = $this->socid;
@@ -143,6 +177,14 @@ class SvcWarranty extends CommonObject
 		}
 
 		$this->id = $this->db->last_insert_id(MAIN_DB_PREFIX.'svc_warranty');
+
+		// If the same serialized unit is sold to a different customer, the
+		// previous active warranty is superseded. Do this only after the new row
+		// exists and within the same transaction.
+		if ($this->voidSupersededSerialWarranties() < 0) {
+			$this->db->rollback();
+			return -1;
+		}
 
 		// Insert extrafields
 		$result = $this->insertExtraFields();
