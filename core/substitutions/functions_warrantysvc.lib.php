@@ -10,11 +10,6 @@
 /**
  * Complete Dolibarr's standard substitution array with WarrantySvc values.
  *
- * Called by complete_substitutions_array() because modWarrantySvc declares
- * module_parts['substitutions'] = 1. When $object is null (for example while
- * editing an email template), descriptive values are returned so the variables
- * are visible in Dolibarr's standard "Available variables" help.
- *
  * @param array<string,string|float|null> $substitutionarray Substitution array
  * @param Translate                       $outputlangs       Recipient/output language
  * @param CommonObject|null               $object            Source object
@@ -35,11 +30,25 @@ function warrantysvc_completesubstitutionarray(&$substitutionarray, $outputlangs
 		'__ISSUE_DATE__' => $outputlangs->transnoentitiesnoconv('SubstIssueDate'),
 		'__ISSUE_DESCRIPTION__' => $outputlangs->transnoentitiesnoconv('SubstIssueDescription'),
 		'__SERVICE_REQUEST_STATUS__' => $outputlangs->transnoentitiesnoconv('SubstServiceRequestStatus'),
+		'__SERVICE_REQUEST_REF__' => $outputlangs->transnoentitiesnoconv('SubstServiceRequestRef'),
+		'__CUSTOMER_NAME__' => $outputlangs->transnoentitiesnoconv('SubstCustomerName'),
+		'__SUPPLIER_RMA_REF__' => $outputlangs->transnoentitiesnoconv('SubstSupplierRmaRef'),
+		'__SUPPLIER_RMA_EXTERNAL_REF__' => $outputlangs->transnoentitiesnoconv('SubstSupplierRmaExternalRef'),
+		'__SUPPLIER_RMA_STATUS__' => $outputlangs->transnoentitiesnoconv('SubstSupplierRmaStatus'),
+		'__SUPPLIER_NAME__' => $outputlangs->transnoentitiesnoconv('SubstSupplierName'),
+		'__SUPPLIER_RMA_PROBLEM_DESCRIPTION__' => $outputlangs->transnoentitiesnoconv('SubstSupplierRmaProblemDescription'),
+		'__SUPPLIER_RMA_DIAGNOSIS__' => $outputlangs->transnoentitiesnoconv('SubstSupplierRmaDiagnosis'),
+		'__SUPPLIER_RMA_ACCESSORIES__' => $outputlangs->transnoentitiesnoconv('SubstSupplierRmaAccessories'),
+		'__OUTBOUND_CARRIER__' => $outputlangs->transnoentitiesnoconv('SubstOutboundCarrier'),
+		'__OUTBOUND_TRACKING__' => $outputlangs->transnoentitiesnoconv('SubstOutboundTracking'),
+		'__OUTBOUND_TRACKING_URL__' => $outputlangs->transnoentitiesnoconv('SubstOutboundTrackingUrl'),
+		'__RETURN_CARRIER__' => $outputlangs->transnoentitiesnoconv('SubstReturnCarrier'),
+		'__RETURN_TRACKING__' => $outputlangs->transnoentitiesnoconv('SubstReturnTracking'),
+		'__RETURN_TRACKING_URL__' => $outputlangs->transnoentitiesnoconv('SubstReturnTrackingUrl'),
+		'__REPLACEMENT_SERIAL_NUMBER__' => $outputlangs->transnoentitiesnoconv('SubstReplacementSerialNumber'),
 	);
 
-	// Email-template administration asks for available variables without an
-	// object. Return human-readable descriptions in that context.
-	if (!is_object($object) || empty($object->element) || !in_array($object->element, array('svcrequest', 'svcwarranty'), true)) {
+	if (!is_object($object) || empty($object->element) || !in_array($object->element, array('svcrequest', 'svcwarranty', 'svcsupplierrma'), true)) {
 		foreach ($descriptions as $key => $description) {
 			if (!array_key_exists($key, $substitutionarray)) {
 				$substitutionarray[$key] = $description;
@@ -50,13 +59,29 @@ function warrantysvc_completesubstitutionarray(&$substitutionarray, $outputlangs
 
 	$productRef = '';
 	$productLabel = '';
-	$serialNumber = '';
+	$serialNumber = isset($object->serial_number) ? (string) $object->serial_number : '';
 	$warrantyStatus = '';
 	$warrantyStartDate = '';
 	$warrantyExpiryDate = '';
 	$issueDate = '';
 	$issueDescription = '';
 	$serviceRequestStatus = '';
+	$serviceRequestRef = '';
+	$customerName = '';
+	$supplierRmaRef = '';
+	$supplierRmaExternalRef = '';
+	$supplierRmaStatus = '';
+	$supplierName = '';
+	$supplierRmaProblem = '';
+	$supplierRmaDiagnosis = '';
+	$supplierRmaAccessories = '';
+	$outboundCarrier = '';
+	$outboundTracking = '';
+	$outboundTrackingUrl = '';
+	$returnCarrier = '';
+	$returnTracking = '';
+	$returnTrackingUrl = '';
+	$replacementSerial = '';
 
 	$productId = !empty($object->fk_product) ? (int) $object->fk_product : 0;
 	if ($productId > 0) {
@@ -68,39 +93,85 @@ function warrantysvc_completesubstitutionarray(&$substitutionarray, $outputlangs
 		}
 	}
 
-	$serialNumber = isset($object->serial_number) ? (string) $object->serial_number : '';
+	$statusLabels = array(
+		0 => 'SvcDraft',
+		1 => 'SvcValidated',
+		2 => 'SvcInProgress',
+		3 => 'AwaitingReturn',
+		4 => 'SvcResolved',
+		5 => 'SvcClosed',
+		6 => 'SvcDiagnosing',
+		9 => 'SvcCancelled',
+	);
 
 	$warranty = null;
-	if ($object->element === 'svcrequest') {
-		$issueDate = !empty($object->issue_date) ? dol_print_date($object->issue_date, 'day', false, $outputlangs) : '';
-		$issueDescription = isset($object->issue_description) ? (string) $object->issue_description : '';
-		$warrantyStatus = isset($object->warranty_status) ? (string) $object->warranty_status : 'none';
+	$serviceRequest = null;
 
-		$statusLabels = array(
-			0 => 'SvcDraft',
-			1 => 'SvcValidated',
-			2 => 'SvcInProgress',
-			3 => 'AwaitingReturn',
-			4 => 'SvcResolved',
-			5 => 'SvcClosed',
-			6 => 'SvcDiagnosing',
-			9 => 'SvcCancelled',
-		);
-		$statusCode = isset($object->status) ? (int) $object->status : -1;
+	if ($object->element === 'svcrequest') {
+		$serviceRequest = $object;
+	} elseif ($object->element === 'svcsupplierrma') {
+		require_once DOL_DOCUMENT_ROOT.'/custom/warrantysvc/class/svcrequest.class.php';
+		$serviceRequest = new SvcRequest($object->db);
+		if ($serviceRequest->fetch((int) $object->fk_svc_request) <= 0) {
+			$serviceRequest = null;
+		}
+
+		$supplierRmaRef = isset($object->ref) ? (string) $object->ref : '';
+		$supplierRmaExternalRef = isset($object->supplier_rma_ref) ? (string) $object->supplier_rma_ref : '';
+		$supplierRmaStatus = method_exists($object, 'getLibStatut') ? (string) $object->getLibStatut(1) : (string) $object->status;
+		$supplierRmaProblem = isset($object->problem_description) ? (string) $object->problem_description : '';
+		$supplierRmaDiagnosis = isset($object->diagnosis) ? (string) $object->diagnosis : '';
+		$supplierRmaAccessories = isset($object->accessories_sent) ? (string) $object->accessories_sent : '';
+		$outboundCarrier = isset($object->outbound_carrier) ? (string) $object->outbound_carrier : '';
+		$outboundTracking = isset($object->outbound_tracking) ? (string) $object->outbound_tracking : '';
+		$outboundTrackingUrl = isset($object->outbound_tracking_url) ? (string) $object->outbound_tracking_url : '';
+		$returnCarrier = isset($object->return_carrier) ? (string) $object->return_carrier : '';
+		$returnTracking = isset($object->return_tracking) ? (string) $object->return_tracking : '';
+		$returnTrackingUrl = isset($object->return_tracking_url) ? (string) $object->return_tracking_url : '';
+		$replacementSerial = isset($object->replacement_serial_number) ? (string) $object->replacement_serial_number : '';
+
+		$object->socid = (int) $object->fk_soc_supplier;
+		if (!is_object($object->thirdparty)) {
+			$object->fetch_thirdparty();
+		}
+		if (is_object($object->thirdparty)) {
+			$supplierName = (string) $object->thirdparty->name;
+		}
+
+		// Generic issue placeholder is useful in supplier-facing templates too.
+		$issueDescription = $supplierRmaProblem;
+	} else {
+		$warranty = $object;
+		$warrantyStatus = isset($object->status) ? (string) $object->status : 'none';
+	}
+
+	if (is_object($serviceRequest)) {
+		$serviceRequestRef = isset($serviceRequest->ref) ? (string) $serviceRequest->ref : '';
+		$issueDate = !empty($serviceRequest->issue_date) ? dol_print_date($serviceRequest->issue_date, 'day', false, $outputlangs) : '';
+		if ($issueDescription === '') {
+			$issueDescription = isset($serviceRequest->issue_description) ? (string) $serviceRequest->issue_description : '';
+		}
+		$warrantyStatus = isset($serviceRequest->warranty_status) ? (string) $serviceRequest->warranty_status : 'none';
+		$statusCode = isset($serviceRequest->status) ? (int) $serviceRequest->status : -1;
 		$serviceRequestStatus = isset($statusLabels[$statusCode])
 			? $outputlangs->transnoentitiesnoconv($statusLabels[$statusCode])
 			: '';
 
-		if (!empty($object->fk_warranty)) {
+		$serviceRequest->socid = (int) $serviceRequest->fk_soc;
+		if (!is_object($serviceRequest->thirdparty)) {
+			$serviceRequest->fetch_thirdparty();
+		}
+		if (is_object($serviceRequest->thirdparty)) {
+			$customerName = (string) $serviceRequest->thirdparty->name;
+		}
+
+		if (!empty($serviceRequest->fk_warranty)) {
 			require_once DOL_DOCUMENT_ROOT.'/custom/warrantysvc/class/svcwarranty.class.php';
 			$warranty = new SvcWarranty($object->db);
-			if ($warranty->fetch((int) $object->fk_warranty) <= 0) {
+			if ($warranty->fetch((int) $serviceRequest->fk_warranty) <= 0) {
 				$warranty = null;
 			}
 		}
-	} else {
-		$warranty = $object;
-		$warrantyStatus = isset($object->status) ? (string) $object->status : 'none';
 	}
 
 	if (is_object($warranty)) {
@@ -123,13 +194,35 @@ function warrantysvc_completesubstitutionarray(&$substitutionarray, $outputlangs
 		? $outputlangs->transnoentitiesnoconv($warrantyLabels[$warrantyStatus])
 		: $warrantyStatus;
 
-	$substitutionarray['__PRODUCT_REF__'] = $productRef;
-	$substitutionarray['__PRODUCT_LABEL__'] = $productLabel;
-	$substitutionarray['__SERIAL_NUMBER__'] = $serialNumber;
-	$substitutionarray['__WARRANTY_STATUS__'] = $warrantyStatusLabel;
-	$substitutionarray['__WARRANTY_START_DATE__'] = $warrantyStartDate;
-	$substitutionarray['__WARRANTY_EXPIRY_DATE__'] = $warrantyExpiryDate;
-	$substitutionarray['__ISSUE_DATE__'] = $issueDate;
-	$substitutionarray['__ISSUE_DESCRIPTION__'] = $issueDescription;
-	$substitutionarray['__SERVICE_REQUEST_STATUS__'] = $serviceRequestStatus;
+	$values = array(
+		'__PRODUCT_REF__' => $productRef,
+		'__PRODUCT_LABEL__' => $productLabel,
+		'__SERIAL_NUMBER__' => $serialNumber,
+		'__WARRANTY_STATUS__' => $warrantyStatusLabel,
+		'__WARRANTY_START_DATE__' => $warrantyStartDate,
+		'__WARRANTY_EXPIRY_DATE__' => $warrantyExpiryDate,
+		'__ISSUE_DATE__' => $issueDate,
+		'__ISSUE_DESCRIPTION__' => $issueDescription,
+		'__SERVICE_REQUEST_STATUS__' => $serviceRequestStatus,
+		'__SERVICE_REQUEST_REF__' => $serviceRequestRef,
+		'__CUSTOMER_NAME__' => $customerName,
+		'__SUPPLIER_RMA_REF__' => $supplierRmaRef,
+		'__SUPPLIER_RMA_EXTERNAL_REF__' => $supplierRmaExternalRef,
+		'__SUPPLIER_RMA_STATUS__' => $supplierRmaStatus,
+		'__SUPPLIER_NAME__' => $supplierName,
+		'__SUPPLIER_RMA_PROBLEM_DESCRIPTION__' => $supplierRmaProblem,
+		'__SUPPLIER_RMA_DIAGNOSIS__' => $supplierRmaDiagnosis,
+		'__SUPPLIER_RMA_ACCESSORIES__' => $supplierRmaAccessories,
+		'__OUTBOUND_CARRIER__' => $outboundCarrier,
+		'__OUTBOUND_TRACKING__' => $outboundTracking,
+		'__OUTBOUND_TRACKING_URL__' => $outboundTrackingUrl,
+		'__RETURN_CARRIER__' => $returnCarrier,
+		'__RETURN_TRACKING__' => $returnTracking,
+		'__RETURN_TRACKING_URL__' => $returnTrackingUrl,
+		'__REPLACEMENT_SERIAL_NUMBER__' => $replacementSerial,
+	);
+
+	foreach ($values as $key => $value) {
+		$substitutionarray[$key] = $value;
+	}
 }
