@@ -1,6 +1,6 @@
 # WarrantySvc -- Technical Reference
 
-Module ID: **510000** | Family: `crm` | Version: **1.38.0**
+Module ID: **510000** | Family: `crm` | Version: **1.39.0**
 Requires: Dolibarr >= 16.0, PHP >= 7.0
 Dependencies: `modSociete`, `modProduct`, `modStock`
 
@@ -220,7 +220,7 @@ Standalone class (no CommonObject parent). Tracks per-serial service history for
 
 ### ActionsWarrantySvc (`class/actions_warrantysvc.class.php`)
 
-Hook actions class. Registered on contexts: `elementproperties`, `productcard`, `commonobject`, `ordercard`, `notification`, `emailtemplates`.
+Hook actions class. Registered on contexts: `elementproperties`, `productcard`, `commonobject`, `ordercard`, `notification`, `emailtemplates`, `main`.
 
 **Methods:**
 
@@ -282,7 +282,7 @@ Registered in module descriptor `module_parts['hooks']`:
 
 ```php
 'hooks' => array(
-    'data' => array('elementproperties', 'productcard', 'commonobject', 'ordercard', 'notification', 'emailtemplates'),
+    'data' => array('elementproperties', 'productcard', 'commonobject', 'ordercard', 'notification', 'emailtemplates', 'main'),
     'entity' => '0'
 )
 ```
@@ -294,8 +294,9 @@ Registered in module descriptor `module_parts['hooks']`:
 | `productcard` | `doActions()` | On product update action: persists the per-product warranty type/days to `llx_warrantysvc_product_default`. |
 | `commonobject` | `showLinkToObjectBlock()` | Adds "Link to warranty" and "Link to service request" entries in the "Link to..." dropdown on all Dolibarr object cards. |
 | `ordercard` | `formObjectOptions()` | On order creation with `rma_sr_id` in GET: injects hidden `origin` + `originid` fields to auto-link the new SO to the originating SR. |
-| `notification` | `notifsupported()` | Registers WarrantySvc lifecycle events with Dolibarr's standard Notification module and provides output-directory aliases for the custom objects. |
+| `notification` | `notifsupported()` | Registers only the three user-facing email events (`WARRANTYSVC_VALIDATE`, `WARRANTYSVC_CLOSE`, `SVCWARRANTY_CREATE`) with Dolibarr's standard Notification module and provides output-directory aliases for the custom objects. |
 | `emailtemplates` | `emailElementlist()` | Adds `svcrequest` and `svcwarranty` as standard Dolibarr email-template object types. |
+| `main` | `addHtmlHeader()` | On the core Notification setup page, removes the meaningless net-amount threshold editor from the three WarrantySvc fixed-email rows; the core Notification backend remains unchanged and uses threshold zero. |
 
 ---
 
@@ -306,18 +307,18 @@ Class: `InterfaceWarrantySvcTrigger` (extends `DolibarrTriggers`)
 
 | Trigger Code | Source | Action |
 |-------------|--------|--------|
-| `WARRANTYSVC_CREATE` | SvcRequest created | Syncs `claim_count` on linked warranty; exposed as a standard Dolibarr notification event. |
-| `WARRANTYSVC_ASSIGNED` | SvcRequest assigned/reassigned | Emitted when `fk_user_assigned` changes to a user; handled by the standard Notification module if subscribers exist. |
-| `WARRANTYSVC_VALIDATE` | SvcRequest validated | Syncs `claim_count`; exposed as a standard Dolibarr notification event. |
-| `WARRANTYSVC_SETDIAGNOSING` | Diagnosis started | Standard notification event. |
-| `WARRANTYSVC_SETINPROGRESS` | SvcRequest set in progress | Standard notification event. |
-| `WARRANTYSVC_AWAITRETURN` | SvcRequest awaiting return | Standard notification event. |
-| `WARRANTYSVC_RESOLVE` | SvcRequest resolved | Standard notification event. |
-| `WARRANTYSVC_CLOSE` | SvcRequest closed | Standard notification event; the WarrantySvc trigger itself only logs the close. |
-| `WARRANTYSVC_CANCEL` | SvcRequest cancelled | Standard notification event. |
-| `WARRANTYSVC_REOPEN` | SvcRequest reopened | Standard notification event. |
-| `WARRANTYSVC_DELETE` | SvcRequest deleted | Standard notification event. |
-| `SVCWARRANTY_CREATE` | Warranty created | Standard notification event. |
+| `WARRANTYSVC_CREATE` | SvcRequest created | Syncs `claim_count` on linked warranty. Business trigger only; not exposed as an email-notification choice. |
+| `WARRANTYSVC_ASSIGNED` | SvcRequest assigned/reassigned | Emitted when `fk_user_assigned` changes to a user. Business trigger only; not exposed as an email-notification choice. |
+| `WARRANTYSVC_VALIDATE` | SvcRequest validated | Syncs `claim_count`; exposed as a standard Dolibarr email-notification event. |
+| `WARRANTYSVC_SETDIAGNOSING` | Diagnosis started | Business trigger only; not exposed as an email-notification choice. |
+| `WARRANTYSVC_SETINPROGRESS` | SvcRequest set in progress | Business trigger only; not exposed as an email-notification choice. |
+| `WARRANTYSVC_AWAITRETURN` | SvcRequest awaiting return | Business trigger only; not exposed as an email-notification choice. |
+| `WARRANTYSVC_RESOLVE` | SvcRequest resolved | Business trigger only; not exposed as an email-notification choice. |
+| `WARRANTYSVC_CLOSE` | SvcRequest closed | Exposed as a standard Dolibarr email-notification event; the WarrantySvc trigger itself only logs the close. |
+| `WARRANTYSVC_CANCEL` | SvcRequest cancelled | Business trigger only; not exposed as an email-notification choice. |
+| `WARRANTYSVC_REOPEN` | SvcRequest reopened | Business trigger only; not exposed as an email-notification choice. |
+| `WARRANTYSVC_DELETE` | SvcRequest deleted | Business trigger only; not exposed as an email-notification choice. |
+| `SVCWARRANTY_CREATE` | Warranty created | Exposed as a standard Dolibarr email-notification event. |
 | `FICHINTER_CLOSE` | Intervention closed | Finds linked SR by `fk_intervention`, upserts `SvcServiceLog` with accumulated hours and incremented service count. |
 | `SHIPPING_VALIDATE` | Shipment validated | Auto-creates warranties for serialized lines (if configured via `WARRANTYSVC_AUTO_WARRANTY_ON_SHIPMENT` + `WARRANTYSVC_WARRANTY_TRIGGER_EVENT`). |
 | `SHIPPING_CLOSED` | Shipment closed | Same as above, gated by trigger event setting. |
@@ -328,11 +329,29 @@ Class: `InterfaceWarrantySvcTrigger` (extends `DolibarrTriggers`)
 
 ### Standard Dolibarr notifications
 
-WarrantySvc does not send lifecycle notification emails directly. The module registers its business events in Dolibarr's `llx_c_action_trigger` catalog and extends the core Notification module through the `notification` hook. Recipient subscriptions therefore live in the standard `llx_notify_def` / user / third-party notification UI, sent messages are logged to `llx_notify`, and event-specific templates are selected from Dolibarr's Email Templates UI.
+WarrantySvc does not send lifecycle notification emails directly. The module keeps its business events in Dolibarr's `llx_c_action_trigger` catalog, but deliberately publishes only `WARRANTYSVC_VALIDATE`, `WARRANTYSVC_CLOSE`, and `SVCWARRANTY_CREATE` to the core Notification module. Recipient subscriptions therefore live in the standard `llx_notify_def` / user / third-party notification UI, sent messages are logged to `llx_notify`, and event-specific templates are selected from Dolibarr's Email Templates UI.
 
-The `WARRANTYSVC_ASSIGNED` event is an event-wide Notification subscription, like other Dolibarr notification events. Dolibarr 23's Notification module does not natively filter a user subscription to "only objects assigned to this same user", so WarrantySvc deliberately does not reintroduce a hidden assignee-specific recipient path.
+`WARRANTYSVC_ASSIGNED` remains a business trigger for integrations, but is not offered as an email-notification event. This avoids reintroducing an assignee-specific mail mechanism outside Dolibarr's standard Notification model.
 
 The daily overdue-return reminder remains a transactional workflow email generated by `SvcRequest::sendReturnReminder()`; it is not a lifecycle Notification subscription.
+
+### WarrantySvc substitution variables
+
+The module enables Dolibarr's standard `module_parts['substitutions']` mechanism and provides `core/substitutions/functions_warrantysvc.lib.php`. The variables are available both while editing standard Email Templates and when Notification messages are rendered:
+
+| Variable | Meaning |
+|---|---|
+| `__PRODUCT_REF__` | Product reference |
+| `__PRODUCT_LABEL__` | Product label |
+| `__SERIAL_NUMBER__` | Serial / lot number |
+| `__WARRANTY_STATUS__` | Localized warranty status; for Service Requests this uses the claim's stored warranty-status snapshot |
+| `__WARRANTY_START_DATE__` | Linked warranty start date |
+| `__WARRANTY_EXPIRY_DATE__` | Linked warranty expiry date |
+| `__ISSUE_DATE__` | Service Request issue date |
+| `__ISSUE_DESCRIPTION__` | Service Request issue description |
+| `__SERVICE_REQUEST_STATUS__` | Localized Service Request status |
+
+For `svcwarranty` templates, Service Request-only variables are empty. For `svcrequest` templates, warranty dates are read from the linked warranty record while `__WARRANTY_STATUS__` comes from the Service Request snapshot.
 
 **Auto-warranty logic:** When a shipment is closed/validated, for each `expeditiondet_batch` line with a serial, the trigger: (1) skips if warranty already exists for that serial+expedition, (2) voids active warranties for the same serial held by a different customer (resale scenario), (3) resolves warranty type via product default -> parent product default -> first active type, (4) creates the warranty record with coverage terms/exclusions from the type, (5) links to expedition, order, and invoices via `element_element`.
 
