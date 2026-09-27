@@ -387,4 +387,112 @@ class ActionsWarrantySvc
 
 		return 0; // Let the normal product save continue uninterrupted
 	}
+
+	/**
+	 * Register WarrantySvc business events with Dolibarr's standard
+	 * Notification module.
+	 *
+	 * @param  array       $parameters  Hook parameters
+	 * @param  object      $object      Current object
+	 * @param  string      $action      Current action
+	 * @param  HookManager $hookmanager Hook manager
+	 * @return int                      0 = merge hook results
+	 */
+	public function notifsupported($parameters, &$object, &$action, $hookmanager)
+	{
+		global $conf, $langs;
+
+		if (!isModEnabled('warrantysvc')) {
+			return 0;
+		}
+
+		$langs->load('warrantysvc@warrantysvc');
+		$this->prepareNotificationObjectConfig($conf);
+
+		$this->results = array(
+			'arrayofnotifsupported' => array(
+				'WARRANTYSVC_CREATE',
+				'WARRANTYSVC_ASSIGNED',
+				'WARRANTYSVC_VALIDATE',
+				'WARRANTYSVC_SETDIAGNOSING',
+				'WARRANTYSVC_SETINPROGRESS',
+				'WARRANTYSVC_AWAITRETURN',
+				'WARRANTYSVC_RESOLVE',
+				'WARRANTYSVC_CLOSE',
+				'WARRANTYSVC_CANCEL',
+				'WARRANTYSVC_REOPEN',
+				'WARRANTYSVC_DELETE',
+				'SVCWARRANTY_CREATE',
+			),
+		);
+
+		return 0;
+	}
+
+	/**
+	 * Add WarrantySvc object types to the standard Dolibarr Email Templates UI.
+	 *
+	 * @param  array       $parameters  Hook parameters
+	 * @param  object      $object      Current object
+	 * @param  string      $action      Current action
+	 * @param  HookManager $hookmanager Hook manager
+	 * @return int                      0 = merge hook results
+	 */
+	public function emailElementlist($parameters, &$object, &$action, $hookmanager)
+	{
+		global $langs, $user;
+
+		if (!isModEnabled('warrantysvc')) {
+			return 0;
+		}
+
+		$langs->load('warrantysvc@warrantysvc');
+		$this->results = array();
+
+		if ($user->hasRight('warrantysvc', 'svcrequest', 'read')) {
+			$this->results['svcrequest'] = img_picto('', 'technic', 'class="pictofixedwidth"').dol_escape_htmltag($langs->trans('MailToSvcRequest'));
+		}
+		if ($user->hasRight('warrantysvc', 'svcwarranty', 'read')) {
+			$this->results['svcwarranty'] = img_picto('', 'bill', 'class="pictofixedwidth"').dol_escape_htmltag($langs->trans('MailToSvcWarranty'));
+		}
+
+		return 0;
+	}
+
+	/**
+	 * The core Notification class uses CommonObject::$element to resolve the
+	 * output directory for custom events. WarrantySvc keeps 'svcrequest' and
+	 * 'svcwarranty' as its element names, while Dolibarr creates the module
+	 * output configuration under 'warrantysvc'. Provide lightweight aliases
+	 * only while the notification hook is active; no core patch is required.
+	 *
+	 * @param Conf $conf Dolibarr configuration
+	 * @return void
+	 */
+	private function prepareNotificationObjectConfig($conf)
+	{
+		$baseDir = DOL_DATA_ROOT.'/warrantysvc';
+		$multiDir = array((int) $conf->entity => $baseDir);
+
+		if (isset($conf->warrantysvc) && is_object($conf->warrantysvc)) {
+			if (!empty($conf->warrantysvc->dir_output)) {
+				$baseDir = $conf->warrantysvc->dir_output;
+			}
+			if (!empty($conf->warrantysvc->multidir_output) && is_array($conf->warrantysvc->multidir_output)) {
+				$multiDir = $conf->warrantysvc->multidir_output;
+			} else {
+				$multiDir[(int) $conf->entity] = $baseDir;
+			}
+		}
+
+		foreach (array('svcrequest', 'svcwarranty') as $element) {
+			if (!isset($conf->{$element}) || !is_object($conf->{$element})) {
+				$conf->{$element} = new stdClass();
+			}
+			$conf->{$element}->enabled = 1;
+			$conf->{$element}->dir_output = $baseDir;
+			$conf->{$element}->multidir_output = $multiDir;
+		}
+	}
+
 }
