@@ -632,3 +632,16 @@ Notify_WARRANTYSVC_CANCEL=Garanciális igény visszavonva
 Notify_WARRANTYSVC_REOPEN=Garanciális igény újranyitva
 Notify_WARRANTYSVC_DELETE=Garanciális igény törölve
 Notify_SVCWARRANTY_CREATE=Garancia létrehozva
+
+#
+# WarrantySvc substitution variables
+#
+SubstProductRef=Termék cikkszáma
+SubstProductLabel=Termék megnevezése
+SubstSerialNumber=Sorozatszám
+SubstWarrantyStatus=Garancia állapota
+SubstWarrantyStartDate=Garancia kezdete
+SubstWarrantyExpiryDate=Garancia vége
+SubstIssueDate=Bejelentés dátuma
+SubstIssueDescription=Hibaleírás
+SubstServiceRequestStatus=Garanciális igény aktuális állapota
