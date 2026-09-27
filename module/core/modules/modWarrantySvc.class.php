@@ -44,7 +44,7 @@ class modWarrantySvc extends DolibarrModules
 		// Module name (no spaces), used if translation string 'ModuleXXXName' not found
 		$this->name = preg_replace('/^mod/i', '', get_class($this));
 		$this->description = 'ModuleWarrantySvcDesc';
-		$this->version = '1.41.0';
+		$this->version = '1.42.0';
 		$this->const_name = 'MAIN_MODULE_'.strtoupper($this->name);
 		$this->picto = 'technic';
 
@@ -156,6 +156,31 @@ class modWarrantySvc extends DolibarrModules
 		$this->rights[$r][3] = 0;
 		$this->rights[$r][4] = 'svcrequest';
 		$this->rights[$r][5] = 'close';
+
+		// Supplier RMA permissions
+		$r++;
+		$this->rights[$r][0] = 510021;
+		$this->rights[$r][1] = 'PermissionReadSupplierRma';
+		$this->rights[$r][2] = 'r';
+		$this->rights[$r][3] = 0;
+		$this->rights[$r][4] = 'supplierrma';
+		$this->rights[$r][5] = 'read';
+
+		$r++;
+		$this->rights[$r][0] = 510022;
+		$this->rights[$r][1] = 'PermissionWriteSupplierRma';
+		$this->rights[$r][2] = 'w';
+		$this->rights[$r][3] = 0;
+		$this->rights[$r][4] = 'supplierrma';
+		$this->rights[$r][5] = 'write';
+
+		$r++;
+		$this->rights[$r][0] = 510023;
+		$this->rights[$r][1] = 'PermissionDeleteSupplierRma';
+		$this->rights[$r][2] = 'd';
+		$this->rights[$r][3] = 0;
+		$this->rights[$r][4] = 'supplierrma';
+		$this->rights[$r][5] = 'delete';
 
 		// Warranty permissions
 		$r++;
@@ -380,14 +405,16 @@ class modWarrantySvc extends DolibarrModules
 	private function syncContactTypeCatalog()
 	{
 		$types = array(
-			array('internal', 'SERVICE_MANAGER', 'Service Request handler', 10),
-			array('external', 'CUSTOMER_SERVICE', 'Customer service contact', 20),
+			array('svcrequest', 'internal', 'SERVICE_MANAGER', 'Service Request handler', 10),
+			array('svcrequest', 'external', 'CUSTOMER_SERVICE', 'Customer service contact', 20),
+			array('svcsupplierrma', 'internal', 'SERVICE_MANAGER', 'Supplier RMA handler', 10),
+			array('svcsupplierrma', 'external', 'SUPPLIER_SERVICE', 'Supplier service contact', 20),
 		);
 
 		foreach ($types as $type) {
-			list($source, $code, $label, $position) = $type;
+			list($element, $source, $code, $label, $position) = $type;
 			$sql = "SELECT rowid FROM ".MAIN_DB_PREFIX."c_type_contact";
-			$sql .= " WHERE element = 'svcrequest'";
+			$sql .= " WHERE element = '".$this->db->escape($element)."'";
 			$sql .= " AND source = '".$this->db->escape($source)."'";
 			$sql .= " AND code = '".$this->db->escape($code)."'";
 			$resql = $this->db->query($sql);
@@ -407,7 +434,7 @@ class modWarrantySvc extends DolibarrModules
 			} else {
 				$sql = "INSERT INTO ".MAIN_DB_PREFIX."c_type_contact";
 				$sql .= " (element, source, code, libelle, active, module, position) VALUES (";
-				$sql .= "'svcrequest',";
+				$sql .= "'".$this->db->escape($element)."',";
 				$sql .= "'".$this->db->escape($source)."',";
 				$sql .= "'".$this->db->escape($code)."',";
 				$sql .= "'".$this->db->escape($label)."',1,'warrantysvc',".((int) $position).")";
