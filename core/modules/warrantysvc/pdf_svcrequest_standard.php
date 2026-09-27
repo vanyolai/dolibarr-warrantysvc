@@ -187,7 +187,7 @@ class pdf_svcrequest_standard extends ModelePDFWarrantySvc
 
 		$pdf->AddPage();
 
-		$tab_top        = 90;    // Y below header block
+		$tab_top        = 62;    // Y below compact header block
 		$tab_top_newpage = 20;
 		$heightrow      = 5;     // row height mm
 
@@ -225,7 +225,7 @@ class pdf_svcrequest_standard extends ModelePDFWarrantySvc
 				$outputlangs->transnoentities('Customer'),
 				$this->_getCustomerName($object),
 				$outputlangs->transnoentities('WarrantyStatus'),
-				svcwarranty_status_badge(!empty($object->warranty_status) ? $object->warranty_status : 'none', 1),
+				$this->_getWarrantyStatusLabel(!empty($object->warranty_status) ? $object->warranty_status : 'none', $outputlangs),
 			),
 			array(
 				$outputlangs->transnoentities('SvcSerialNumber'),
@@ -237,7 +237,7 @@ class pdf_svcrequest_standard extends ModelePDFWarrantySvc
 				$outputlangs->transnoentities('IssueDate'),
 				dol_print_date($object->issue_date, 'day', false, $outputlangs),
 				$outputlangs->transnoentities('Status'),
-				svcrequest_status_badge($object->status, 1),
+				$this->_getServiceStatusLabel($object->status, $outputlangs),
 			),
 		);
 
@@ -456,86 +456,112 @@ class pdf_svcrequest_standard extends ModelePDFWarrantySvc
 	 */
 	private function _pagehead(&$pdf, $object, $showaddress, $outputlangs)
 	{
-		global $conf, $langs, $mysoc, $hookmanager;
+		global $conf, $mysoc;
 
 		$outputlangs->loadLangs(array('main', 'bills', 'orders', 'companies', 'warrantysvc@warrantysvc'));
 
 		$default_font_size = pdf_getPDFFontSize($outputlangs);
 		pdf_pagehead($pdf, $outputlangs, $this->page_hauteur);
 
+		$posy = $this->marge_haute;
+		$usablewidth = $this->page_largeur - $this->marge_gauche - $this->marge_droite;
+		$leftw = 100;
+		$rightw = $usablewidth - $leftw - 8;
+		$rightx = $this->marge_gauche + $leftw + 8;
+
+		// Company identity on the left, following the visual hierarchy used by
+		// Dolibarr core documents: logo first, compact sender details underneath.
+		$companyY = $posy;
+		if (!getDolGlobalInt('PDF_DISABLE_MYCOMPANY_LOGO') && !empty($mysoc->logo)) {
+			$logodir = $conf->mycompany->dir_output;
+			if (!empty($conf->mycompany->multidir_output[$object->entity ?? $conf->entity])) {
+				$logodir = $conf->mycompany->multidir_output[$object->entity ?? $conf->entity];
+			}
+
+			$logo = '';
+			if (!getDolGlobalInt('MAIN_PDF_USE_LARGE_LOGO') && !empty($mysoc->logo_small)) {
+				$logo = $logodir.'/logos/thumbs/'.$mysoc->logo_small;
+			}
+			if (empty($logo) || !is_readable($logo)) {
+				$logo = $logodir.'/logos/'.$mysoc->logo;
+			}
+
+			if (is_readable($logo)) {
+				$height = min(18, pdf_getHeightForLogo($logo));
+				$pdf->Image($logo, $this->marge_gauche, $posy, 0, $height);
+				$companyY = $posy + $height + 1.5;
+			}
+		}
+
+		if ($showaddress) {
+			$pdf->SetTextColor(70, 70, 70);
+			$pdf->SetFont('', '', $default_font_size - 2);
+
+			if (empty($mysoc->logo) || getDolGlobalInt('PDF_DISABLE_MYCOMPANY_LOGO')) {
+				$pdf->SetFont('', 'B', $default_font_size - 1);
+				$pdf->SetXY($this->marge_gauche, $companyY);
+				$pdf->MultiCell($leftw, 3.5, $outputlangs->convToOutputCharset($mysoc->name), 0, 'L');
+				$companyY = $pdf->GetY();
+				$pdf->SetFont('', '', $default_font_size - 2);
+			}
+
+			$street = trim(preg_replace('/\\s*[\\r\\n]+\\s*/', ', ', (string) $mysoc->address));
+			$city = trim((string) $mysoc->zip.' '.(string) $mysoc->town);
+			$addressLine = trim($city.(!empty($street) ? ', '.$street : ''));
+
+			if (!empty($addressLine)) {
+				$pdf->SetXY($this->marge_gauche, $companyY);
+				$pdf->MultiCell($leftw, 3.3, $outputlangs->convToOutputCharset($addressLine), 0, 'L');
+				$companyY = $pdf->GetY();
+			}
+
+			$contactParts = array();
+			if (!empty($mysoc->phone)) {
+				$contactParts[] = $outputlangs->transnoentities('Phone').': '.$mysoc->phone;
+			}
+			if (!empty($mysoc->email)) {
+				$contactParts[] = $mysoc->email;
+			}
+			if (!empty($contactParts)) {
+				$pdf->SetXY($this->marge_gauche, $companyY);
+				$pdf->MultiCell($leftw, 3.3, $outputlangs->convToOutputCharset(implode(' - ', $contactParts)), 0, 'L');
+				$companyY = $pdf->GetY();
+			}
+			if (!empty($mysoc->url)) {
+				$pdf->SetXY($this->marge_gauche, $companyY);
+				$pdf->MultiCell($leftw, 3.3, $outputlangs->convToOutputCharset($mysoc->url), 0, 'L');
+			}
+		}
+
+		// Document identity on the right.
 		$pdf->SetTextColor(0, 0, 60);
 		$pdf->SetFont('', 'B', $default_font_size + 3);
+		$pdf->SetXY($rightx, $posy);
+		$pdf->MultiCell($rightw, 5, $outputlangs->transnoentities('ServiceRequest'), 0, 'R');
 
-		$w = 100;
-		$posy = $this->marge_haute;
-		$posx = $this->page_largeur - $this->marge_droite - $w;
-
-		// Document type title
-		$pdf->SetXY($this->marge_gauche, $posy);
-		$pdf->MultiCell(80, 3, $outputlangs->transnoentities('ServiceRequest'), '', 'L');
-
-		// Ref
 		$pdf->SetFont('', 'B', $default_font_size + 1);
-		$pdf->SetXY($this->marge_gauche, $posy + 7);
-		$pdf->MultiCell(80, 4, $outputlangs->convToOutputCharset($object->ref), '', 'L');
+		$pdf->SetXY($rightx, $posy + 7);
+		$pdf->MultiCell($rightw, 4, $outputlangs->convToOutputCharset($object->ref), 0, 'R');
+
 		$pdf->SetTextColor(0, 0, 0);
-
-		// Date printed
 		$pdf->SetFont('', '', $default_font_size - 1);
-		$pdf->SetXY($this->marge_gauche, $posy + 13);
-		$pdf->MultiCell(80, 3, $outputlangs->transnoentities('DatePrinted').': '.dol_print_date(dol_now(), 'day', false, $outputlangs), '', 'L');
+		$pdf->SetXY($rightx, $posy + 13);
+		$pdf->MultiCell(
+			$rightw,
+			3.5,
+			$outputlangs->transnoentities('DatePrinted').': '.dol_print_date(dol_now(), 'day', false, $outputlangs),
+			0,
+			'R'
+		);
 
-		// Billable flag
 		if ($object->billable) {
 			$pdf->SetFont('', 'B', $default_font_size - 1);
 			$pdf->SetTextColor(180, 0, 0);
-			$pdf->SetXY($this->marge_gauche, $posy + 18);
-			$pdf->MultiCell(80, 3, $outputlangs->transnoentities('Billable'), '', 'L');
-			$pdf->SetTextColor(0, 0, 0);
+			$pdf->SetXY($rightx, $posy + 18);
+			$pdf->MultiCell($rightw, 3.5, $outputlangs->transnoentities('Billable'), 0, 'R');
 		}
 
-		// Logo + sender address on the right. Dolibarr 23 has no
-		// pdf_logo_and_address() helper, so use the same primitives as core models.
-		if ($showaddress) {
-			$addressY = $posy;
-
-			if (!getDolGlobalInt('PDF_DISABLE_MYCOMPANY_LOGO') && !empty($mysoc->logo)) {
-				$logodir = $conf->mycompany->dir_output;
-				if (!empty(getMultidirOutput($object, 'mycompany'))) {
-					$logodir = getMultidirOutput($object, 'mycompany');
-				}
-
-				$logo = '';
-				if (!getDolGlobalInt('MAIN_PDF_USE_LARGE_LOGO') && !empty($mysoc->logo_small)) {
-					$logo = $logodir.'/logos/thumbs/'.$mysoc->logo_small;
-				}
-				if (empty($logo) || !is_readable($logo)) {
-					$logo = $logodir.'/logos/'.$mysoc->logo;
-				}
-
-				if (is_readable($logo)) {
-					$height = pdf_getHeightForLogo($logo);
-					$pdf->Image($logo, $posx + $w - 45, $posy, 0, $height);
-					$addressY = $posy + $height + 2;
-				}
-			}
-
-			$senderAddress = pdf_build_address(
-				$outputlangs,
-				$mysoc,
-				(!empty($object->thirdparty) && is_object($object->thirdparty)) ? $object->thirdparty : null,
-				'',
-				0,
-				'source',
-				$object
-			);
-
-			$pdf->SetTextColor(0, 0, 0);
-			$pdf->SetFont('', '', $default_font_size - 2);
-			$pdf->SetXY($posx, $addressY);
-			$pdf->MultiCell($w, 3.5, $outputlangs->convToOutputCharset($senderAddress), 0, 'R');
-		}
-
+		$pdf->SetTextColor(0, 0, 0);
 		$pdf->SetFont('', '', $default_font_size - 1);
 	}
 
@@ -660,6 +686,49 @@ class pdf_svcrequest_standard extends ModelePDFWarrantySvc
 		$pdf->MultiCell($valuew, $lineHeight, $valueText, 0, 'L', false, 0);
 
 		return $y + $rowHeight;
+	}
+
+
+	/**
+	 * Return a PDF-safe plain-text warranty status label.
+	 *
+	 * @param string $status Warranty status
+	 * @param Translate $outputlangs Output language
+	 * @return string Raw translated label
+	 */
+	private function _getWarrantyStatusLabel($status, $outputlangs)
+	{
+		$map = array(
+			'active' => 'SvcActive',
+			'expired' => 'SvcExpired',
+			'voided' => 'SvcVoided',
+			'none' => 'NoCoverage',
+		);
+		$key = isset($map[$status]) ? $map[$status] : 'NoCoverage';
+		return $outputlangs->transnoentitiesnoconv($key);
+	}
+
+	/**
+	 * Return a PDF-safe plain-text Service Request status label.
+	 *
+	 * @param int $status Service Request status
+	 * @param Translate $outputlangs Output language
+	 * @return string Raw translated label
+	 */
+	private function _getServiceStatusLabel($status, $outputlangs)
+	{
+		$map = array(
+			SvcRequest::STATUS_DRAFT => 'SvcDraft',
+			SvcRequest::STATUS_VALIDATED => 'SvcValidated',
+			SvcRequest::STATUS_DIAGNOSING => 'SvcDiagnosing',
+			SvcRequest::STATUS_IN_PROGRESS => 'SvcInProgress',
+			SvcRequest::STATUS_AWAIT_RETURN => 'AwaitingReturn',
+			SvcRequest::STATUS_RESOLVED => 'SvcResolved',
+			SvcRequest::STATUS_CLOSED => 'SvcClosed',
+			SvcRequest::STATUS_CANCELLED => 'SvcCancelled',
+		);
+		$key = isset($map[$status]) ? $map[$status] : 'Unknown';
+		return $outputlangs->transnoentitiesnoconv($key);
 	}
 
 
