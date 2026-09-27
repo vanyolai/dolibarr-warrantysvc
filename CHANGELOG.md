@@ -14,6 +14,7 @@
 - PHP syntax-lint workflow for the fork branch.
 
 ### Changed
+- Service Request PDF company identity is left-aligned as one block: the logo and the address/contact lines share the same left edge.
 - Service Request PDF company contact details are centered beneath the logo for a cleaner visual axis, and the signature block provides substantially more handwriting space while remaining clear of the footer.
 - Service Request PDF received a typography pass: company contact text is more readable, summary labels use a subtle shaded background, and the issue description has a distinct section header with improved spacing.
 - Service Request PDF no longer relies on a fixed content Y-position: the header reports its rendered height, draws a separator, and the summary begins below it, preventing overlap for different logos, addresses and languages.
