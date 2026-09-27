@@ -272,13 +272,13 @@ if ($duration_source === 'warranty_type') {
 
 // Notifications are managed by Dolibarr's standard Notification module.
 print '<tr class="oddeven">';
-print '<td>'.$langs->trans('FieldServiceNotifications').'<br><span class="opacitymedium">'
+print '<td>'.$langs->trans('WarrantySvcNotifications').'<br><span class="opacitymedium">'
 	.$langs->trans('WarrantySvcNotificationsDesc').'</span></td>';
 print '<td>';
 if (isModEnabled('notification')) {
-	print '<a class="button" href="'.DOL_URL_ROOT.'/admin/notification.php">'.$langs->trans('ConfigureDolibarrNotifications').'</a>';
+	print '<a class="button" href="'.DOL_URL_ROOT.'/admin/notification.php">'.$langs->trans('WarrantySvcConfigureNotifications').'</a>';
 } else {
-	print '<span class="warning">'.$langs->trans('NotificationModuleDisabled').'</span>';
+	print '<span class="warning">'.$langs->trans('WarrantySvcNotificationModuleDisabled').'</span>';
 }
 print '</td></tr>';
 
