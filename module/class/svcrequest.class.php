@@ -216,6 +216,7 @@ class SvcRequest extends CommonObject
 		if (!empty($this->socid) && empty($this->fk_soc)) {
 			$this->fk_soc = $this->socid;
 		}
+		$this->socid = (int) $this->fk_soc;
 
 		$sql = "INSERT INTO ".MAIN_DB_PREFIX."svc_request (";
 		$sql .= " ref, entity, fk_soc, fk_product, serial_number, fk_contact, customer_site,";
@@ -467,6 +468,7 @@ class SvcRequest extends CommonObject
 		if (!empty($this->socid) && empty($this->fk_soc)) {
 			$this->fk_soc = $this->socid;
 		}
+		$this->socid = (int) $this->fk_soc;
 
 		$sql = "UPDATE ".MAIN_DB_PREFIX."svc_request SET";
 		$sql .= " fk_soc = ".((int) $this->fk_soc);
