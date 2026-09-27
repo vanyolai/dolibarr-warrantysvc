@@ -155,6 +155,7 @@ ValidateSvcRequest = Hitelesítés
 BeginDiagnosis = Diagnosztika indítása
 OpenTroubleshoot = Hibaelhárítás megnyitása
 SetInProgress = Folyamatban állapotra
+CompleteDiagnosis = Diagnosztika befejezése
 SendReplacement = Csere küldése
 ReceiveReturn = Visszáru átvétele
 CreateIntervention = Beavatkozás létrehozása
@@ -362,6 +363,7 @@ WarrantyRequiresLotsDesc = Bekapcsolva a garanciális igény termékválasztója
 UseCustomerReturns = Customer Returns modul használata beérkező visszárukhoz
 UseCustomerReturnsDesc = Bekapcsolva a Visszáru létrehozása művelet a Customer Returns modult használja natív Bevét helyett.
 CustomerReturnModuleNotInstalled = A Customer Returns modul nincs telepítve vagy engedélyezve.
+CustomerReturn = Ügyfél-visszáru
 CreateCustomerReturn = Ügyfél-visszáru létrehozása
 NumberingModule = Hivatkozásszámozási modul
 
