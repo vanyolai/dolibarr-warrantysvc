@@ -1338,18 +1338,18 @@ class SvcRequest extends CommonObject
 		}
 
 		$to_email = $soc->email;
-		$subject  = $langs->trans('ReminderReturnSubject', $this->ref);
+		$subject  = $langs->transnoentitiesnoconv('ReminderReturnSubject', $this->ref);
 
 		// Build body
-		$body  = $langs->trans('ReminderReturnBody', $this->serial_number ? $this->serial_number : '-', $this->ref);
+		$body  = $langs->transnoentitiesnoconv('ReminderReturnBody', $this->serial_number ? $this->serial_number : '-', $this->ref);
 		$body .= "\n\n";
 		if (!empty($this->outbound_carrier)) {
-			$body .= $langs->trans('OutboundCarrier').': '.$this->outbound_carrier."\n";
+			$body .= $langs->transnoentitiesnoconv('OutboundCarrier').': '.$this->outbound_carrier."\n";
 		}
 		if (!empty($this->outbound_tracking)) {
-			$body .= $langs->trans('OutboundTracking').': '.$this->outbound_tracking."\n";
+			$body .= $langs->transnoentitiesnoconv('OutboundTracking').': '.$this->outbound_tracking."\n";
 		}
-		$body .= "\n".$langs->trans('ReminderReturnFooter');
+		$body .= "\n".$langs->transnoentitiesnoconv('ReminderReturnFooter');
 
 		$mail = new CMailFile(
 			$subject,
@@ -1495,6 +1495,35 @@ class SvcRequest extends CommonObject
 		$this->db->free($resql);
 		return $processed > 0 ? $processed : 1;
 	}
+
+	/**
+	 * Generate the Service Request PDF using Dolibarr's standard document pipeline.
+	 *
+	 * @param string $modele Document model
+	 * @param Translate $outputlangs Output language
+	 * @param int $hidedetails Hide line details
+	 * @param int $hidedesc Hide descriptions
+	 * @param int $hideref Hide references
+	 * @param array<string,mixed>|null $moreparams Additional generation parameters
+	 * @return int >0 on success, <0 on error
+	 */
+	public function generateDocument($modele, $outputlangs, $hidedetails = 0, $hidedesc = 0, $hideref = 0, $moreparams = null)
+	{
+		if (empty($modele)) {
+			$modele = !empty($this->model_pdf) ? $this->model_pdf : 'svcrequest_standard';
+		}
+
+		return $this->commonGenerateDocument(
+			'core/modules/warrantysvc/',
+			$modele,
+			$outputlangs,
+			$hidedetails,
+			$hidedesc,
+			$hideref,
+			$moreparams
+		);
+	}
+
 
 	/**
 	 * Get next reference number

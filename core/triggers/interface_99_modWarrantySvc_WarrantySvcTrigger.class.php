@@ -394,11 +394,11 @@ class InterfaceWarrantySvcTrigger extends DolibarrTriggers
 		}
 
 		if ($event == 'validate') {
-			$subject = $langs->trans('NotifTechValidateSubject', $object->ref);
-			$body    = $langs->trans('NotifTechValidateBody', $tech->getFullName($langs), $object->ref);
+			$subject = $langs->transnoentitiesnoconv('NotifTechValidateSubject', $object->ref);
+			$body    = $langs->transnoentitiesnoconv('NotifTechValidateBody', $tech->getFullName($langs), $object->ref);
 		} else {
-			$subject = $langs->trans('NotifTechInProgressSubject', $object->ref);
-			$body    = $langs->trans('NotifTechInProgressBody', $tech->getFullName($langs), $object->ref);
+			$subject = $langs->transnoentitiesnoconv('NotifTechInProgressSubject', $object->ref);
+			$body    = $langs->transnoentitiesnoconv('NotifTechInProgressBody', $tech->getFullName($langs), $object->ref);
 		}
 
 		$body .= $this->_requestSummary($object, $langs);
@@ -432,17 +432,17 @@ class InterfaceWarrantySvcTrigger extends DolibarrTriggers
 		}
 
 		if ($event == 'awaitreturn') {
-			$subject = $langs->trans('NotifCustAwaitReturnSubject', $object->ref);
-			$body    = $langs->trans('NotifCustAwaitReturnBody', $object->ref, $object->serial_number ?? '');
+			$subject = $langs->transnoentitiesnoconv('NotifCustAwaitReturnSubject', $object->ref);
+			$body    = $langs->transnoentitiesnoconv('NotifCustAwaitReturnBody', $object->ref, $object->serial_number ?? '');
 			if (!empty($object->outbound_carrier)) {
-				$body .= "\n\n".$langs->trans('OutboundCarrier').': '.$object->outbound_carrier;
+				$body .= "\n\n".$langs->transnoentitiesnoconv('OutboundCarrier').': '.$object->outbound_carrier;
 			}
 			if (!empty($object->outbound_tracking)) {
-				$body .= "\n".$langs->trans('OutboundTracking').': '.$object->outbound_tracking;
+				$body .= "\n".$langs->transnoentitiesnoconv('OutboundTracking').': '.$object->outbound_tracking;
 			}
 		} else {
-			$subject = $langs->trans('NotifCustResolvedSubject', $object->ref);
-			$body    = $langs->trans('NotifCustResolvedBody', $object->ref);
+			$subject = $langs->transnoentitiesnoconv('NotifCustResolvedSubject', $object->ref);
+			$body    = $langs->transnoentitiesnoconv('NotifCustResolvedBody', $object->ref);
 			if (!empty($object->resolution_notes)) {
 				$body .= "\n\n".strip_tags(str_replace('<br>', "\n", $object->resolution_notes));
 			}
@@ -475,10 +475,10 @@ class InterfaceWarrantySvcTrigger extends DolibarrTriggers
 			return;
 		}
 
-		$expiry_label = $object->expiry_date ? dol_print_date($object->expiry_date, 'day') : $langs->trans('NoExpiryDate');
+		$expiry_label = $object->expiry_date ? dol_print_date($object->expiry_date, 'day') : $langs->transnoentitiesnoconv('NoExpiryDate');
 
-		$subject = $langs->trans('NotifWarrantyCreatedSubject', $object->ref);
-		$body    = $langs->trans('NotifWarrantyCreatedBody',
+		$subject = $langs->transnoentitiesnoconv('NotifWarrantyCreatedSubject', $object->ref);
+		$body    = $langs->transnoentitiesnoconv('NotifWarrantyCreatedBody',
 			$object->ref,
 			$object->serial_number,
 			$expiry_label
@@ -552,11 +552,12 @@ class InterfaceWarrantySvcTrigger extends DolibarrTriggers
 	{
 		$lines   = array();
 		$lines[] = '';
-		$lines[] = $langs->trans('Ref').': '.$object->ref;
-		$lines[] = $langs->trans('SvcSerialNumber').': '.($object->serial_number ?? '-');
+		$lines[] = $langs->transnoentitiesnoconv('Ref').': '.$object->ref;
+		$lines[] = $langs->transnoentitiesnoconv('SvcSerialNumber').': '.($object->serial_number ?? '-');
 		// Resolution type is chosen after diagnosis — only include it once set
 		if (!empty($object->resolution_type)) {
-			$lines[] = $langs->trans('ResolutionType').': '.svcrequest_resolution_label($object->resolution_type);
+			$resolutionLabel = svcrequest_resolution_label($object->resolution_type);
+			$lines[] = $langs->transnoentitiesnoconv('ResolutionType').': '.html_entity_decode(strip_tags($resolutionLabel), ENT_QUOTES | ENT_HTML5, 'UTF-8');
 		}
 		return "\n".implode("\n", $lines);
 	}
