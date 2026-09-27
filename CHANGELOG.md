@@ -38,6 +38,7 @@
 - Existing upstream schemas are upgraded explicitly and idempotently before normal module table loading.
 
 ### Fixed
+- Fresh Service Request and Warranty objects now synchronize Dolibarr's standard `socid` alias from `fk_soc` before business triggers fire, so third-party-contact Notification subscriptions also work on CREATE events.
 - Generic REST creation now synchronizes populated FK relationships into Dolibarr linked objects after creating a Service Request.
 - Service Request PDF now positions the TCPDF cursor at the calculated header bottom before `pdf_writeLinkedObjects()`. Without linked objects, Dolibarr 23's helper returns the current PDF Y, which previously reset the summary into the header despite the dynamic header calculation.
 - Service Request PDF summary labels use a wider label column so long Hungarian labels such as `Bejelentés dátuma` no longer run into their values.
