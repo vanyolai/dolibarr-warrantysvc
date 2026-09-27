@@ -55,6 +55,15 @@ class pdf_svcrequest_standard extends ModelePDFWarrantySvc
 	/** @var float Bottom margin (mm) */
 	public $marge_basse;
 
+	/** @var float Page width */
+	public $page_largeur;
+
+	/** @var float Page height */
+	public $page_hauteur;
+
+	/** @var string Page unit */
+	public $page_unit;
+
 	/** @var CommonHookActions Hook handler */
 	public $hookhandler;
 
@@ -78,7 +87,11 @@ class pdf_svcrequest_standard extends ModelePDFWarrantySvc
 		$this->description       = $langs->trans('SvcRequestPdfStandardDesc');
 		$this->page_orientation  = 'P';
 		$this->type              = 'pdf';
-		$this->page_format       = pdf_getFormat();
+		$format                  = pdf_getFormat();
+		$this->page_largeur      = (float) $format['width'];
+		$this->page_hauteur      = (float) $format['height'];
+		$this->page_unit         = (string) $format['unit'];
+		$this->page_format       = array($this->page_largeur, $this->page_hauteur);
 		$this->marge_gauche      = getDolGlobalInt('MAIN_PDF_MARGIN_LEFT', 10);
 		$this->marge_droite      = getDolGlobalInt('MAIN_PDF_MARGIN_RIGHT', 10);
 		$this->marge_haute       = getDolGlobalInt('MAIN_PDF_MARGIN_TOP', 10);
@@ -109,6 +122,10 @@ class pdf_svcrequest_standard extends ModelePDFWarrantySvc
 		}
 		$outputlangs->loadLangs(array('main', 'dict', 'companies', 'bills', 'warrantysvc@warrantysvc'));
 
+		if (empty($object->thirdparty) || !is_object($object->thirdparty)) {
+			$object->fetch_thirdparty();
+		}
+
 		// Fetch lines if not already loaded
 		if (empty($object->lines)) {
 			$object->fetchLines();
@@ -134,7 +151,7 @@ class pdf_svcrequest_standard extends ModelePDFWarrantySvc
 		$filepath = $dir.'/'.$filename;
 
 		// Instantiate PDF
-		$pdf = pdf_getInstance($this->page_format, 'mm', $this->page_orientation);
+		$pdf = pdf_getInstance($this->page_format, $this->page_unit, $this->page_orientation);
 
 		if (class_exists('TCPDF')) {
 			$pdf->setPrintHeader(false);
@@ -163,7 +180,7 @@ class pdf_svcrequest_standard extends ModelePDFWarrantySvc
 		$heightrow      = 5;     // row height mm
 
 		// ---- PAGE WIDTH ----
-		$pagewidth = $this->page_format == 'letter' ? 216 : 210;
+		$pagewidth = $this->page_largeur;
 		$usablewidth = $pagewidth - $this->marge_gauche - $this->marge_droite;
 
 		// ---- HEADER ----
@@ -171,7 +188,17 @@ class pdf_svcrequest_standard extends ModelePDFWarrantySvc
 
 		// ---- INFO BLOCK ----
 		$curY = $tab_top;
-		pdf_writeLinkedObjects($pdf, $object, $outputlangs, $curY, $default_font_size, 'small');
+		$curY = pdf_writeLinkedObjects(
+			$pdf,
+			$object,
+			$outputlangs,
+			$this->marge_gauche,
+			$curY,
+			$usablewidth,
+			3,
+			'L',
+			$default_font_size - 1
+		);
 
 		// Two-column info table
 		$colw = $usablewidth / 2;
@@ -326,7 +353,14 @@ class pdf_svcrequest_standard extends ModelePDFWarrantySvc
 
 		// ---- DRAFT WATERMARK ----
 		if ($object->status == SvcRequest::STATUS_DRAFT && getDolGlobalString('WARRANTYSVC_DRAFT_WATERMARK')) {
-			pdf_watermark($pdf, $outputlangs, 0, $this->page_format, $this->marge_gauche, $outputlangs->transnoentities('SvcDraft'));
+			pdf_watermark(
+				$pdf,
+				$outputlangs,
+				$this->page_hauteur,
+				$this->page_largeur,
+				$this->page_unit,
+				$outputlangs->transnoentities('SvcDraft')
+			);
 		}
 
 		// ---- PAGE FOOTER ----
@@ -360,15 +394,14 @@ class pdf_svcrequest_standard extends ModelePDFWarrantySvc
 		$outputlangs->loadLangs(array('main', 'bills', 'orders', 'companies', 'warrantysvc@warrantysvc'));
 
 		$default_font_size = pdf_getPDFFontSize($outputlangs);
-		pdf_pagehead($pdf, $outputlangs, $this->page_format == 'letter' ? 216 : 210);
+		pdf_pagehead($pdf, $outputlangs, $this->page_hauteur);
 
 		$pdf->SetTextColor(0, 0, 60);
 		$pdf->SetFont('', 'B', $default_font_size + 3);
 
 		$w = 100;
 		$posy = $this->marge_haute;
-		$posx = $this->page_format == 'letter' ? 216 : 210;
-		$posx -= $this->marge_droite + $w;
+		$posx = $this->page_largeur - $this->marge_droite - $w;
 
 		// Document type title
 		$pdf->SetXY($this->marge_gauche, $posy);
@@ -394,9 +427,46 @@ class pdf_svcrequest_standard extends ModelePDFWarrantySvc
 			$pdf->SetTextColor(0, 0, 0);
 		}
 
-		// Logo + sender address on the right
+		// Logo + sender address on the right. Dolibarr 23 has no
+		// pdf_logo_and_address() helper, so use the same primitives as core models.
 		if ($showaddress) {
-			pdf_logo_and_address($pdf, $outputlangs, $mysoc, $posx, $posy, $w, $this->marge_haute, $this->marge_gauche);
+			$addressY = $posy;
+
+			if (!getDolGlobalInt('PDF_DISABLE_MYCOMPANY_LOGO') && !empty($mysoc->logo)) {
+				$logodir = $conf->mycompany->dir_output;
+				if (!empty(getMultidirOutput($object, 'mycompany'))) {
+					$logodir = getMultidirOutput($object, 'mycompany');
+				}
+
+				$logo = '';
+				if (!getDolGlobalInt('MAIN_PDF_USE_LARGE_LOGO') && !empty($mysoc->logo_small)) {
+					$logo = $logodir.'/logos/thumbs/'.$mysoc->logo_small;
+				}
+				if (empty($logo) || !is_readable($logo)) {
+					$logo = $logodir.'/logos/'.$mysoc->logo;
+				}
+
+				if (is_readable($logo)) {
+					$height = pdf_getHeightForLogo($logo);
+					$pdf->Image($logo, $posx + $w - 45, $posy, 0, $height);
+					$addressY = $posy + $height + 2;
+				}
+			}
+
+			$senderAddress = pdf_build_address(
+				$outputlangs,
+				$mysoc,
+				(!empty($object->thirdparty) && is_object($object->thirdparty)) ? $object->thirdparty : null,
+				'',
+				0,
+				'source',
+				$object
+			);
+
+			$pdf->SetTextColor(0, 0, 0);
+			$pdf->SetFont('', '', $default_font_size - 2);
+			$pdf->SetXY($posx, $addressY);
+			$pdf->MultiCell($w, 3.5, $outputlangs->convToOutputCharset($senderAddress), 0, 'R');
 		}
 
 		$pdf->SetFont('', '', $default_font_size - 1);
@@ -412,8 +482,20 @@ class pdf_svcrequest_standard extends ModelePDFWarrantySvc
 	 */
 	private function _pagefoot(&$pdf, $object, $outputlangs)
 	{
-		$default_font_size = pdf_getPDFFontSize($outputlangs);
-		pdf_pagefoot($pdf, $outputlangs, 'MAIN_PDF_FOOTER_TEXT', null, $this->marge_basse, $this->marge_gauche, $this->page_format, $object, 1, 1);
+		global $mysoc;
+		pdf_pagefoot(
+			$pdf,
+			$outputlangs,
+			'MAIN_PDF_FOOTER_TEXT',
+			$mysoc,
+			$this->marge_basse,
+			$this->marge_gauche,
+			$this->page_hauteur,
+			$object,
+			1,
+			1,
+			$this->page_largeur
+		);
 	}
 
 	/**
