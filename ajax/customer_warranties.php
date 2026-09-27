@@ -42,6 +42,9 @@ $sql .= " WHERE w.fk_soc = ".$socid;
 $sql .= " AND w.status != 'voided'";
 $sql .= " AND w.entity IN (".getEntity('svcwarranty').")";
 $sql .= " AND p.entity IN (".getEntity('product').")";
+if (getDolGlobalString('WARRANTYSVC_WARRANTY_REQUIRES_LOTS')) {
+	$sql .= " AND p.tobatch > 0";
+}
 $sql .= " ORDER BY p.ref ASC, w.serial_number ASC, w.ref ASC";
 
 $resql = $db->query($sql);
