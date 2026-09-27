@@ -3,7 +3,7 @@
 ## [Unreleased] - Dolibarr 23 fork
 
 ### Added
-- WarrantySvc business events remain registered in Dolibarr's central `c_action_trigger` catalog, while email notifications are intentionally limited to three user-facing events: Service Request validated, Service Request closed, and Warranty created. These use the same user, third-party-contact and fixed-address subscriptions as native Dolibarr events.
+- WarrantySvc business events remain available internally, while email notifications are intentionally limited to two user-facing events: Service Request assigned and Warranty created. These use the same user, third-party-contact and fixed-address subscriptions as native Dolibarr events.
 - `svcrequest` and `svcwarranty` are now registered as standard Dolibarr Email Template types, so Notification events can use templates managed under Tools / Email templates instead of module-hardcoded mail bodies.
 - Added a module-neutral Intervention intake factory (`SvcRequest::createFromIntervention`) and REST endpoint (`POST /warrantysvc/requests/createfromintervention/{id}`) so Field Service or other modules can hand off a work sheet without writing WarrantySvc tables directly. The factory inherits stable Intervention context, validates Product/serial/warranty ownership, creates a Draft SR and links it through the existing `fk_intervention`/`element_element` mechanism.
 - Restored the Service Request Documents tab with standard Dolibarr file attachments, links and PDF generation.
@@ -17,10 +17,10 @@
 - PHP syntax-lint workflow for the fork branch.
 
 ### Changed
-- Notification and automatic fixed-email setup now show the same compact WarrantySvc event set (validated, closed, warranty created). The generic net-amount threshold editor is hidden for these rows because WarrantySvc objects have no amount-based notification semantics.
+- Notification and automatic fixed-email setup now show the same compact WarrantySvc event set (Service Request assigned, Warranty created). The generic net-amount threshold editor is hidden for these rows because WarrantySvc objects have no amount-based notification semantics.
 - WarrantySvc now uses Dolibarr's standard substitution plugin mechanism for email variables: `__PRODUCT_REF__`, `__PRODUCT_LABEL__`, `__SERIAL_NUMBER__`, `__WARRANTY_STATUS__`, `__WARRANTY_START_DATE__`, `__WARRANTY_EXPIRY_DATE__`, `__ISSUE_DATE__`, `__ISSUE_DESCRIPTION__`, and `__SERVICE_REQUEST_STATUS__`.
 - Removed the WarrantySvc-specific trigger email sender and the `WARRANTYSVC_NOTIFY_WARRANTY_CREATED` setup toggle. Lifecycle email recipients, sender and templates are now controlled by Dolibarr's Notification/Email Template configuration; notification deliveries are recorded in the native `llx_notify` log.
-- Service Request assignment now emits a real `WARRANTYSVC_ASSIGNED` business event when `fk_user_assigned` is initially set or changed. It remains available for integrations/automation but is not exposed as an email-notification choice.
+- Service Request assignment emits a real `WARRANTYSVC_ASSIGNED` business event when `fk_user_assigned` is initially set or changed; this is the single Service Request email-notification event exposed to Dolibarr.
 - Phone-call intake no longer preselects the `guidance` Resolution Type; all intake paths now preserve the diagnosis-first rule that the solution path is chosen only after diagnosis.
 - Service Request PDF company identity is left-aligned as one block: the logo and the address/contact lines share the same left edge.
 - Service Request PDF company contact details are centered beneath the logo for a cleaner visual axis, and the signature block provides substantially more handwriting space while remaining clear of the footer.
