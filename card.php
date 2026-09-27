@@ -124,6 +124,9 @@ if ($action == 'add' && $permwrite) {
 		if ($object->fk_product <= 0) {
 			$error++;
 			setEventMessages($langs->trans('ErrorFieldRequired', $langs->trans('Product')), null, 'errors');
+		} elseif (!warrantysvc_service_request_product_allowed($db, $object->fk_product)) {
+			$error++;
+			setEventMessages($langs->trans('ErrorWarrantyRequiresLotProduct'), null, 'errors');
 		}
 	} else {
 		// Warranty-backed intake. The selected Warranty row is authoritative for
@@ -141,6 +144,9 @@ if ($action == 'add' && $permwrite) {
 				} elseif ($w->status === SvcWarranty::STATUS_VOIDED) {
 					$error++;
 					setEventMessages($langs->trans('ErrorVoidedWarrantyClaim'), null, 'errors');
+				} elseif (!warrantysvc_service_request_product_allowed($db, (int) $w->fk_product)) {
+					$error++;
+					setEventMessages($langs->trans('ErrorWarrantyRequiresLotProduct'), null, 'errors');
 				} else {
 					$effective_warranty_status = $w->getStatusAt($object->issue_date);
 					$object->fk_product      = (int) $w->fk_product;
