@@ -3,6 +3,7 @@
 ## [Unreleased] - Dolibarr 23 fork
 
 ### Added
+- Restored the Service Request Documents tab with standard Dolibarr file attachments, links and PDF generation.
 - New Warranty Claim now uses a customer warranty/device table instead of chained Product / serial / warranty dropdowns, with live search and Issue Date-aware Active/Expired status.
 - Explicit warranty-less service intake remains available as a separate, billable workflow.
 - Selectable warranty-duration source: Product integer extrafield in calendar months, or the original Warranty Type/day-based workflow.
@@ -13,6 +14,8 @@
 - PHP syntax-lint workflow for the fork branch.
 
 ### Changed
+- Service Request PDF output now follows the standard per-object document directory (`warrantysvc/<SRQ-ref>/`).
+- Plain-text WarrantySvc notification and return-reminder emails now use raw UTF-8 translations instead of HTML-entity encoded text.
 - Warranty status badges now use Dolibarr's native badge-status classes; JavaScript-translated labels use non-entity text to avoid literal HTML entities in the UI.
 - The New Warranty Claim customer field now uses Dolibarr's core ThirdParty label.
 - WarrantySvc navigation now lives under the Dolibarr Products top menu instead of creating a separate top-level menu.
