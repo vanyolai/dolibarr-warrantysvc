@@ -1,6 +1,6 @@
 # WarrantySvc -- Technical Reference
 
-Module ID: **510000** | Family: `crm` | Version: **1.36.0**
+Module ID: **510000** | Family: `crm` | Version: **1.37.0**
 Requires: Dolibarr >= 16.0, PHP >= 7.0
 Dependencies: `modSociete`, `modProduct`, `modStock`
 
@@ -84,7 +84,7 @@ Extends `CommonObject`. Manages RMA/service request cases.
 | `RESOLUTION_INTERVENTION` | 'intervention' | On-site service |
 | `RESOLUTION_GUIDANCE` | 'guidance' | Troubleshooting only |
 
-**Lifecycle (diagnosis-first, since 1.33.0):** Draft -> Validated -> **Diagnosing** -> In Progress -> (Await Return) -> Resolved -> Closed. Resolution type is chosen during diagnosis, not at intake; a case cannot reach In Progress without one. Await Return re-enters In Progress automatically when a linked Customer Return is validated (see Triggers).
+**Lifecycle (diagnosis-first):** Draft -> Validated -> **Diagnosing** -> In Progress -> Resolved -> Closed. Customer Return may be created during Diagnosing as diagnostic logistics. Resolution Type is not required to enter In Progress and is selected only when the diagnosis supports a concrete repair/replacement path. **Await Return** remains available for explicit/legacy return-waiting flows.
 
 **Key properties:** `$module = 'warrantysvc'`, `$element = 'svcrequest'`, `$table_element = 'svc_request'`, `$TRIGGER_PREFIX = 'WARRANTYSVC'`
 
@@ -99,7 +99,7 @@ Extends `CommonObject`. Manages RMA/service request cases.
 | `delete($user, $notrigger=0)` | int | Delete record, lines, extrafields. Fires `WARRANTYSVC_DELETE`. |
 | `validate($user, $notrigger=0)` | int | Draft -> Validated. Sets `date_validation`, auto-checks warranty. Fires `WARRANTYSVC_VALIDATE`. |
 | `setDiagnosing($user)` | int | Validated -> Diagnosing. Refuses from any other status (`SvcRequestNotInValidatedStatus`). |
-| `setInProgress($user)` | int | Diagnosing or Await Return -> In Progress. Refuses from other statuses (`SvcRequestNotInDiagnosingStatus`) and refuses while `resolution_type` is empty (`SvcRequestResolutionTypeRequiredBeforeProgress`). Await Return entry is used by the CustomerReturn validate trigger. |
+| `setInProgress($user)` | int | Diagnosing or Await Return -> In Progress. Resolution Type may still be empty; solution selection is intentionally decoupled from diagnosis completion. |
 | `setAwaitingReturn($user)` | int | Any -> Awaiting Return. |
 | `resolve($user)` | int | Any -> Resolved. |
 | `close($user, $notrigger=0)` | int | Resolved/InProgress/AwaitReturn -> Closed. Sets `date_closed`. Fires `WARRANTYSVC_CLOSE`. |
@@ -125,7 +125,8 @@ Extends `CommonObject`. Manages RMA/service request cases.
 | `getLibStatut($mode)` / `LibStatut($status, $mode)` | string | Returns status badge HTML. |
 | `getResolutionLabel($type)` | string | Translated resolution type label. |
 | `getCustomerSerials($fk_soc, $fk_product)` | array | Serials from shipment history for a customer/product. |
-| `createFromCall($actioncomm_id, $user)` | int | Factory method: creates SR pre-filled from an `actioncomm` phone call record. Links via `fk_pbxcall` and `add_object_linked`. |
+| `createFromCall($actioncomm_id, $user)` | int | Factory method: creates a Draft SR pre-filled from an `actioncomm` phone call record, without preselecting a Resolution Type. Links via `fk_pbxcall` and `add_object_linked`. |
+| `createFromIntervention($fichinter_id, $user, $options=array())` | int | Factory method for module-to-module hand-off from a core Intervention. Inherits customer/project/date/description, accepts explicit Product/serial/warranty identity, validates warranty ownership, links the Intervention, and creates a Draft SR without choosing a solution path. |
 | `countForProject($projectid)` | int | Count SRs for a project (used by tab badge). |
 
 ### SvcRequestLine (`class/svcrequestline.class.php`)
@@ -263,6 +264,7 @@ Base path: `/api/index.php/warrantysvc`
 | POST | `/requests` | `postRequest($request)` | JSON body with SvcRequest fields | svcrequest:write |
 | PUT | `/requests/{id}` | `putRequest($id, $request)` | `id` (int), JSON body with fields to update (rowid, entity, ref, date_creation are immutable) | svcrequest:write |
 | POST | `/requests/createfromcall/{id}` | `postRequestFromCall($id, $request)` | `id` (int -- actioncomm ID), optional JSON body with override fields | svcrequest:write |
+| POST | `/requests/createfromintervention/{id}` | `postRequestFromIntervention($id, $request)` | `id` (int -- Intervention ID), JSON body may contain `fk_product`, `serial_number`, `fk_warranty` and supported intake overrides | svcrequest:write |
 
 ### Warranties
 
