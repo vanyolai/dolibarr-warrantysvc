@@ -13,6 +13,9 @@
 - PHP syntax-lint workflow for the fork branch.
 
 ### Changed
+- Warranty status badges now use Dolibarr's native badge-status classes; JavaScript-translated labels use non-entity text to avoid literal HTML entities in the UI.
+- The New Warranty Claim customer field now uses Dolibarr's core ThirdParty label.
+- WarrantySvc navigation now lives under the Dolibarr Products top menu instead of creating a separate top-level menu.
 - WarrantySvc-specific UI labels now use module language keys with complete English and Hungarian translations; Dolibarr core-standard labels continue to use core translations.
 - Product-field mode has a single source of truth: the configured Product warranty-month field. Warranty Type menus, Product defaults, terms/exclusions and day-based controls are hidden in this mode.
 - Warranty start dates are resolved from shipment dates instead of creation time.
