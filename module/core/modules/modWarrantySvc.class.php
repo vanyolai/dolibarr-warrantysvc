@@ -44,12 +44,13 @@ class modWarrantySvc extends DolibarrModules
 		// Module name (no spaces), used if translation string 'ModuleXXXName' not found
 		$this->name = preg_replace('/^mod/i', '', get_class($this));
 		$this->description = 'ModuleWarrantySvcDesc';
-		$this->version = '1.36.0';
+		$this->version = '1.36.1';
 		$this->const_name = 'MAIN_MODULE_'.strtoupper($this->name);
 		$this->picto = 'technic';
 
 		// Module parts (triggers, login, substitutions, menus, tpl, hooks, modulebuilder, cronjobs, unittest)
 		$this->module_parts = array(
+			'models' => 1,    // PDF/document models under core/modules/warrantysvc
 			'triggers' => 1,  // triggers/ directory enabled
 			'login' => 0,
 			'substitutions' => 0,
