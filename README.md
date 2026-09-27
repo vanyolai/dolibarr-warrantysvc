@@ -13,14 +13,16 @@ WarrantySvc adds full RMA (Return Merchandise Authorization) and warranty manage
 
 ### Service Requests
 
-Create and manage service requests for warranted equipment. Each request follows a **6-stage lifecycle**:
+Create and manage service requests for warranted equipment. The normal workflow is diagnosis-first:
 
 1. **Draft** -- Initial creation, still editable
 2. **Validated** -- Submitted for review
-3. **In Progress** -- Actively being worked on
-4. **Awaiting Return** -- Waiting for the customer to return equipment
+3. **Diagnosing** -- Remote troubleshooting and, when needed, physical Customer Return
+4. **In Progress** -- Diagnosis is complete and the selected repair/replacement path is being executed
 5. **Resolved** -- Work complete, resolution recorded
 6. **Closed** -- Finalized and archived
+
+**Awaiting Return** remains available for explicit/legacy return-waiting flows, but Customer Return itself is a linked logistics object and does not require a Resolution Type.
 
 Each service request supports one of **7 resolution types**: Component Shipment, Component Shipment + Return, Full Unit Swap (Cross Ship), Full Unit Swap (Wait for Return), On-Site Service, Guidance Only, and Informational.
 
@@ -99,13 +101,14 @@ Warranty Types are only part of the upstream duration mode. In Product-field mod
 1. Navigate to the Service Requests menu
 2. Click "New Service Request"
 3. Select the customer and the serial number -- the system will display the current warranty status
-4. Choose a resolution type that matches the situation (e.g., Component Shipment, Full Unit Swap, On-Site Service)
-5. Describe the issue and save the request as a Draft
-6. Validate the request to begin the lifecycle
+4. Describe the issue and save the request as a Draft
+5. Validate the request and start diagnosis
+6. If the physical unit is needed, create a linked Customer Return during diagnosis
+7. Complete diagnosis, then choose the appropriate resolution/work path
 
 ### Service Request Lifecycle
 
-Use the status buttons on each service request card to advance it through the stages: Draft, Validated, In Progress, Awaiting Return, Resolved, and Closed. At the Resolved stage, record the resolution details and any internal notes.
+Use the status buttons on each service request card to advance through Draft, Validated, Diagnosing, In Progress, Resolved, and Closed. Customer Return can be created during Diagnosing without preselecting a resolution. Once diagnosis is complete, move the request to In Progress and select the repair/replacement path.
 
 ### PDF Generation
 
