@@ -411,20 +411,54 @@ class ActionsWarrantySvc
 
 		$this->results = array(
 			'arrayofnotifsupported' => array(
-				'WARRANTYSVC_CREATE',
-				'WARRANTYSVC_ASSIGNED',
 				'WARRANTYSVC_VALIDATE',
-				'WARRANTYSVC_SETDIAGNOSING',
-				'WARRANTYSVC_SETINPROGRESS',
-				'WARRANTYSVC_AWAITRETURN',
-				'WARRANTYSVC_RESOLVE',
 				'WARRANTYSVC_CLOSE',
-				'WARRANTYSVC_CANCEL',
-				'WARRANTYSVC_REOPEN',
-				'WARRANTYSVC_DELETE',
 				'SVCWARRANTY_CREATE',
 			),
 		);
+
+		return 0;
+	}
+
+	/**
+	 * Remove the generic amount-threshold editor from WarrantySvc fixed-email
+	 * notification rows. Dolibarr 23 renders a net-amount threshold for almost
+	 * every fixed notification event, but Service Requests and Warranties do
+	 * not have an amount semantic. The backend remains the core Notification
+	 * module; this hook only removes an irrelevant UI field and therefore lets
+	 * Dolibarr persist the standard threshold value as zero.
+	 *
+	 * @param  array       $parameters  Hook parameters
+	 * @param  object|null $object      Current object
+	 * @param  string      $action      Current action
+	 * @param  HookManager $hookmanager Hook manager
+	 * @return int                      0 = continue
+	 */
+	public function addHtmlHeader($parameters, &$object, &$action, $hookmanager)
+	{
+		$script = isset($_SERVER['PHP_SELF']) ? basename($_SERVER['PHP_SELF']) : '';
+		if ($script !== 'notification.php') {
+			return 0;
+		}
+
+		$codes = array(
+			'WARRANTYSVC_VALIDATE',
+			'WARRANTYSVC_CLOSE',
+			'SVCWARRANTY_CREATE',
+		);
+
+		$this->resprints = '<script nonce="'.getNonce().'">';
+		$this->resprints .= 'document.addEventListener("DOMContentLoaded",function(){';
+		$this->resprints .= 'var codes='.json_encode(array_fill_keys($codes, 1)).';';
+		$this->resprints .= 'document.querySelectorAll("table.noborder tr").forEach(function(row){';
+		$this->resprints .= 'var cells=row.cells;if(!cells||cells.length<5){return;}';
+		$this->resprints .= 'var code=(cells[1].textContent||"").trim();';
+		$this->resprints .= 'if(!codes[code]){return;}';
+		$this->resprints .= 'if(!row.querySelector("input[name$=\"_amount\"]")){return;}';
+		$this->resprints .= 'cells[4].innerHTML="<span class=\"opacitymedium\">—</span>";';
+		$this->resprints .= '});';
+		$this->resprints .= '});';
+		$this->resprints .= '</script>';
 
 		return 0;
 	}
