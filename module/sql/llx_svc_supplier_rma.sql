@@ -1,0 +1,41 @@
+-- Copyright (C) 2026 DPG Supply
+--
+-- Supplier/manufacturer service RMA child object of a Service Request.
+
+CREATE TABLE llx_svc_supplier_rma(
+	rowid                       INTEGER AUTO_INCREMENT PRIMARY KEY,
+	ref                         VARCHAR(50)  NOT NULL,
+	entity                      INTEGER      NOT NULL DEFAULT 1,
+	fk_svc_request              INTEGER      NOT NULL,
+	fk_soc_supplier             INTEGER      NOT NULL,
+	fk_product                  INTEGER      NOT NULL,
+	serial_number               VARCHAR(128),
+	supplier_rma_ref            VARCHAR(128),
+	status                      VARCHAR(32)  NOT NULL DEFAULT 'draft',
+	date_request                DATETIME,
+	date_authorized             DATETIME,
+	date_shipped                DATETIME,
+	date_supplier_received      DATETIME,
+	date_supplier_completed     DATETIME,
+	date_returned               DATETIME,
+	outbound_carrier            VARCHAR(100),
+	outbound_tracking           VARCHAR(255),
+	outbound_tracking_url       VARCHAR(512),
+	return_carrier              VARCHAR(100),
+	return_tracking             VARCHAR(255),
+	return_tracking_url         VARCHAR(512),
+	result_type                 VARCHAR(32),
+	replacement_serial_number   VARCHAR(128),
+	problem_description         TEXT,
+	diagnosis                   TEXT,
+	accessories_sent            TEXT,
+	fk_warehouse_source         INTEGER,
+	fk_warehouse_return         INTEGER,
+	fk_stock_movement_out       INTEGER,
+	fk_stock_movement_in        INTEGER,
+	note_private                TEXT,
+	fk_user_creat               INTEGER,
+	fk_user_modif               INTEGER,
+	date_creation               DATETIME NOT NULL,
+	tms                         TIMESTAMP
+) ENGINE=innodb;
