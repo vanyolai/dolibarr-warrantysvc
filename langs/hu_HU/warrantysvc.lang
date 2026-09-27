@@ -39,7 +39,7 @@ SvcInProgress = Folyamatban
 AwaitingReturn = Visszaküldésre vár
 SvcResolved = Megoldva
 SvcClosed = Lezárva
-SvcCancelled = Törölve
+SvcCancelled = Érvénytelenítve
 
 #
 # Resolution types
@@ -162,10 +162,10 @@ CreateIntervention = Beavatkozás létrehozása
 MarkResolved = Megoldottnak jelölés
 CloseSvcRequest = Lezárás
 ReopenSvcRequest = Újranyitás
-CancelSvcRequest = Garanciális igény törlése
+CancelSvcRequest = Garanciális igény érvénytelenítése
 DeleteSvcRequest = Garanciális igény végleges törlése
-SvcRequestCancelledWithShipmentWarning = A garanciális igény törölve. A kapcsolt szállítmány (ID: %s) továbbra is létezik — <a href="%s">nyisd meg a Szállítmányok modulban</a>, és szükség esetén kézzel töröld vagy érvénytelenítsd.
-ConfirmCancelSvcRequest = Biztosan törölni szeretnéd ezt a garanciális igényt? Ez csak újranyitással vonható vissza.
+SvcRequestCancelledWithShipmentWarning = A garanciális igény érvénytelenítve. A kapcsolt szállítmány (ID: %s) továbbra is létezik — <a href="%s">nyisd meg a Szállítmányok modulban</a>, és szükség esetén kézzel töröld vagy érvénytelenítsd.
+ConfirmCancelSvcRequest = Biztosan érvényteleníteni szeretnéd ezt a garanciális igényt? Az igény később újranyitható.
 ConfirmReopenSvcRequest = Biztosan újra szeretnéd nyitni ezt a garanciális igényt?
 ConfirmDeleteSvcRequest = Biztosan véglegesen törölni szeretnéd a(z) %s garanciális igényt? A művelet nem vonható vissza.
 SendReminder = Visszaküldési emlékeztető küldése
@@ -303,7 +303,7 @@ NoSenderEmailConfigured = A Dolibarr beállításaiban nincs feladó e-mail-cím
 ErrorSvcRequestNotInDraftStatus = A garanciális igény nincs piszkozat állapotban.
 ErrorSvcRequestNotInValidatedStatus = A garanciális igényt a folytatás előtt hitelesíteni kell.
 ErrorSvcRequestCannotClose = A garanciális igény ebből az állapotból nem zárható le.
-ErrorSvcRequestAlreadyClosedOrCancelled = A garanciális igény már lezárt vagy törölt.
+ErrorSvcRequestAlreadyClosedOrCancelled = A garanciális igény már lezárt vagy érvénytelenített.
 ErrorNoSerialForSwap = Készülékcsere létrehozása előtt sorozatszámot kell megadni.
 ErrorNoSerialInWarehouse = A(z) %s sorozat-/LOT-szám nem található a forrásraktárban. Ellenőrizd a készletet vagy válassz másik raktárat.
 ErrorNoWarehouseSelected = Szállítmány létrehozása előtt válassz raktárat.
@@ -628,7 +628,7 @@ Notify_WARRANTYSVC_SETINPROGRESS=Garanciális igény folyamatban
 Notify_WARRANTYSVC_AWAITRETURN=Garanciális igény visszárura vár
 Notify_WARRANTYSVC_RESOLVE=Garanciális igény megoldva
 Notify_WARRANTYSVC_CLOSE=Garanciális igény lezárva
-Notify_WARRANTYSVC_CANCEL=Garanciális igény visszavonva
+Notify_WARRANTYSVC_CANCEL=Garanciális igény érvénytelenítve
 Notify_WARRANTYSVC_REOPEN=Garanciális igény újranyitva
 Notify_WARRANTYSVC_DELETE=Garanciális igény törölve
 Notify_SVCWARRANTY_CREATE=Garancia létrehozva
