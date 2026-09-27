@@ -392,8 +392,12 @@ class SvcSupplierRma extends CommonObject
 
 	public function delete($user, $notrigger = 0)
 	{
-		if (!in_array($this->status, array(self::STATUS_DRAFT, self::STATUS_CANCELLED), true)) {
-			$this->error = 'ErrorSupplierRmaDeleteStatus';
+		// Phase 1 has no stock movements yet, so an RMA may be permanently
+		// deleted from any workflow state. Once Phase 2 has created an actual
+		// movement, hard deletion is deliberately blocked to preserve stock and
+		// audit traceability.
+		if (!empty($this->fk_stock_movement_out) || !empty($this->fk_stock_movement_in)) {
+			$this->error = 'ErrorSupplierRmaDeleteStockMovements';
 			return -1;
 		}
 
@@ -506,6 +510,124 @@ class SvcSupplierRma extends CommonObject
 			$this->db->rollback();
 			return -1;
 		}
+		$this->db->commit();
+		return 1;
+	}
+
+
+	/**
+	 * Roll back one workflow step as a correction.
+	 *
+	 * The target is taken from the most recent forward STATUS event that led to
+	 * the current state. ROLLBACK events are intentionally ignored so repeated
+	 * corrections continue walking backwards instead of oscillating.
+	 *
+	 * Stock-aware guards are already present for Phase 2: once a real outbound
+	 * or inbound stock movement exists we never move the workflow to a state
+	 * that would contradict that physical movement.
+	 *
+	 * @param  User   $user User performing the correction
+	 * @param  string $note Optional audit note
+	 * @return int          1 if OK, -1 on error
+	 */
+	public function rollbackStatus($user, $note = '')
+	{
+		if ($this->status === self::STATUS_DRAFT) {
+			$this->error = 'ErrorSupplierRmaNoPreviousStatus';
+			return -1;
+		}
+
+		$sql = "SELECT old_status FROM ".MAIN_DB_PREFIX."svc_supplier_rma_log";
+		$sql .= " WHERE fk_supplier_rma = ".((int) $this->id);
+		$sql .= " AND event_code = 'STATUS'";
+		$sql .= " AND new_status = '".$this->db->escape($this->status)."'";
+		$sql .= " AND old_status IS NOT NULL AND old_status <> ''";
+		$sql .= " ORDER BY rowid DESC";
+		$sql .= $this->db->plimit(1);
+
+		$resql = $this->db->query($sql);
+		if (!$resql) {
+			$this->error = $this->db->lasterror();
+			return -1;
+		}
+		$obj = $this->db->fetch_object($resql);
+		$this->db->free($resql);
+
+		if (!$obj || empty($obj->old_status)) {
+			$this->error = 'ErrorSupplierRmaNoPreviousStatus';
+			return -1;
+		}
+
+		$oldStatus = $this->status;
+		$newStatus = (string) $obj->old_status;
+
+		// Physical stock already left our warehouse: going back before SHIPPED
+		// would make the workflow lie about where the unit is.
+		if ($oldStatus === self::STATUS_SHIPPED
+			&& $newStatus === self::STATUS_AUTHORIZED
+			&& !empty($this->fk_stock_movement_out)
+		) {
+			$this->error = 'ErrorSupplierRmaRollbackOutboundStock';
+			return -1;
+		}
+
+		// Physical stock already returned: going back before RETURNED would
+		// contradict the recorded inbound movement.
+		if ($oldStatus === self::STATUS_RETURNED && !empty($this->fk_stock_movement_in)) {
+			$this->error = 'ErrorSupplierRmaRollbackInboundStock';
+			return -1;
+		}
+
+		$sets = array(
+			"status = '".$this->db->escape($newStatus)."'",
+			"fk_user_modif = ".((int) $user->id),
+		);
+
+		// Clear timestamps introduced by the accidentally-entered state.
+		if ($oldStatus === self::STATUS_AUTHORIZED) {
+			$sets[] = "date_authorized = NULL";
+			$this->date_authorized = null;
+		} elseif ($oldStatus === self::STATUS_SHIPPED) {
+			$sets[] = "date_shipped = NULL";
+			$this->date_shipped = null;
+		} elseif ($oldStatus === self::STATUS_RECEIVED_BY_SUPPLIER) {
+			$sets[] = "date_supplier_received = NULL";
+			$this->date_supplier_received = null;
+		} elseif (in_array($oldStatus, array(self::STATUS_REPAIRED, self::STATUS_REPLACED, self::STATUS_REJECTED), true)) {
+			$sets[] = "date_supplier_completed = NULL";
+			$this->date_supplier_completed = null;
+			if ($this->result_type === $oldStatus) {
+				$sets[] = "result_type = NULL";
+				$this->result_type = '';
+			}
+		} elseif ($oldStatus === self::STATUS_RETURNED) {
+			$sets[] = "date_returned = NULL";
+			$this->date_returned = null;
+		}
+
+		$this->db->begin();
+		$sql = "UPDATE ".MAIN_DB_PREFIX."svc_supplier_rma SET ".implode(', ', $sets);
+		$sql .= " WHERE rowid = ".((int) $this->id);
+		$sql .= " AND status = '".$this->db->escape($oldStatus)."'";
+		$resql = $this->db->query($sql);
+		if (!$resql) {
+			$this->error = $this->db->lasterror();
+			$this->db->rollback();
+			return -1;
+		}
+		if ($this->db->affected_rows($resql) < 1) {
+			$this->error = 'ErrorSupplierRmaConcurrentUpdate';
+			$this->db->rollback();
+			return -1;
+		}
+
+		$this->status = $newStatus;
+		$this->fk_user_modif = (int) $user->id;
+		if ($this->logEvent('ROLLBACK', $oldStatus, $newStatus, $note, $user) < 0) {
+			$this->db->rollback();
+			return -1;
+		}
+
 		$this->db->commit();
 		return 1;
 	}
