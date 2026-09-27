@@ -183,6 +183,7 @@ class SvcWarranty extends CommonObject
 		if (!empty($this->socid) && empty($this->fk_soc)) {
 			$this->fk_soc = $this->socid;
 		}
+		$this->socid = (int) $this->fk_soc;
 
 		// Auto-compute expiry from coverage_days if not set
 		if (empty($this->expiry_date) && !empty($this->coverage_days) && !empty($this->start_date)) {
@@ -363,6 +364,11 @@ class SvcWarranty extends CommonObject
 	 */
 	public function update($user, $notrigger = 0)
 	{
+		if (!empty($this->socid) && empty($this->fk_soc)) {
+			$this->fk_soc = $this->socid;
+		}
+		$this->socid = (int) $this->fk_soc;
+
 		$sql = "UPDATE ".MAIN_DB_PREFIX."svc_warranty SET";
 		$sql .= " fk_product = ".((int) $this->fk_product);
 		$sql .= ", serial_number = ".($this->serial_number !== null && $this->serial_number !== '' ? "'".$this->db->escape($this->serial_number)."'" : "NULL");
