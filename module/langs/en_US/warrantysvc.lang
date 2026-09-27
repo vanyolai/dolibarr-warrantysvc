@@ -624,3 +624,25 @@ InterventionNotFound = Intervention not found.
 InterventionEntityMismatch = The Intervention belongs to another entity.
 InterventionThirdPartyRequired = The Intervention must have a third party before a Service Request can be created.
 ModuleInterventionNotEnabled = The Intervention module is not enabled.
+
+#
+# Standard Dolibarr notifications / email templates
+#
+WarrantySvcNotifications=Notifications
+WarrantySvcNotificationsDesc=WarrantySvc email notifications are handled by Dolibarr's standard Notifications module. Recipients and per-event email templates are configured there.
+WarrantySvcConfigureNotifications=Configure Dolibarr notifications
+WarrantySvcNotificationModuleDisabled=The Dolibarr Notifications module is not enabled.
+MailToSvcRequest=Warranty Service Request
+MailToSvcWarranty=Warranty
+Notify_WARRANTYSVC_CREATE=Warranty Service Request created
+Notify_WARRANTYSVC_ASSIGNED=Warranty Service Request assigned
+Notify_WARRANTYSVC_VALIDATE=Warranty Service Request validated
+Notify_WARRANTYSVC_SETDIAGNOSING=Warranty Service Request diagnosis started
+Notify_WARRANTYSVC_SETINPROGRESS=Warranty Service Request in progress
+Notify_WARRANTYSVC_AWAITRETURN=Warranty Service Request awaiting return
+Notify_WARRANTYSVC_RESOLVE=Warranty Service Request resolved
+Notify_WARRANTYSVC_CLOSE=Warranty Service Request closed
+Notify_WARRANTYSVC_CANCEL=Warranty Service Request cancelled
+Notify_WARRANTYSVC_REOPEN=Warranty Service Request reopened
+Notify_WARRANTYSVC_DELETE=Warranty Service Request deleted
+Notify_SVCWARRANTY_CREATE=Warranty created
