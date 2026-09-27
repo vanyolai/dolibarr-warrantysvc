@@ -216,6 +216,7 @@ class SvcRequest extends CommonObject
 		if (!empty($this->socid) && empty($this->fk_soc)) {
 			$this->fk_soc = $this->socid;
 		}
+		$this->socid = (int) $this->fk_soc;
 
 		$sql = "INSERT INTO ".MAIN_DB_PREFIX."svc_request (";
 		$sql .= " ref, entity, fk_soc, fk_product, serial_number, fk_contact, customer_site,";
@@ -283,6 +284,12 @@ class SvcRequest extends CommonObject
 				$result = $this->call_trigger('WARRANTYSVC_CREATE', $user);
 				if ($result < 0) {
 					$error++;
+				}
+				if (!$error && !empty($this->fk_user_assigned)) {
+					$result = $this->call_trigger('WARRANTYSVC_ASSIGNED', $user);
+					if ($result < 0) {
+						$error++;
+					}
 				}
 			}
 		}
@@ -443,12 +450,25 @@ class SvcRequest extends CommonObject
 	public function update($user, $notrigger = 0)
 	{
 		$error = 0;
+		$previousAssignedUser = 0;
+
+		if (!$notrigger && !empty($this->id)) {
+			$sqlAssigned = "SELECT fk_user_assigned FROM ".MAIN_DB_PREFIX."svc_request WHERE rowid = ".((int) $this->id);
+			$resAssigned = $this->db->query($sqlAssigned);
+			if ($resAssigned && ($objAssigned = $this->db->fetch_object($resAssigned))) {
+				$previousAssignedUser = (int) $objAssigned->fk_user_assigned;
+			}
+			if ($resAssigned) {
+				$this->db->free($resAssigned);
+			}
+		}
 
 		$this->db->begin();
 
 		if (!empty($this->socid) && empty($this->fk_soc)) {
 			$this->fk_soc = $this->socid;
 		}
+		$this->socid = (int) $this->fk_soc;
 
 		$sql = "UPDATE ".MAIN_DB_PREFIX."svc_request SET";
 		$sql .= " fk_soc = ".((int) $this->fk_soc);
@@ -511,6 +531,12 @@ class SvcRequest extends CommonObject
 			$result = $this->call_trigger('WARRANTYSVC_MODIFY', $user);
 			if ($result < 0) {
 				$error++;
+			}
+			if (!$error && !empty($this->fk_user_assigned) && (int) $this->fk_user_assigned !== $previousAssignedUser) {
+				$result = $this->call_trigger('WARRANTYSVC_ASSIGNED', $user);
+				if ($result < 0) {
+					$error++;
+				}
 			}
 		}
 
@@ -624,7 +650,11 @@ class SvcRequest extends CommonObject
 		}
 
 		$this->status = self::STATUS_DIAGNOSING;
-		return $this->update($user);
+		$result = $this->update($user);
+		if ($result > 0) {
+			$result = $this->call_trigger('WARRANTYSVC_SETDIAGNOSING', $user);
+		}
+		return $result;
 	}
 
 	/**
@@ -645,7 +675,11 @@ class SvcRequest extends CommonObject
 		}
 
 		$this->status = self::STATUS_IN_PROGRESS;
-		return $this->update($user);
+		$result = $this->update($user);
+		if ($result > 0) {
+			$result = $this->call_trigger('WARRANTYSVC_SETINPROGRESS', $user);
+		}
+		return $result;
 	}
 
 	/**
@@ -657,7 +691,11 @@ class SvcRequest extends CommonObject
 	public function setAwaitingReturn($user)
 	{
 		$this->status = self::STATUS_AWAIT_RETURN;
-		return $this->update($user);
+		$result = $this->update($user);
+		if ($result > 0) {
+			$result = $this->call_trigger('WARRANTYSVC_AWAITRETURN', $user);
+		}
+		return $result;
 	}
 
 	/**
@@ -669,7 +707,11 @@ class SvcRequest extends CommonObject
 	public function resolve($user)
 	{
 		$this->status = self::STATUS_RESOLVED;
-		return $this->update($user);
+		$result = $this->update($user);
+		if ($result > 0) {
+			$result = $this->call_trigger('WARRANTYSVC_RESOLVE', $user);
+		}
+		return $result;
 	}
 
 	/**
@@ -712,7 +754,11 @@ class SvcRequest extends CommonObject
 		}
 
 		$this->status = self::STATUS_CANCELLED;
-		return $this->update($user);
+		$result = $this->update($user);
+		if ($result > 0) {
+			$result = $this->call_trigger('WARRANTYSVC_CANCEL', $user);
+		}
+		return $result;
 	}
 
 	/**
@@ -726,7 +772,11 @@ class SvcRequest extends CommonObject
 		$this->status      = self::STATUS_IN_PROGRESS;
 		$this->date_closed = null;
 		$this->fk_user_close = null;
-		return $this->update($user);
+		$result = $this->update($user);
+		if ($result > 0) {
+			$result = $this->call_trigger('WARRANTYSVC_REOPEN', $user);
+		}
+		return $result;
 	}
 
 	/**
