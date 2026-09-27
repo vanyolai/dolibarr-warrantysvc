@@ -38,6 +38,9 @@ $sql .= " WHERE e.fk_soc = ".((int) $socid);
 $sql .= " AND e.fk_statut >= 1";
 $sql .= " AND e.entity IN (".getEntity('expedition').")";
 $sql .= " AND p.entity IN (".getEntity('product').")";
+if (getDolGlobalString('WARRANTYSVC_WARRANTY_REQUIRES_LOTS')) {
+	$sql .= " AND p.tobatch > 0";
+}
 $sql .= " ORDER BY p.ref ASC";
 
 $resql = $db->query($sql);
