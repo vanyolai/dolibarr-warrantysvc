@@ -85,9 +85,11 @@ After installation, go to the module's admin setup page to configure the followi
 
 WarrantySvc lifecycle emails use Dolibarr's standard **Notifications** module rather than a separate mail-recipient system. Enable the Notifications module, then configure recipients in the normal Dolibarr notification pages (user subscriptions, third-party contacts, or fixed addresses). Event-specific message content can use normal Dolibarr Email Templates of type **Warranty Service Request** or **Warranty**.
 
-WarrantySvc exposes events for Service Request creation, assignment, validation, diagnosis, In Progress, Awaiting Return, resolution, closure, cancellation, reopening and deletion, plus Warranty creation. Sent notification emails are recorded by Dolibarr in its standard notification history.
+WarrantySvc deliberately exposes only three mail-notification events: **Service Request validated**, **Service Request closed**, and **Warranty created**. Other lifecycle transitions remain normal WarrantySvc business triggers for automation/integration purposes, but are not offered as email-notification choices. Sent notification emails are recorded by Dolibarr in its standard notification history.
 
 The scheduled overdue-return reminder remains a transactional workflow email; it is not an event subscription.
+
+The standard Email Template substitution engine is extended with WarrantySvc variables: `__PRODUCT_REF__`, `__PRODUCT_LABEL__`, `__SERIAL_NUMBER__`, `__WARRANTY_STATUS__`, `__WARRANTY_START_DATE__`, `__WARRANTY_EXPIRY_DATE__`, `__ISSUE_DATE__`, `__ISSUE_DESCRIPTION__`, and `__SERVICE_REQUEST_STATUS__`.
 
 ## Usage Guide
 
