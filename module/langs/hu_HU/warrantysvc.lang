@@ -624,3 +624,25 @@ InterventionNotFound = A munkalap nem található.
 InterventionEntityMismatch = A munkalap másik entitáshoz tartozik.
 InterventionThirdPartyRequired = A munkalaphoz partner szükséges a szervizigény létrehozásához.
 ModuleInterventionNotEnabled = A Munkalap (Intervention) modul nincs engedélyezve.
+
+#
+# Standard Dolibarr notifications / email templates
+#
+WarrantySvcNotifications=Értesítések
+WarrantySvcNotificationsDesc=A WarrantySvc e-mail értesítéseit a Dolibarr szabványos Értesítések modulja kezeli. A címzettek és az eseményenkénti e-mail sablonok ott állíthatók be.
+WarrantySvcConfigureNotifications=Dolibarr értesítések beállítása
+WarrantySvcNotificationModuleDisabled=A Dolibarr Értesítések modul nincs engedélyezve.
+MailToSvcRequest=Garanciális igény
+MailToSvcWarranty=Garancia
+Notify_WARRANTYSVC_CREATE=Garanciális igény létrehozva
+Notify_WARRANTYSVC_ASSIGNED=Garanciális igény hozzárendelve
+Notify_WARRANTYSVC_VALIDATE=Garanciális igény hitelesítve
+Notify_WARRANTYSVC_SETDIAGNOSING=Garanciális igény diagnosztikája megkezdve
+Notify_WARRANTYSVC_SETINPROGRESS=Garanciális igény folyamatban
+Notify_WARRANTYSVC_AWAITRETURN=Garanciális igény visszárura vár
+Notify_WARRANTYSVC_RESOLVE=Garanciális igény megoldva
+Notify_WARRANTYSVC_CLOSE=Garanciális igény lezárva
+Notify_WARRANTYSVC_CANCEL=Garanciális igény visszavonva
+Notify_WARRANTYSVC_REOPEN=Garanciális igény újranyitva
+Notify_WARRANTYSVC_DELETE=Garanciális igény törölve
+Notify_SVCWARRANTY_CREATE=Garancia létrehozva
