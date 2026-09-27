@@ -315,17 +315,17 @@ class pdf_svcrequest_standard extends ModelePDFWarrantySvc
 
 		// ---- ISSUE DESCRIPTION ----
 		if (!empty($object->issue_description) && !$hidedesc) {
+			$pdf->SetFillColor(242, 242, 242);
 			$pdf->SetFont('', 'B', $default_font_size);
 			$pdf->SetXY($this->marge_gauche, $curY);
-			$pdf->Cell($usablewidth, $heightrow, $outputlangs->transnoentities('IssueDescription'), 0, 1, 'L');
-			$curY += $heightrow;
+			$pdf->Cell($usablewidth, 6, '  '.$outputlangs->transnoentities('IssueDescription'), 0, 1, 'L', 1);
+			$curY += 8;
 
 			$pdf->SetFont('', '', $default_font_size - 1);
-			$pdf->SetXY($this->marge_gauche, $curY);
+			$pdf->SetXY($this->marge_gauche + 1, $curY);
 			$desctext = strip_tags(str_replace('<br>', "\n", $object->issue_description));
-			$nblines  = $pdf->getNumLines($desctext, $usablewidth);
-			$pdf->MultiCell($usablewidth, $heightrow, $outputlangs->convToOutputCharset($desctext), 0, 'L', false, 1);
-			$curY = $pdf->GetY() + 3;
+			$pdf->MultiCell($usablewidth - 2, $heightrow, $outputlangs->convToOutputCharset($desctext), 0, 'L', false, 1);
+			$curY = $pdf->GetY() + 4;
 		}
 
 		// ---- COMPONENT LINES TABLE ----
@@ -496,7 +496,7 @@ class pdf_svcrequest_standard extends ModelePDFWarrantySvc
 
 		if ($showaddress) {
 			$pdf->SetTextColor(70, 70, 70);
-			$pdf->SetFont('', '', $default_font_size - 2);
+			$pdf->SetFont('', '', $default_font_size - 1);
 
 			if (empty($mysoc->logo) || getDolGlobalInt('PDF_DISABLE_MYCOMPANY_LOGO')) {
 				$pdf->SetFont('', 'B', $default_font_size - 1);
@@ -512,7 +512,7 @@ class pdf_svcrequest_standard extends ModelePDFWarrantySvc
 
 			if (!empty($addressLine)) {
 				$pdf->SetXY($this->marge_gauche, $companyY);
-				$pdf->MultiCell($leftw, 3.3, $outputlangs->convToOutputCharset($addressLine), 0, 'L');
+				$pdf->MultiCell($leftw, 3.8, $outputlangs->convToOutputCharset($addressLine), 0, 'L');
 				$companyY = $pdf->GetY();
 			}
 
@@ -525,12 +525,12 @@ class pdf_svcrequest_standard extends ModelePDFWarrantySvc
 			}
 			if (!empty($contactParts)) {
 				$pdf->SetXY($this->marge_gauche, $companyY);
-				$pdf->MultiCell($leftw, 3.3, $outputlangs->convToOutputCharset(implode(' - ', $contactParts)), 0, 'L');
+				$pdf->MultiCell($leftw, 3.8, $outputlangs->convToOutputCharset(implode(' - ', $contactParts)), 0, 'L');
 				$companyY = $pdf->GetY();
 			}
 			if (!empty($mysoc->url)) {
 				$pdf->SetXY($this->marge_gauche, $companyY);
-				$pdf->MultiCell($leftw, 3.3, $outputlangs->convToOutputCharset($mysoc->url), 0, 'L');
+				$pdf->MultiCell($leftw, 3.8, $outputlangs->convToOutputCharset($mysoc->url), 0, 'L');
 				$companyY = $pdf->GetY();
 			}
 		}
@@ -664,16 +664,17 @@ class pdf_svcrequest_standard extends ModelePDFWarrantySvc
 		$leftX = $this->marge_gauche;
 		$rightX = $this->marge_gauche + $colw + $colgap;
 
+		$pdf->SetFillColor(247, 247, 247);
 		$pdf->SetXY($leftX, $y);
 		$pdf->SetFont('', 'B', $fontSize);
-		$pdf->Cell($labelw, $lineHeight, $outputlangs->convToOutputCharset((string) $leftLabel).':', 0, 0, 'L');
+		$pdf->Cell($labelw, $rowHeight, $outputlangs->convToOutputCharset((string) $leftLabel).':', 0, 0, 'L', 1);
 		$pdf->SetXY($leftX + $labelw, $y);
 		$pdf->SetFont('', '', $fontSize);
 		$pdf->MultiCell($valuew, $lineHeight, $leftValueText, 0, 'L', false, 0);
 
 		$pdf->SetXY($rightX, $y);
 		$pdf->SetFont('', 'B', $fontSize);
-		$pdf->Cell($labelw, $lineHeight, $outputlangs->convToOutputCharset((string) $rightLabel).':', 0, 0, 'L');
+		$pdf->Cell($labelw, $rowHeight, $outputlangs->convToOutputCharset((string) $rightLabel).':', 0, 0, 'L', 1);
 		$pdf->SetXY($rightX + $labelw, $y);
 		$pdf->SetFont('', '', $fontSize);
 		$pdf->MultiCell($valuew, $lineHeight, $rightValueText, 0, 'L', false, 0);
@@ -693,9 +694,10 @@ class pdf_svcrequest_standard extends ModelePDFWarrantySvc
 		$lines = max(1, $pdf->getNumLines($valueText, $valuew));
 		$rowHeight = max($lineHeight, $lines * $lineHeight);
 
+		$pdf->SetFillColor(247, 247, 247);
 		$pdf->SetXY($this->marge_gauche, $y);
 		$pdf->SetFont('', 'B', $fontSize);
-		$pdf->Cell($labelw, $lineHeight, $outputlangs->convToOutputCharset((string) $label).':', 0, 0, 'L');
+		$pdf->Cell($labelw, $rowHeight, $outputlangs->convToOutputCharset((string) $label).':', 0, 0, 'L', 1);
 		$pdf->SetXY($this->marge_gauche + $labelw, $y);
 		$pdf->SetFont('', '', $fontSize);
 		$pdf->MultiCell($valuew, $lineHeight, $valueText, 0, 'L', false, 0);
