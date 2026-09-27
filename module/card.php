@@ -478,7 +478,7 @@ if ($action == 'create') {
 	$prefill_project = GETPOST('fk_project', 'int');
 
 	// Customer
-	print '<tr><td class="fieldrequired">'.$langs->trans('Company').'</td>';
+	print '<tr><td class="fieldrequired">'.$langs->trans('ThirdParty').'</td>';
 	print '<td>'.$form->select_company($prefill_soc, 'fk_soc', '(s.client:IN:1,3)', 1, 0, 0, array(), 0, 'minwidth300').'</td></tr>';
 
 	$prefill_warranty = (int) GETPOST('fk_warranty', 'int');
@@ -628,23 +628,23 @@ if ($action == 'create') {
 	var warrantyRows = [];
 
 	var txt = {
-		selectCustomer: "'.dol_escape_js($langs->trans('SelectCustomerForWarrantyUnits')).'",
-		noWarranties: "'.dol_escape_js($langs->trans('NoWarrantiesForCustomer')).'",
-		noMatches: "'.dol_escape_js($langs->trans('NoWarrantiesMatchFilter')).'",
-		active: "'.dol_escape_js($langs->trans('SvcActive')).'",
-		expired: "'.dol_escape_js($langs->trans('SvcExpired')).'",
-		noSerial: "'.dol_escape_js($langs->trans('NoSerialNumber')).'",
-		coveredQty: "'.dol_escape_js($langs->trans('WarrantyCoveredQuantity', '__QTY__')).'",
-		manual: "'.dol_escape_js($langs->trans('CreateClaimWithoutWarranty')).'",
-		back: "'.dol_escape_js($langs->trans('BackToWarrantySelection')).'",
-		pickCust: "'.dol_escape_js($langs->trans('SelectCustomerFirst')).'",
-		pickProd: "'.dol_escape_js($langs->trans('SelectProductFirst')).'",
-		pickSel: "'.dol_escape_js($langs->trans('SelectProduct')).'",
-		noProd: "'.dol_escape_js($langs->trans('NoProductForCustomer')).'",
-		pickSer: "\u2014 '.dol_escape_js($langs->trans('SelectSerial')).' \u2014",
-		noSerialAvail: "'.dol_escape_js($langs->trans('NoSerialsAvailable')).'",
-		noProj: "'.dol_escape_js($langs->trans('NoProjectForCustomer')).'",
-		pickProj: "\u2014 '.dol_escape_js($langs->trans('SelectProject')).' \u2014"
+		selectCustomer: "'.dol_escape_js($langs->transnoentitiesnoconv('SelectCustomerForWarrantyUnits')).'",
+		noWarranties: "'.dol_escape_js($langs->transnoentitiesnoconv('NoWarrantiesForCustomer')).'",
+		noMatches: "'.dol_escape_js($langs->transnoentitiesnoconv('NoWarrantiesMatchFilter')).'",
+		active: "'.dol_escape_js($langs->transnoentitiesnoconv('SvcActive')).'",
+		expired: "'.dol_escape_js($langs->transnoentitiesnoconv('SvcExpired')).'",
+		noSerial: "'.dol_escape_js($langs->transnoentitiesnoconv('NoSerialNumber')).'",
+		coveredQty: "'.dol_escape_js($langs->transnoentitiesnoconv('WarrantyCoveredQuantity', '__QTY__')).'",
+		manual: "'.dol_escape_js($langs->transnoentitiesnoconv('CreateClaimWithoutWarranty')).'",
+		back: "'.dol_escape_js($langs->transnoentitiesnoconv('BackToWarrantySelection')).'",
+		pickCust: "'.dol_escape_js($langs->transnoentitiesnoconv('SelectCustomerFirst')).'",
+		pickProd: "'.dol_escape_js($langs->transnoentitiesnoconv('SelectProductFirst')).'",
+		pickSel: "'.dol_escape_js($langs->transnoentitiesnoconv('SelectProduct')).'",
+		noProd: "'.dol_escape_js($langs->transnoentitiesnoconv('NoProductForCustomer')).'",
+		pickSer: "\u2014 '.dol_escape_js($langs->transnoentitiesnoconv('SelectSerial')).' \u2014",
+		noSerialAvail: "'.dol_escape_js($langs->transnoentitiesnoconv('NoSerialsAvailable')).'",
+		noProj: "'.dol_escape_js($langs->transnoentitiesnoconv('NoProjectForCustomer')).'",
+		pickProj: "\u2014 '.dol_escape_js($langs->transnoentitiesnoconv('SelectProject')).' \u2014"
 	};
 
 	function notifySelect2(el){
@@ -676,8 +676,8 @@ if ($action == 'create') {
 	function statusBadge(row){
 		var status = effectiveStatus(row);
 		var label = status === "active" ? txt.active : txt.expired;
-		var cls = status === "active" ? "status1" : "status8";
-		return "<span class=\"badge " + cls + "\">" + esc(label) + "</span>";
+		var cls = status === "active" ? "badge-status4" : "badge-status8";
+		return "<span class=\"badge badge-status " + cls + "\">" + esc(label) + "</span>";
 	}
 
 	function selectWarranty(id){
@@ -783,7 +783,7 @@ if ($action == 'create') {
 			.catch(function(){
 				warrantyRows = [];
 				warrantySearch.disabled = true;
-				warrantyMessage.textContent = "'.dol_escape_js($langs->trans('ErrorLoadingWarrantyUnits')).'";
+				warrantyMessage.textContent = "'.dol_escape_js($langs->transnoentitiesnoconv('ErrorLoadingWarrantyUnits')).'";
 				warrantyMessage.style.display = "";
 				warrantyWrap.style.display = "none";
 				updateSubmitState();
