@@ -632,3 +632,16 @@ Notify_WARRANTYSVC_CANCEL=Warranty Service Request cancelled
 Notify_WARRANTYSVC_REOPEN=Warranty Service Request reopened
 Notify_WARRANTYSVC_DELETE=Warranty Service Request deleted
 Notify_SVCWARRANTY_CREATE=Warranty created
+
+#
+# WarrantySvc substitution variables
+#
+SubstProductRef=Product reference
+SubstProductLabel=Product label
+SubstSerialNumber=Serial number
+SubstWarrantyStatus=Warranty status
+SubstWarrantyStartDate=Warranty start date
+SubstWarrantyExpiryDate=Warranty expiry date
+SubstIssueDate=Issue date
+SubstIssueDescription=Issue description
+SubstServiceRequestStatus=Current Service Request status
