@@ -147,6 +147,78 @@ function warrantysvc_default_customer_email_receivers($object)
 
 
 /**
+ * Return array of tabs for a Supplier RMA card.
+ *
+ * @param  SvcSupplierRma $object Supplier RMA object
+ * @return array
+ */
+function svcsupplierrma_prepare_head($object)
+{
+	global $langs, $conf;
+
+	$langs->loadLangs(array('warrantysvc@warrantysvc'));
+	$head = array();
+	$h = 0;
+
+	$head[$h][0] = DOL_URL_ROOT.'/custom/warrantysvc/supplier_rma_card.php?id='.$object->id;
+	$head[$h][1] = $langs->trans('SupplierRmaDetails');
+	$head[$h][2] = 'card';
+	$h++;
+
+	$internalContacts = $object->liste_contact(-1, 'internal');
+	$externalContacts = $object->liste_contact(-1, 'external');
+	$nbContacts = (is_array($internalContacts) ? count($internalContacts) : 0)
+		+ (is_array($externalContacts) ? count($externalContacts) : 0);
+	$head[$h][0] = DOL_URL_ROOT.'/custom/warrantysvc/supplier_rma_contact.php?id='.$object->id;
+	$head[$h][1] = $langs->trans('ContactsAddresses');
+	if ($nbContacts > 0) {
+		$head[$h][1] .= '<span class="badge marginleftonlyshort">'.$nbContacts.'</span>';
+	}
+	$head[$h][2] = 'contact';
+	$h++;
+
+	complete_head_from_modules($conf, $langs, $object, $head, $h, 'svcsupplierrma@warrantysvc');
+	return $head;
+}
+
+
+/**
+ * Return native FormMail receiver keys for a supplier-facing RMA email.
+ *
+ * Explicit Supplier Service contacts on the RMA win. If none of those have
+ * an email address, fall back to the supplier's default company email.
+ *
+ * @param  SvcSupplierRma $object Supplier RMA
+ * @return array<int,string|int>
+ */
+function warrantysvc_default_supplier_email_receivers($object)
+{
+	$receivers = array();
+	$contacts = $object->liste_contact(-1, 'external', 0, 'SUPPLIER_SERVICE', 1);
+	if (is_array($contacts)) {
+		foreach ($contacts as $contact) {
+			if ((int) $contact['socid'] === (int) $object->fk_soc_supplier && !empty($contact['email'])) {
+				$receivers[(int) $contact['id']] = (int) $contact['id'];
+			}
+		}
+	}
+	if (!empty($receivers)) {
+		return array_values($receivers);
+	}
+
+	if (!is_object($object->thirdparty)) {
+		$object->socid = (int) $object->fk_soc_supplier;
+		$object->fetch_thirdparty();
+	}
+	if (is_object($object->thirdparty) && !empty($object->thirdparty->email)) {
+		return array('thirdparty');
+	}
+
+	return array();
+}
+
+
+/**
  * Return array of tabs for a SvcWarranty card
  *
  * @param  SvcWarranty $object SvcWarranty object
