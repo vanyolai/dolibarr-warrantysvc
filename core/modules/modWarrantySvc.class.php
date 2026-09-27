@@ -380,19 +380,9 @@ class modWarrantySvc extends DolibarrModules
 	private function syncNotificationEventCatalog()
 	{
 		$events = array(
-			array('WARRANTYSVC_CREATE', 'Service Request created', 'Executed when a WarrantySvc Service Request is created', 'svcrequest', 510),
 			array('WARRANTYSVC_ASSIGNED', 'Service Request assigned', 'Executed when a WarrantySvc Service Request is assigned to a user', 'svcrequest', 511),
-			array('WARRANTYSVC_VALIDATE', 'Service Request validated', 'Executed when a WarrantySvc Service Request is validated', 'svcrequest', 512),
-			array('WARRANTYSVC_SETDIAGNOSING', 'Service Request diagnosis started', 'Executed when a WarrantySvc Service Request enters diagnosis', 'svcrequest', 513),
-			array('WARRANTYSVC_SETINPROGRESS', 'Service Request in progress', 'Executed when a WarrantySvc Service Request enters In Progress', 'svcrequest', 514),
-			array('WARRANTYSVC_AWAITRETURN', 'Service Request awaiting return', 'Executed when a WarrantySvc Service Request waits for a return', 'svcrequest', 515),
-			array('WARRANTYSVC_RESOLVE', 'Service Request resolved', 'Executed when a WarrantySvc Service Request is resolved', 'svcrequest', 516),
-			array('WARRANTYSVC_CLOSE', 'Service Request closed', 'Executed when a WarrantySvc Service Request is closed', 'svcrequest', 517),
-			array('WARRANTYSVC_CANCEL', 'Service Request cancelled', 'Executed when a WarrantySvc Service Request is cancelled', 'svcrequest', 518),
-			array('WARRANTYSVC_REOPEN', 'Service Request reopened', 'Executed when a WarrantySvc Service Request is reopened', 'svcrequest', 519),
-			array('WARRANTYSVC_DELETE', 'Service Request deleted', 'Executed when a WarrantySvc Service Request is deleted', 'svcrequest', 520),
 			array('SVCWARRANTY_CREATE', 'Warranty created', 'Executed when a WarrantySvc warranty record is created', 'svcwarranty', 521),
-		);
+		)
 
 		foreach ($events as $event) {
 			list($code, $label, $description, $elementtype, $rang) = $event;
