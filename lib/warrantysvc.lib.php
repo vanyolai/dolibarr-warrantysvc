@@ -219,6 +219,41 @@ function warrantysvc_default_supplier_email_receivers($object)
 
 
 /**
+ * Check whether a Product is eligible for a new Service Request under the
+ * optional "serialized/LOT products only" policy.
+ *
+ * When the setting is disabled all products remain eligible. When enabled,
+ * Dolibarr's native Product::tobatch flag is authoritative.
+ *
+ * @param  DoliDB $db        Database handler
+ * @param  int    $productId Product id
+ * @return bool
+ */
+function warrantysvc_service_request_product_allowed($db, $productId)
+{
+	$productId = (int) $productId;
+	if ($productId <= 0) {
+		return false;
+	}
+	if (!getDolGlobalString('WARRANTYSVC_WARRANTY_REQUIRES_LOTS')) {
+		return true;
+	}
+
+	$sql = "SELECT p.tobatch FROM ".MAIN_DB_PREFIX."product p";
+	$sql .= " WHERE p.rowid = ".$productId;
+	$sql .= " AND p.entity IN (".getEntity('product').")";
+	$resql = $db->query($sql);
+	if (!$resql) {
+		return false;
+	}
+	$obj = $db->fetch_object($resql);
+	$db->free($resql);
+
+	return $obj && (int) $obj->tobatch > 0;
+}
+
+
+/**
  * Return array of tabs for a SvcWarranty card
  *
  * @param  SvcWarranty $object SvcWarranty object
