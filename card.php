@@ -24,6 +24,9 @@ require_once DOL_DOCUMENT_ROOT.'/custom/warrantysvc/lib/warrantysvc.lib.php';
 
 $langs->loadLangs(array('warrantysvc@warrantysvc', 'companies', 'bills', 'stocks'));
 
+// Standard Dolibarr card/email hooks used by the native presend form.
+$hookmanager->initHooks(array('warrantysvccard', 'globalcard'));
+
 $id         = GETPOST('id', 'int');
 $ref        = GETPOST('ref', 'alpha');
 $action     = GETPOST('action', 'aZ09');
@@ -41,6 +44,7 @@ if ($id > 0 || $ref) {
 		dol_print_error($db, $object->error);
 		exit;
 	}
+	$object->fetch_thirdparty();
 }
 
 // Permission checks
@@ -65,6 +69,12 @@ $types_no_movement     = array('guidance', 'informational');
  */
 $error = 0;
 $backurlforlist = DOL_URL_ROOT.'/custom/warrantysvc/list.php';
+
+// Standard document/email form options. card_presend.tpl.php can generate the
+// current Service Request PDF on demand and attach it to the outgoing message.
+$hidedetails = GETPOSTINT('hidedetails') ? 1 : (getDolGlobalString('MAIN_GENERATE_DOCUMENTS_HIDE_DETAILS') ? 1 : 0);
+$hidedesc = GETPOSTINT('hidedesc') ? 1 : (getDolGlobalString('MAIN_GENERATE_DOCUMENTS_HIDE_DESC') ? 1 : 0);
+$hideref = GETPOSTINT('hideref') ? 1 : (getDolGlobalString('MAIN_GENERATE_DOCUMENTS_HIDE_REF') ? 1 : 0);
 
 if (empty($backtopage) || ($cancel && empty($id))) {
 	if (empty($backtopage) || ($cancel && strpos($backtopage, '__ID__'))) {
@@ -450,6 +460,16 @@ if ($action == 'remove_orphan_return_link' && $permwrite) {
 		header('Location: '.$_SERVER['PHP_SELF'].'?id='.$object->id);
 		exit;
 	}
+}
+
+// Native Dolibarr email sending. This intentionally uses the core mail form
+// instead of a WarrantySvc-specific sender so recipient selection, templates,
+// attachments, signatures and agenda logging behave like other Dolibarr objects.
+if ($object->id > 0 && $permwrite) {
+	$triggersendname = '';
+	$autocopy = '';
+	$trackid = 'wsvcsr'.$object->id;
+	include DOL_DOCUMENT_ROOT.'/core/actions_sendmails.inc.php';
 }
 
 /*
@@ -1586,6 +1606,12 @@ if ($action == 'create') {
 			print '<a href="'.$_SERVER['PHP_SELF'].'?id='.$object->id.'&action=edit&token='.newToken().'" class="butAction">'.$langs->trans('Modify').'</a>';
 		}
 
+		// Native Dolibarr email form: partner + partner contacts, svcrequest
+		// templates, WarrantySvc substitutions and optional PDF attachment.
+		if ($permwrite && $action != 'presend') {
+			print dolGetButtonAction('', $langs->trans('SendMail'), 'email', dolBuildUrl($_SERVER['PHP_SELF'], array('id' => $object->id, 'action' => 'presend', 'mode' => 'init'), true).'#formmailbeforetitle', '');
+		}
+
 		// DRAFT → Validate
 		if ($s == SvcRequest::STATUS_DRAFT && $permvalidate) {
 			print '<a href="'.$_SERVER['PHP_SELF'].'?id='.$object->id.'&action=confirm_validate&token='.newToken().'" class="butAction">'.$langs->trans('ValidateSvcRequest').'</a>';
@@ -1708,6 +1734,22 @@ if ($action == 'create') {
 
 		print '</table>';
 		print '</div>';
+	}
+
+	// Selecting an email model reloads the same native presend form.
+	if (GETPOST('modelselected')) {
+		$action = 'presend';
+	}
+
+	if ($action == 'presend' && $permwrite) {
+		$modelmail = 'svcrequest';
+		$defaulttopic = 'SvcRequestEmailSubject';
+		$defaulttopiclang = 'warrantysvc@warrantysvc';
+		$diroutput = !empty($conf->warrantysvc->multidir_output[$object->entity])
+			? $conf->warrantysvc->multidir_output[$object->entity]
+			: (!empty($conf->warrantysvc->dir_output) ? $conf->warrantysvc->dir_output : DOL_DATA_ROOT.'/warrantysvc');
+		$trackid = 'wsvcsr'.$object->id;
+		include DOL_DOCUMENT_ROOT.'/core/tpl/card_presend.tpl.php';
 	}
 }
 
