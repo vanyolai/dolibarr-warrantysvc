@@ -1568,6 +1568,7 @@ class SvcRequest extends CommonObject
 		$statusLabels = array(
 			self::STATUS_DRAFT        => array('label' => 'SvcDraft',        'picto' => 'status0'),
 			self::STATUS_VALIDATED    => array('label' => 'SvcValidated',    'picto' => 'status1'),
+			self::STATUS_DIAGNOSING   => array('label' => 'SvcDiagnosing',   'picto' => 'status2'),
 			self::STATUS_IN_PROGRESS  => array('label' => 'SvcInProgress',   'picto' => 'status3'),
 			self::STATUS_AWAIT_RETURN => array('label' => 'AwaitingReturn','picto' => 'status4'),
 			self::STATUS_RESOLVED     => array('label' => 'SvcResolved',     'picto' => 'status6'),
