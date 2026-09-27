@@ -105,14 +105,18 @@
 
 ### 2.8 Standard Dolibarr Notifications
 - [ ] Disable/enable WarrantySvc once after upgrading so the new action catalog and hook contexts are registered
-- [ ] Open Dolibarr Notifications setup and verify WarrantySvc Service Request / Warranty events are listed
-- [ ] Open a user Notifications tab and verify WarrantySvc events can be subscribed using the normal Dolibarr UI
+- [ ] Open Dolibarr Notifications setup and verify only three WarrantySvc mail events are listed: `WARRANTYSVC_VALIDATE`, `WARRANTYSVC_CLOSE`, `SVCWARRANTY_CREATE`
+- [ ] Open a user Notifications tab and verify the same three WarrantySvc events can be subscribed using the normal Dolibarr UI
 - [ ] Open Email Templates and verify **Warranty Service Request** and **Warranty** are available template types
-- [ ] With no WarrantySvc event subscription configured, assign/validate an SR — verify no module-specific direct email is sent
-- [ ] Subscribe a test user or fixed address to `WARRANTYSVC_ASSIGNED`; assign/reassign an SR — verify one notification is sent through Dolibarr
+- [ ] With no WarrantySvc event subscription configured, validate/close an SR — verify no module-specific direct email is sent
+- [ ] Subscribe a test user or fixed address to `WARRANTYSVC_VALIDATE`; validate an SR — verify one notification is sent through Dolibarr
 - [ ] Verify the sent message is recorded in Dolibarr notification history (`llx_notify`)
+- [ ] In fixed-address automatic notifications, verify the amount threshold field is not shown for the three WarrantySvc rows
 - [ ] Subscribe a customer contact to a WarrantySvc create event and verify a freshly created SR/garancia can notify through the normal third-party-contact subscription path
 - [ ] Configure an event-specific Email Template and verify its subject/body substitutions are used
+- [ ] Verify the Email Template variable help lists `__PRODUCT_REF__`, `__PRODUCT_LABEL__`, `__SERIAL_NUMBER__`, `__WARRANTY_STATUS__`, `__WARRANTY_START_DATE__`, `__WARRANTY_EXPIRY_DATE__`, `__ISSUE_DATE__`, `__ISSUE_DESCRIPTION__`, `__SERVICE_REQUEST_STATUS__`
+- [ ] Send a Service Request notification and verify all applicable WarrantySvc variables are replaced with real values
+- [ ] Send a Warranty-created notification and verify Product/serial/warranty dates/status are replaced with real values
 - [ ] Verify Warranty creation uses `SVCWARRANTY_CREATE` subscriptions instead of the removed WarrantySvc-specific notify toggle
 
 ---
