@@ -81,6 +81,16 @@ class ActionsWarrantySvc
 				'classfile'     => 'svcrequest',
 				'classname'     => 'SvcRequest',
 			);
+		} elseif ($elementType === 'svcsupplierrma' || $elementType === 'warrantysvc_svcsupplierrma') {
+			$this->results = array(
+				'module'        => 'warrantysvc',
+				'element'       => 'svcsupplierrma',
+				'table_element' => 'svc_supplier_rma',
+				'subelement'    => 'svcsupplierrma',
+				'classpath'     => 'custom/warrantysvc/class',
+				'classfile'     => 'svcsupplierrma',
+				'classname'     => 'SvcSupplierRma',
+			);
 		}
 
 		return 0;
@@ -487,6 +497,9 @@ class ActionsWarrantySvc
 		if ($user->hasRight('warrantysvc', 'svcwarranty', 'read')) {
 			$this->results['svcwarranty'] = img_picto('', 'bill', 'class="pictofixedwidth"').dol_escape_htmltag($langs->trans('MailToSvcWarranty'));
 		}
+		if ($user->hasRight('warrantysvc', 'supplierrma', 'read')) {
+			$this->results['svcsupplierrma'] = img_picto('', 'tools', 'class="pictofixedwidth"').dol_escape_htmltag($langs->trans('MailToSupplierRma'));
+		}
 
 		return 0;
 	}
@@ -517,7 +530,7 @@ class ActionsWarrantySvc
 			}
 		}
 
-		foreach (array('svcrequest', 'svcwarranty') as $element) {
+		foreach (array('svcrequest', 'svcwarranty', 'svcsupplierrma') as $element) {
 			if (!isset($conf->{$element}) || !is_object($conf->{$element})) {
 				$conf->{$element} = new stdClass();
 			}
