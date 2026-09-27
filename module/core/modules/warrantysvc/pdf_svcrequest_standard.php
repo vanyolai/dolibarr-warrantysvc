@@ -34,6 +34,9 @@ class pdf_svcrequest_standard extends ModelePDFWarrantySvc
 	/** @var int Version */
 	public $version = 1;
 
+	/** @var int Update SvcRequest::last_main_doc after generation */
+	public $update_main_doc_field = 1;
+
 	/** @var string Dolibarr version compatibility */
 	public $phpmin = array(7, 0);
 
@@ -111,12 +114,15 @@ class pdf_svcrequest_standard extends ModelePDFWarrantySvc
 			$object->fetchLines();
 		}
 
-		$dir = $conf->warrantysvc->multidir_output[$object->entity] ?? $conf->warrantysvc->dir_output;
-		if (empty($dir)) {
+		$baseDir = $conf->warrantysvc->multidir_output[$object->entity] ?? $conf->warrantysvc->dir_output;
+		if (empty($baseDir)) {
 			$this->error = $langs->trans('ErrorWarrantySvcOutputDirNotConfigured');
 			return -1;
 		}
 
+		// Keep every Service Request's generated and attached documents together,
+		// matching the standard Dolibarr document-tab directory layout.
+		$dir = $baseDir.'/'.dol_sanitizeFileName($object->ref);
 		if (!file_exists($dir)) {
 			if (dol_mkdir($dir) < 0) {
 				$this->error = $langs->trans('ErrorCanNotCreateDir', $dir);
@@ -124,7 +130,7 @@ class pdf_svcrequest_standard extends ModelePDFWarrantySvc
 			}
 		}
 
-		$filename = 'SvcRequest_'.$object->ref.'.pdf';
+		$filename = 'SvcRequest_'.dol_sanitizeFileName($object->ref).'.pdf';
 		$filepath = $dir.'/'.$filename;
 
 		// Instantiate PDF
