@@ -26,6 +26,11 @@
 - Existing upstream schemas are upgraded explicitly and idempotently before normal module table loading.
 
 ### Fixed
+- Service Request PDF generation now uses Dolibarr 23's actual PDF helper signatures and core primitives; the removed `pdf_logo_and_address()` call and several latent page-dimension/helper-argument mismatches are gone.
+- The Diagnosing service-request status is now mapped by `SvcRequest::LibStatut()` and no longer appears as `Unknown` / `Ismeretlen` in the card banner.
+- Customer Return is available during diagnosis independently of Resolution Type. A physical return is treated as diagnostic logistics, not as a final solution choice.
+- Completing diagnosis no longer requires a Resolution Type. The solution/work-path selector appears from In Progress onward, when the diagnosis can actually support that decision.
+- Validating a linked Customer Return records receipt and keeps/resumes the request in diagnosis instead of automatically treating receipt as progression toward a known solution.
 - Dolibarr 23 queries that referenced the removed/nonexistent `expeditiondet_batch.fk_lot` relationship.
 - Misleading "all serials already covered" behaviour caused by failed cross-collation serial comparisons.
 - Unique-serial schema assumptions that prevented legitimate resale/re-warranty workflows.
