@@ -187,8 +187,6 @@ class pdf_svcrequest_standard extends ModelePDFWarrantySvc
 
 		$pdf->AddPage();
 
-		$tab_top        = 62;    // Y below compact header block
-		$tab_top_newpage = 20;
 		$heightrow      = 5;     // row height mm
 
 		// ---- PAGE WIDTH ----
@@ -196,10 +194,9 @@ class pdf_svcrequest_standard extends ModelePDFWarrantySvc
 		$usablewidth = $pagewidth - $this->marge_gauche - $this->marge_droite;
 
 		// ---- HEADER ----
-		$this->_pagehead($pdf, $object, 1, $outputlangs);
+		$curY = $this->_pagehead($pdf, $object, 1, $outputlangs) + 5;
 
 		// ---- INFO BLOCK ----
-		$curY = $tab_top;
 		$curY = pdf_writeLinkedObjects(
 			$pdf,
 			$object,
@@ -216,7 +213,7 @@ class pdf_svcrequest_standard extends ModelePDFWarrantySvc
 		// printable width instead of overflowing into the second column.
 		$colgap = 8;
 		$colw = ($usablewidth - $colgap) / 2;
-		$labelw = 35;
+		$labelw = 40;
 		$valuew = $colw - $labelw;
 		$pdf->SetFont('', '', $default_font_size - 1);
 
@@ -353,8 +350,7 @@ class pdf_svcrequest_standard extends ModelePDFWarrantySvc
 			foreach ($object->lines as $line) {
 				if ($pdf->GetY() > (297 - $this->marge_basse - 30)) {
 					$pdf->AddPage();
-					$this->_pagehead($pdf, $object, 0, $outputlangs);
-					$curY = $tab_top_newpage;
+					$curY = $this->_pagehead($pdf, $object, 0, $outputlangs) + 5;
 					$pdf->SetXY($this->marge_gauche, $curY);
 				}
 
@@ -452,7 +448,7 @@ class pdf_svcrequest_standard extends ModelePDFWarrantySvc
 	 * @param SvcRequest $object    Object
 	 * @param int      $showaddress 1=show company address
 	 * @param Translate $outputlangs Lang
-	 * @return void
+	 * @return float Bottom Y coordinate of the rendered header
 	 */
 	private function _pagehead(&$pdf, $object, $showaddress, $outputlangs)
 	{
@@ -530,6 +526,7 @@ class pdf_svcrequest_standard extends ModelePDFWarrantySvc
 			if (!empty($mysoc->url)) {
 				$pdf->SetXY($this->marge_gauche, $companyY);
 				$pdf->MultiCell($leftw, 3.3, $outputlangs->convToOutputCharset($mysoc->url), 0, 'L');
+				$companyY = $pdf->GetY();
 			}
 		}
 
@@ -554,15 +551,28 @@ class pdf_svcrequest_standard extends ModelePDFWarrantySvc
 			'R'
 		);
 
+		$rightEndY = $posy + 17;
 		if ($object->billable) {
 			$pdf->SetFont('', 'B', $default_font_size - 1);
 			$pdf->SetTextColor(180, 0, 0);
 			$pdf->SetXY($rightx, $posy + 18);
 			$pdf->MultiCell($rightw, 3.5, $outputlangs->transnoentities('Billable'), 0, 'R');
+			$rightEndY = max($rightEndY, $pdf->GetY());
 		}
+
+		$headerBottom = max($showaddress ? $companyY : $posy, $rightEndY) + 3;
+		$pdf->SetDrawColor(205, 205, 205);
+		$pdf->Line(
+			$this->marge_gauche,
+			$headerBottom,
+			$this->page_largeur - $this->marge_droite,
+			$headerBottom
+		);
 
 		$pdf->SetTextColor(0, 0, 0);
 		$pdf->SetFont('', '', $default_font_size - 1);
+
+		return $headerBottom;
 	}
 
 	/**
