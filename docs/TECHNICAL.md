@@ -294,7 +294,7 @@ Registered in module descriptor `module_parts['hooks']`:
 | `productcard` | `doActions()` | On product update action: persists the per-product warranty type/days to `llx_warrantysvc_product_default`. |
 | `commonobject` | `showLinkToObjectBlock()` | Adds "Link to warranty" and "Link to service request" entries in the "Link to..." dropdown on all Dolibarr object cards. |
 | `ordercard` | `formObjectOptions()` | On order creation with `rma_sr_id` in GET: injects hidden `origin` + `originid` fields to auto-link the new SO to the originating SR. |
-| `notification` | `notifsupported()` | Registers only the three user-facing email events (`WARRANTYSVC_VALIDATE`, `WARRANTYSVC_CLOSE`, `SVCWARRANTY_CREATE`) with Dolibarr's standard Notification module and provides output-directory aliases for the custom objects. |
+| `notification` | `notifsupported()` | Registers only the two user-facing email events (`WARRANTYSVC_ASSIGNED`, `SVCWARRANTY_CREATE`) with Dolibarr's standard Notification module and provides output-directory aliases for the custom objects. |
 | `emailtemplates` | `emailElementlist()` | Adds `svcrequest` and `svcwarranty` as standard Dolibarr email-template object types. |
 | `main` | `addHtmlHeader()` | On the core Notification setup page, removes the meaningless net-amount threshold editor from the three WarrantySvc fixed-email rows; the core Notification backend remains unchanged and uses threshold zero. |
 
@@ -308,13 +308,13 @@ Class: `InterfaceWarrantySvcTrigger` (extends `DolibarrTriggers`)
 | Trigger Code | Source | Action |
 |-------------|--------|--------|
 | `WARRANTYSVC_CREATE` | SvcRequest created | Syncs `claim_count` on linked warranty. Business trigger only; not exposed as an email-notification choice. |
-| `WARRANTYSVC_ASSIGNED` | SvcRequest assigned/reassigned | Emitted when `fk_user_assigned` changes to a user. Business trigger only; not exposed as an email-notification choice. |
-| `WARRANTYSVC_VALIDATE` | SvcRequest validated | Syncs `claim_count`; exposed as a standard Dolibarr email-notification event. |
+| `WARRANTYSVC_ASSIGNED` | SvcRequest assigned/reassigned | Emitted when `fk_user_assigned` changes to a user. Exposed as the Service Request email-notification event. |
+| `WARRANTYSVC_VALIDATE` | SvcRequest validated | Syncs `claim_count`; internal business event, not exposed as an email-notification choice. |
 | `WARRANTYSVC_SETDIAGNOSING` | Diagnosis started | Business trigger only; not exposed as an email-notification choice. |
 | `WARRANTYSVC_SETINPROGRESS` | SvcRequest set in progress | Business trigger only; not exposed as an email-notification choice. |
 | `WARRANTYSVC_AWAITRETURN` | SvcRequest awaiting return | Business trigger only; not exposed as an email-notification choice. |
 | `WARRANTYSVC_RESOLVE` | SvcRequest resolved | Business trigger only; not exposed as an email-notification choice. |
-| `WARRANTYSVC_CLOSE` | SvcRequest closed | Exposed as a standard Dolibarr email-notification event; the WarrantySvc trigger itself only logs the close. |
+| `WARRANTYSVC_CLOSE` | SvcRequest closed | Internal business event; the WarrantySvc trigger itself only logs the close. |
 | `WARRANTYSVC_CANCEL` | SvcRequest cancelled | Business trigger only; not exposed as an email-notification choice. |
 | `WARRANTYSVC_REOPEN` | SvcRequest reopened | Business trigger only; not exposed as an email-notification choice. |
 | `WARRANTYSVC_DELETE` | SvcRequest deleted | Business trigger only; not exposed as an email-notification choice. |
