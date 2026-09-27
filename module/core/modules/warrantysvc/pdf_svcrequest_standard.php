@@ -501,7 +501,7 @@ class pdf_svcrequest_standard extends ModelePDFWarrantySvc
 			if (empty($mysoc->logo) || getDolGlobalInt('PDF_DISABLE_MYCOMPANY_LOGO')) {
 				$pdf->SetFont('', 'B', $default_font_size - 1);
 				$pdf->SetXY($this->marge_gauche, $companyY);
-				$pdf->MultiCell($leftw, 3.5, $outputlangs->convToOutputCharset($mysoc->name), 0, 'L');
+				$pdf->MultiCell($leftw, 3.5, $outputlangs->convToOutputCharset($mysoc->name), 0, 'C');
 				$companyY = $pdf->GetY();
 				$pdf->SetFont('', '', $default_font_size - 2);
 			}
@@ -512,7 +512,7 @@ class pdf_svcrequest_standard extends ModelePDFWarrantySvc
 
 			if (!empty($addressLine)) {
 				$pdf->SetXY($this->marge_gauche, $companyY);
-				$pdf->MultiCell($leftw, 3.8, $outputlangs->convToOutputCharset($addressLine), 0, 'L');
+				$pdf->MultiCell($leftw, 3.8, $outputlangs->convToOutputCharset($addressLine), 0, 'C');
 				$companyY = $pdf->GetY();
 			}
 
@@ -525,12 +525,12 @@ class pdf_svcrequest_standard extends ModelePDFWarrantySvc
 			}
 			if (!empty($contactParts)) {
 				$pdf->SetXY($this->marge_gauche, $companyY);
-				$pdf->MultiCell($leftw, 3.8, $outputlangs->convToOutputCharset(implode(' - ', $contactParts)), 0, 'L');
+				$pdf->MultiCell($leftw, 3.8, $outputlangs->convToOutputCharset(implode(' - ', $contactParts)), 0, 'C');
 				$companyY = $pdf->GetY();
 			}
 			if (!empty($mysoc->url)) {
 				$pdf->SetXY($this->marge_gauche, $companyY);
-				$pdf->MultiCell($leftw, 3.8, $outputlangs->convToOutputCharset($mysoc->url), 0, 'L');
+				$pdf->MultiCell($leftw, 3.8, $outputlangs->convToOutputCharset($mysoc->url), 0, 'C');
 				$companyY = $pdf->GetY();
 			}
 		}
@@ -638,8 +638,8 @@ class pdf_svcrequest_standard extends ModelePDFWarrantySvc
 		$pdf->Cell($colw, 5, $outputlangs->transnoentities('CustomerSignature'),   0, 0, 'C');
 		$pdf->Cell($colw, 5, $outputlangs->transnoentities('DateSigned'),          0, 1, 'C');
 
-		// Blank lines for signatures
-		$sigY += 12;
+		// Leave enough vertical space for a real handwritten signature.
+		$sigY += 24;
 		$pdf->SetFont('', '', $default_font_size - 1);
 		$pdf->Line($this->marge_gauche,             $sigY, $this->marge_gauche + $colw - 5,             $sigY);
 		$pdf->Line($this->marge_gauche + $colw,     $sigY, $this->marge_gauche + $colw * 2 - 5,         $sigY);
