@@ -1644,6 +1644,186 @@ class SvcRequest extends CommonObject
 	}
 
 	/**
+	 * Factory: create a SvcRequest pre-populated from a core Intervention.
+	 *
+	 * The Intervention remains the work-sheet source of truth. This method only
+	 * imports stable intake context (customer, project, date, description) and
+	 * links the new draft Service Request back to it. Product/serial/warranty
+	 * identity is supplied explicitly by the caller so WarrantySvc does not need
+	 * to know anything about the module that initiated the hand-off.
+	 *
+	 * Supported options:
+	 * - fk_product, serial_number, fk_warranty
+	 * - fk_contact, customer_site, fk_project
+	 * - issue_description, issue_date, fk_user_assigned
+	 * - reported_via, note_private, note_public
+	 *
+	 * @param  int   $fichinter_id Intervention ID
+	 * @param  User  $user         User creating the request
+	 * @param  array $options      Intake overrides / asset identity
+	 * @return int                 >0 = new SvcRequest ID, <0 = error
+	 */
+	public function createFromIntervention($fichinter_id, $user, $options = array())
+	{
+		global $conf;
+
+		if (empty($fichinter_id)) {
+			$this->error = 'MissingInterventionId';
+			return -1;
+		}
+		if (!isModEnabled('ficheinter')) {
+			$this->error = 'ModuleInterventionNotEnabled';
+			return -1;
+		}
+
+		require_once DOL_DOCUMENT_ROOT.'/fichinter/class/fichinter.class.php';
+		require_once DOL_DOCUMENT_ROOT.'/custom/warrantysvc/class/svcwarranty.class.php';
+
+		$intervention = new Fichinter($this->db);
+		$result = $intervention->fetch((int) $fichinter_id);
+		if ($result <= 0) {
+			$this->error = $result < 0 ? $intervention->error : 'InterventionNotFound';
+			$this->errors = $intervention->errors;
+			return -1;
+		}
+		if (!empty($intervention->entity) && (int) $intervention->entity !== (int) $conf->entity) {
+			$this->error = 'InterventionEntityMismatch';
+			return -1;
+		}
+
+		$interventionSocId = !empty($intervention->socid)
+			? (int) $intervention->socid
+			: (!empty($intervention->fk_soc) ? (int) $intervention->fk_soc : 0);
+		if ($interventionSocId <= 0) {
+			$this->error = 'InterventionThirdPartyRequired';
+			return -1;
+		}
+
+		$this->fk_soc = $interventionSocId;
+		$this->fk_intervention = (int) $fichinter_id;
+		$this->fk_project = !empty($intervention->fk_project)
+			? (int) $intervention->fk_project
+			: (!empty($intervention->fk_projet) ? (int) $intervention->fk_projet : 0);
+		$this->issue_description = !empty($intervention->description)
+			? trim(strip_tags($intervention->description))
+			: '';
+		$this->issue_date = !empty($intervention->datei)
+			? $intervention->datei
+			: (!empty($intervention->datec) ? $intervention->datec : dol_now());
+		$this->reported_via = 'intervention';
+
+		$allowed = array(
+			'fk_product',
+			'serial_number',
+			'fk_warranty',
+			'fk_contact',
+			'customer_site',
+			'fk_project',
+			'issue_description',
+			'issue_date',
+			'fk_user_assigned',
+			'reported_via',
+			'note_private',
+			'note_public',
+		);
+		foreach ($allowed as $field) {
+			if (array_key_exists($field, $options)) {
+				$this->$field = $options[$field];
+			}
+		}
+
+		$this->fk_product = (int) $this->fk_product;
+		$this->fk_warranty = (int) $this->fk_warranty;
+		$this->fk_contact = (int) $this->fk_contact;
+		$this->fk_project = (int) $this->fk_project;
+		$this->fk_user_assigned = (int) $this->fk_user_assigned;
+		$this->serial_number = trim((string) $this->serial_number);
+
+		$warranty = null;
+		if ($this->fk_warranty > 0) {
+			$warranty = new SvcWarranty($this->db);
+			if ($warranty->fetch($this->fk_warranty) <= 0) {
+				$this->error = 'ErrorWarrantyNotFound';
+				return -1;
+			}
+			if ((int) $warranty->entity !== (int) $conf->entity || (int) $warranty->fk_soc !== (int) $this->fk_soc) {
+				$this->error = 'ErrorWarrantyDoesNotMatchClaim';
+				return -1;
+			}
+			if ($this->fk_product > 0 && (int) $warranty->fk_product !== (int) $this->fk_product) {
+				$this->error = 'ErrorWarrantyDoesNotMatchClaim';
+				return -1;
+			}
+			if ($this->serial_number !== '' && (string) $warranty->serial_number !== '' && (string) $warranty->serial_number !== $this->serial_number) {
+				$this->error = 'ErrorWarrantyDoesNotMatchClaim';
+				return -1;
+			}
+			if ($warranty->status === SvcWarranty::STATUS_VOIDED) {
+				$this->error = 'ErrorVoidedWarrantyClaim';
+				return -1;
+			}
+		} elseif ($this->fk_product > 0 && $this->serial_number !== '' && getDolGlobalInt('WARRANTYSVC_AUTO_WARRANTY_CHECK')) {
+			$sql = "SELECT rowid FROM ".MAIN_DB_PREFIX."svc_warranty";
+			$sql .= " WHERE entity = ".((int) $conf->entity);
+			$sql .= " AND fk_soc = ".((int) $this->fk_soc);
+			$sql .= " AND fk_product = ".((int) $this->fk_product);
+			$sql .= " AND serial_number = '".$this->db->escape($this->serial_number)."'";
+			$sql .= " ORDER BY rowid DESC LIMIT 1";
+			$resql = $this->db->query($sql);
+			if (!$resql) {
+				$this->error = $this->db->lasterror();
+				return -1;
+			}
+			$obj = $this->db->fetch_object($resql);
+			$this->db->free($resql);
+			if ($obj) {
+				$warranty = new SvcWarranty($this->db);
+				if ($warranty->fetch((int) $obj->rowid) <= 0) {
+					$this->error = $warranty->error;
+					$this->errors = $warranty->errors;
+					return -1;
+				}
+				if ($warranty->status === SvcWarranty::STATUS_VOIDED) {
+					$warranty = null;
+				} else {
+					$this->fk_warranty = (int) $warranty->id;
+				}
+			}
+		}
+
+		if (is_object($warranty)) {
+			$this->fk_product = (int) $warranty->fk_product;
+			$this->serial_number = (string) $warranty->serial_number;
+			$this->fk_warranty = (int) $warranty->id;
+			$this->warranty_status = $warranty->getStatusAt($this->issue_date);
+			$this->billable = ($this->warranty_status === SvcWarranty::STATUS_ACTIVE) ? 0 : 1;
+		} else {
+			if ($this->fk_product <= 0) {
+				$this->error = 'ErrorFieldRequired';
+				$this->errors = array('Product');
+				return -1;
+			}
+			$this->fk_warranty = null;
+			$this->warranty_status = 'none';
+			$this->billable = 1;
+		}
+
+		// Intake never decides a solution path. The normal diagnosis-first
+		// lifecycle starts from this draft request.
+		$this->resolution_type = null;
+		$this->status = self::STATUS_DRAFT;
+
+		$result = $this->create($user);
+		if ($result <= 0) {
+			return $result;
+		}
+
+		$this->syncLinkedObjects();
+		return $result;
+	}
+
+
+	/**
 	 * Factory: create a SvcRequest pre-populated from a CRM phone call (actioncomm)
 	 *
 	 * Reads the actioncomm record to pull: fk_soc, fk_contact, description,
@@ -1688,7 +1868,6 @@ class SvcRequest extends CommonObject
 		$this->issue_date      = $this->db->jdate($call->datep);
 		$this->reported_via    = 'phone';
 		$this->fk_pbxcall      = $actioncomm_id;
-		$this->resolution_type = 'guidance'; // default — agent will update
 
 		if (empty($this->fk_user_assigned) && !empty($call->fk_user_action)) {
 			$this->fk_user_assigned = $call->fk_user_action;
