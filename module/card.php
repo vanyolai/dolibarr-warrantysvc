@@ -20,6 +20,7 @@ require_once DOL_DOCUMENT_ROOT.'/core/lib/date.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/custom/warrantysvc/class/svcrequest.class.php';
 require_once DOL_DOCUMENT_ROOT.'/custom/warrantysvc/class/svcrequestline.class.php';
 require_once DOL_DOCUMENT_ROOT.'/custom/warrantysvc/class/svcwarranty.class.php';
+require_once DOL_DOCUMENT_ROOT.'/custom/warrantysvc/class/svcsupplierrma.class.php';
 require_once DOL_DOCUMENT_ROOT.'/custom/warrantysvc/lib/warrantysvc.lib.php';
 
 $langs->loadLangs(array('warrantysvc@warrantysvc', 'companies', 'bills', 'stocks'));
@@ -53,6 +54,8 @@ $permwrite   = $user->hasRight('warrantysvc', 'svcrequest', 'write');
 $permdelete  = $user->hasRight('warrantysvc', 'svcrequest', 'delete');
 $permvalidate= $user->hasRight('warrantysvc', 'svcrequest', 'validate');
 $permclose   = $user->hasRight('warrantysvc', 'svcrequest', 'close');
+$permsupplierrmaread = $user->hasRight('warrantysvc', 'supplierrma', 'read');
+$permsupplierrmawrite = $user->hasRight('warrantysvc', 'supplierrma', 'write');
 
 if (!$permread) { accessforbidden(); }
 
@@ -1741,6 +1744,63 @@ if ($action == 'create') {
 
 		print '</table>';
 		print '</div>';
+	}
+
+	// =====================================================================
+	// SUPPLIER SERVICE / RMA — child lifecycle objects
+	// =====================================================================
+	if ($permsupplierrmaread && $object->id > 0 && $action != 'edit') {
+		$supplierRmas = SvcSupplierRma::fetchAllForServiceRequest($db, $object->id, $object->entity);
+		print '<br>';
+		print '<a name="supplier-rma"></a>';
+		print load_fiche_titre($langs->trans('SupplierServiceRma'), '', 'tools');
+		print '<div class="div-table-responsive">';
+		print '<table class="noborder centpercent">';
+		print '<tr class="liste_titre">';
+		print '<td>'.$langs->trans('Ref').'</td>';
+		print '<td>'.$langs->trans('Supplier').'</td>';
+		print '<td>'.$langs->trans('SupplierRmaExternalRef').'</td>';
+		print '<td>'.$langs->trans('Status').'</td>';
+		print '<td>'.$langs->trans('OutboundTracking').'</td>';
+		print '<td>'.$langs->trans('ReturnTracking').'</td>';
+		print '</tr>';
+
+		if (empty($supplierRmas)) {
+			print '<tr class="oddeven"><td colspan="6"><span class="opacitymedium">'.$langs->trans('NoSupplierRma').'</span></td></tr>';
+		} else {
+			foreach ($supplierRmas as $supplierRma) {
+				$supplier = new Societe($db);
+				$supplierLabel = '—';
+				if ($supplier->fetch($supplierRma->fk_soc_supplier) > 0) {
+					$supplierLabel = $supplier->getNomUrl(1, 'supplier');
+				}
+				$outbound = dol_escape_htmltag($supplierRma->outbound_tracking ?: '—');
+				if (!empty($supplierRma->outbound_tracking) && !empty($supplierRma->outbound_tracking_url)) {
+					$outbound = '<a href="'.dol_escape_htmltag($supplierRma->outbound_tracking_url).'" target="_blank" rel="noopener">'.$outbound.'</a>';
+				}
+				$returnTracking = dol_escape_htmltag($supplierRma->return_tracking ?: '—');
+				if (!empty($supplierRma->return_tracking) && !empty($supplierRma->return_tracking_url)) {
+					$returnTracking = '<a href="'.dol_escape_htmltag($supplierRma->return_tracking_url).'" target="_blank" rel="noopener">'.$returnTracking.'</a>';
+				}
+
+				print '<tr class="oddeven">';
+				print '<td>'.$supplierRma->getNomUrl(1).'</td>';
+				print '<td>'.$supplierLabel.'</td>';
+				print '<td>'.dol_escape_htmltag($supplierRma->supplier_rma_ref ?: '—').'</td>';
+				print '<td>'.$supplierRma->getLibStatut().'</td>';
+				print '<td>'.$outbound.'</td>';
+				print '<td>'.$returnTracking.'</td>';
+				print '</tr>';
+			}
+		}
+		print '</table>';
+		print '</div>';
+
+		if ($permsupplierrmawrite) {
+			print '<div class="tabsAction">';
+			print '<a class="butAction" href="'.DOL_URL_ROOT.'/custom/warrantysvc/supplier_rma_card.php?action=create&fk_svc_request='.$object->id.'">'.$langs->trans('CreateSupplierRma').'</a>';
+			print '</div>';
+		}
 	}
 
 	// Selecting an email model reloads the same native presend form.
