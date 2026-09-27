@@ -150,11 +150,21 @@ class pdf_svcrequest_standard extends ModelePDFWarrantySvc
 			}
 		}
 
-		$filename = 'SvcRequest_'.dol_sanitizeFileName($object->ref).'.pdf';
+		$filename = dol_sanitizeFileName($object->ref).'.pdf';
 		$filepath = $dir.'/'.$filename;
+		$legacyFilepath = $dir.'/SvcRequest_'.dol_sanitizeFileName($object->ref).'.pdf';
 
 		// Instantiate PDF
 		$pdf = pdf_getInstance($this->page_format, $this->page_unit, $this->page_orientation);
+		$default_font_size = pdf_getPDFFontSize($outputlangs);
+		$pdfFont = pdf_getPDFFont($outputlangs);
+		// Dolibarr hu_HU currently selects Helvetica for PDF output, but TCPDF's
+		// built-in Helvetica does not contain the Hungarian double-acute glyphs.
+		// Use a Unicode font unless the administrator explicitly forced one.
+		if (class_exists('TCPDF') && !getDolGlobalString('MAIN_PDF_FORCE_FONT')) {
+			$pdfFont = 'dejavusans';
+		}
+		$pdf->SetFont($pdfFont);
 
 		if (class_exists('TCPDF')) {
 			$pdf->setPrintHeader(false);
@@ -179,7 +189,6 @@ class pdf_svcrequest_standard extends ModelePDFWarrantySvc
 
 		$tab_top        = 90;    // Y below header block
 		$tab_top_newpage = 20;
-		$default_font_size = pdf_getPDFFontSize($outputlangs);
 		$heightrow      = 5;     // row height mm
 
 		// ---- PAGE WIDTH ----
@@ -203,44 +212,96 @@ class pdf_svcrequest_standard extends ModelePDFWarrantySvc
 			$default_font_size - 1
 		);
 
-		// Two-column info table
-		$colw = $usablewidth / 2;
+		// Compact object summary. Long values (especially Product) get the full
+		// printable width instead of overflowing into the second column.
+		$colgap = 8;
+		$colw = ($usablewidth - $colgap) / 2;
+		$labelw = 35;
+		$valuew = $colw - $labelw;
 		$pdf->SetFont('', '', $default_font_size - 1);
 
-		// Left column: Customer / Product / Serial / Issue Date
-		$leftcol = array(
-			array($outputlangs->transnoentities('Customer'),     $this->_getCustomerName($object)),
-			array($outputlangs->transnoentities('Product'),      $this->_getProductLabel($object)),
-			array($outputlangs->transnoentities('SvcSerialNumber'), $object->serial_number),
-			array($outputlangs->transnoentities('IssueDate'),    dol_print_date($object->issue_date, 'day', false, $outputlangs)),
+		$pairedRows = array(
+			array(
+				$outputlangs->transnoentities('Customer'),
+				$this->_getCustomerName($object),
+				$outputlangs->transnoentities('WarrantyStatus'),
+				svcwarranty_status_badge(!empty($object->warranty_status) ? $object->warranty_status : 'none', 1),
+			),
+			array(
+				$outputlangs->transnoentities('SvcSerialNumber'),
+				$object->serial_number,
+				$outputlangs->transnoentities('AssignedTo'),
+				$this->_getAssignedUser($object),
+			),
+			array(
+				$outputlangs->transnoentities('IssueDate'),
+				dol_print_date($object->issue_date, 'day', false, $outputlangs),
+				$outputlangs->transnoentities('Status'),
+				svcrequest_status_badge($object->status, 1),
+			),
 		);
-		// Right column: Resolution / Warranty / Assigned / Status
-		$rightcol = array(
-			array($outputlangs->transnoentities('ResolutionType'), svcrequest_resolution_label($object->resolution_type)),
-			array($outputlangs->transnoentities('WarrantyStatus'),  $object->warranty_status ? $outputlangs->transnoentities(ucfirst($object->warranty_status)) : $outputlangs->transnoentities('NoCoverage')),
-			array($outputlangs->transnoentities('AssignedTo'),      $this->_getAssignedUser($object)),
-			array($outputlangs->transnoentities('Status'),          svcrequest_status_badge($object->status, 1)),
+
+		// Customer / warranty.
+		$curY = $this->_printInfoPair(
+			$pdf,
+			$outputlangs,
+			$curY,
+			$pairedRows[0][0],
+			$pairedRows[0][1],
+			$pairedRows[0][2],
+			$pairedRows[0][3],
+			$colw,
+			$colgap,
+			$labelw,
+			$heightrow,
+			$default_font_size - 1
 		);
 
-		$labelw = 42;
-		$valuew = $colw - $labelw - 2;
+		// Product gets its own full-width row so long labels wrap cleanly.
+		$curY = $this->_printInfoFullRow(
+			$pdf,
+			$outputlangs,
+			$curY,
+			$outputlangs->transnoentities('Product'),
+			$this->_getProductLabel($object),
+			$usablewidth,
+			$labelw,
+			$heightrow,
+			$default_font_size - 1
+		);
 
-		for ($i = 0; $i < count($leftcol); $i++) {
-			// Left cell label
-			$pdf->SetXY($this->marge_gauche, $curY);
-			$pdf->SetFont('', 'B', $default_font_size - 1);
-			$pdf->Cell($labelw, $heightrow, $outputlangs->convToOutputCharset($leftcol[$i][0]).':', 0, 0, 'L');
-			$pdf->SetFont('', '', $default_font_size - 1);
-			$pdf->Cell($valuew, $heightrow, $outputlangs->convToOutputCharset($leftcol[$i][1]), 0, 0, 'L');
+		// Serial / assignee and issue date / status.
+		for ($i = 1; $i < count($pairedRows); $i++) {
+			$curY = $this->_printInfoPair(
+				$pdf,
+				$outputlangs,
+				$curY,
+				$pairedRows[$i][0],
+				$pairedRows[$i][1],
+				$pairedRows[$i][2],
+				$pairedRows[$i][3],
+				$colw,
+				$colgap,
+				$labelw,
+				$heightrow,
+				$default_font_size - 1
+			);
+		}
 
-			// Right cell label
-			$pdf->SetX($this->marge_gauche + $colw + 2);
-			$pdf->SetFont('', 'B', $default_font_size - 1);
-			$pdf->Cell($labelw, $heightrow, $outputlangs->convToOutputCharset($rightcol[$i][0]).':', 0, 0, 'L');
-			$pdf->SetFont('', '', $default_font_size - 1);
-			$pdf->Cell($valuew, $heightrow, $outputlangs->convToOutputCharset($rightcol[$i][1]), 0, 1, 'L');
-
-			$curY += $heightrow;
+		// Resolution belongs to the post-diagnosis workflow; do not print an empty
+		// label while the request is still being diagnosed.
+		if (!empty($object->resolution_type)) {
+			$curY = $this->_printInfoFullRow(
+				$pdf,
+				$outputlangs,
+				$curY,
+				$outputlangs->transnoentities('ResolutionType'),
+				svcrequest_resolution_label($object->resolution_type),
+				$usablewidth,
+				$labelw,
+				$heightrow,
+				$default_font_size - 1
+			);
 		}
 
 		$curY += 3;
@@ -371,6 +432,9 @@ class pdf_svcrequest_standard extends ModelePDFWarrantySvc
 
 		// ---- OUTPUT ----
 		$pdf->Output($filepath, 'F');
+		if ($legacyFilepath !== $filepath && is_file($legacyFilepath)) {
+			@unlink($legacyFilepath);
+		}
 		$this->result = array('fullpath' => $filepath);
 
 		return 1;
@@ -540,6 +604,64 @@ class pdf_svcrequest_standard extends ModelePDFWarrantySvc
 		$pdf->Line($this->marge_gauche + $colw,     $sigY, $this->marge_gauche + $colw * 2 - 5,         $sigY);
 		$pdf->Line($this->marge_gauche + $colw * 2, $sigY, $this->marge_gauche + $colw * 3 - 5,         $sigY);
 	}
+
+	/**
+	 * Print one two-column summary row with wrapping values.
+	 *
+	 * @return float Y position after the row
+	 */
+	private function _printInfoPair(&$pdf, $outputlangs, $y, $leftLabel, $leftValue, $rightLabel, $rightValue, $colw, $colgap, $labelw, $lineHeight, $fontSize)
+	{
+		$leftValueText = $outputlangs->convToOutputCharset((string) $leftValue);
+		$rightValueText = $outputlangs->convToOutputCharset((string) $rightValue);
+		$valuew = $colw - $labelw;
+
+		$leftLines = max(1, $pdf->getNumLines($leftValueText, $valuew));
+		$rightLines = max(1, $pdf->getNumLines($rightValueText, $valuew));
+		$rowHeight = max($lineHeight, max($leftLines, $rightLines) * $lineHeight);
+
+		$leftX = $this->marge_gauche;
+		$rightX = $this->marge_gauche + $colw + $colgap;
+
+		$pdf->SetXY($leftX, $y);
+		$pdf->SetFont('', 'B', $fontSize);
+		$pdf->Cell($labelw, $lineHeight, $outputlangs->convToOutputCharset((string) $leftLabel).':', 0, 0, 'L');
+		$pdf->SetXY($leftX + $labelw, $y);
+		$pdf->SetFont('', '', $fontSize);
+		$pdf->MultiCell($valuew, $lineHeight, $leftValueText, 0, 'L', false, 0);
+
+		$pdf->SetXY($rightX, $y);
+		$pdf->SetFont('', 'B', $fontSize);
+		$pdf->Cell($labelw, $lineHeight, $outputlangs->convToOutputCharset((string) $rightLabel).':', 0, 0, 'L');
+		$pdf->SetXY($rightX + $labelw, $y);
+		$pdf->SetFont('', '', $fontSize);
+		$pdf->MultiCell($valuew, $lineHeight, $rightValueText, 0, 'L', false, 0);
+
+		return $y + $rowHeight;
+	}
+
+	/**
+	 * Print one full-width summary row with a wrapping value.
+	 *
+	 * @return float Y position after the row
+	 */
+	private function _printInfoFullRow(&$pdf, $outputlangs, $y, $label, $value, $usablewidth, $labelw, $lineHeight, $fontSize)
+	{
+		$valueText = $outputlangs->convToOutputCharset((string) $value);
+		$valuew = $usablewidth - $labelw;
+		$lines = max(1, $pdf->getNumLines($valueText, $valuew));
+		$rowHeight = max($lineHeight, $lines * $lineHeight);
+
+		$pdf->SetXY($this->marge_gauche, $y);
+		$pdf->SetFont('', 'B', $fontSize);
+		$pdf->Cell($labelw, $lineHeight, $outputlangs->convToOutputCharset((string) $label).':', 0, 0, 'L');
+		$pdf->SetXY($this->marge_gauche + $labelw, $y);
+		$pdf->SetFont('', '', $fontSize);
+		$pdf->MultiCell($valuew, $lineHeight, $valueText, 0, 'L', false, 0);
+
+		return $y + $rowHeight;
+	}
+
 
 	/**
 	 * Fetch and return customer name string
