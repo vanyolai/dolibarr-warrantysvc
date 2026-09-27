@@ -67,7 +67,6 @@ if ($action == 'update') {
 			'WARRANTYSVC_AUTO_WARRANTY_ON_SHIPMENT',
 			'WARRANTYSVC_WARRANTY_TRIGGER_EVENT',
 			'WARRANTYSVC_AUTO_WARRANTY_ON_ORDER_CLOSE',
-			'WARRANTYSVC_NOTIFY_WARRANTY_CREATED',
 			'WARRANTYSVC_WARRANTY_REQUIRES_LOTS',
 			'WARRANTYSVC_USE_CUSTOMERRETURN',
 			'WARRANTYSVC_DEBUG_MODE',
@@ -271,13 +270,16 @@ if ($duration_source === 'warranty_type') {
 	print '</td></tr>';
 }
 
-// Notify customer when warranty created
+// Notifications are managed by Dolibarr's standard Notification module.
 print '<tr class="oddeven">';
-print '<td>'.$langs->trans('NotifyWarrantyCreated').'<br><span class="opacitymedium">'
-	.$langs->trans('NotifyWarrantyCreatedDesc').'</span></td>';
+print '<td>'.$langs->trans('WarrantySvcNotifications').'<br><span class="opacitymedium">'
+	.$langs->trans('WarrantySvcNotificationsDesc').'</span></td>';
 print '<td>';
-$chk3 = getDolGlobalString('WARRANTYSVC_NOTIFY_WARRANTY_CREATED') ? ' checked' : '';
-print '<input type="checkbox" name="WARRANTYSVC_NOTIFY_WARRANTY_CREATED" value="1"'.$chk3.'>';
+if (isModEnabled('notification')) {
+	print '<a class="button" href="'.DOL_URL_ROOT.'/admin/notification.php">'.$langs->trans('WarrantySvcConfigureNotifications').'</a>';
+} else {
+	print '<span class="warning">'.$langs->trans('WarrantySvcNotificationModuleDisabled').'</span>';
+}
 print '</td></tr>';
 
 // Restrict service requests to serialized/lot-tracked products only
