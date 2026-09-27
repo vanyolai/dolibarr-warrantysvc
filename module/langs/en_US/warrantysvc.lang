@@ -155,6 +155,7 @@ ValidateSvcRequest = Validate
 BeginDiagnosis = Begin Diagnosis
 OpenTroubleshoot = Open Troubleshoot
 SetInProgress = Set In Progress
+CompleteDiagnosis = Complete Diagnosis
 SendReplacement = Send Replacement
 ReceiveReturn = Receive Return
 CreateIntervention = Create Intervention
@@ -362,6 +363,7 @@ WarrantyRequiresLotsDesc = When enabled, the product selector on warranty claim 
 UseCustomerReturns = Use Customer Returns module for inbound returns
 UseCustomerReturnsDesc = When enabled, the "Create Return" button on warranty claims will open the Customer Returns module instead of creating a native Reception. This provides stock movement tracking, credit note generation, and a dedicated return document.
 CustomerReturnModuleNotInstalled = The Customer Returns module is not installed or enabled. Install it from the Modules page to use this feature.
+CustomerReturn = Customer Return
 CreateCustomerReturn = Create Customer Return
 NumberingModule = Reference Numbering Module
 
