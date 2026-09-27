@@ -486,12 +486,13 @@ class SvcSupplierRma extends CommonObject
 		$sql = "UPDATE ".MAIN_DB_PREFIX."svc_supplier_rma SET ".implode(', ', $sets);
 		$sql .= " WHERE rowid = ".((int) $this->id);
 		$sql .= " AND status = '".$this->db->escape($oldStatus)."'";
-		if (!$this->db->query($sql)) {
+		$resql = $this->db->query($sql);
+		if (!$resql) {
 			$this->error = $this->db->lasterror();
 			$this->db->rollback();
 			return -1;
 		}
-		if ($this->db->affected_rows($this->db->lastquery()) < 1) {
+		if ($this->db->affected_rows($resql) < 1) {
 			$this->error = 'ErrorSupplierRmaConcurrentUpdate';
 			$this->db->rollback();
 			return -1;
