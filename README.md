@@ -52,7 +52,7 @@ A dedicated "Warranties" tab appears on each customer's third-party card, showin
 | Dolibarr | Fork tested/targeted for 23.x; upstream supports older versions |
 | PHP | Use the PHP version supported by the installed Dolibarr 23 release |
 | **Required modules** | Third Parties, Products, Stock |
-| **Optional modules** | Shipments, Orders, Projects, Customer Returns |
+| **Optional modules** | Shipments, Orders, Projects, Customer Returns, Notifications |
 
 Enabling optional modules unlocks additional features such as auto-warranty creation on shipment and RMA-initiated returns.
 
@@ -80,6 +80,14 @@ After installation, go to the module's admin setup page to configure the followi
 - **Warranty Creation Trigger** -- Choose the shipment event used for automatic warranty creation
 - **Warranty Duration Source** -- Choose either Product field (calendar months) or Warranty Type / upstream logic
 - **Product Warranty Duration Field** -- In Product-field mode, select the integer Product extrafield that stores the customer warranty in months
+
+### Notifications
+
+WarrantySvc lifecycle emails use Dolibarr's standard **Notifications** module rather than a separate mail-recipient system. Enable the Notifications module, then configure recipients in the normal Dolibarr notification pages (user subscriptions, third-party contacts, or fixed addresses). Event-specific message content can use normal Dolibarr Email Templates of type **Warranty Service Request** or **Warranty**.
+
+WarrantySvc exposes events for Service Request creation, assignment, validation, diagnosis, In Progress, Awaiting Return, resolution, closure, cancellation, reopening and deletion, plus Warranty creation. Sent notification emails are recorded by Dolibarr in its standard notification history.
+
+The scheduled overdue-return reminder remains a transactional workflow email; it is not an event subscription.
 
 ## Usage Guide
 
