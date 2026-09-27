@@ -79,11 +79,11 @@ function warrantysvc_completesubstitutionarray(&$substitutionarray, $outputlangs
 		$statusLabels = array(
 			0 => 'SvcDraft',
 			1 => 'SvcValidated',
-			2 => 'SvcDiagnosing',
-			3 => 'SvcInProgress',
-			4 => 'AwaitingReturn',
-			5 => 'SvcResolved',
-			6 => 'SvcClosed',
+			2 => 'SvcInProgress',
+			3 => 'AwaitingReturn',
+			4 => 'SvcResolved',
+			5 => 'SvcClosed',
+			6 => 'SvcDiagnosing',
 			9 => 'SvcCancelled',
 		);
 		$statusCode = isset($object->status) ? (int) $object->status : -1;
