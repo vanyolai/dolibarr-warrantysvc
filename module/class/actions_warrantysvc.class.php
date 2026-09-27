@@ -441,8 +441,7 @@ class ActionsWarrantySvc
 		}
 
 		$codes = array(
-			'WARRANTYSVC_VALIDATE',
-			'WARRANTYSVC_CLOSE',
+			'WARRANTYSVC_ASSIGNED',
 			'SVCWARRANTY_CREATE',
 		);
 
