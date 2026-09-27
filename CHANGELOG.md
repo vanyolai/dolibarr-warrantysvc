@@ -3,6 +3,8 @@
 ## [Unreleased] - Dolibarr 23 fork
 
 ### Added
+- WarrantySvc lifecycle events are now registered in Dolibarr's central `c_action_trigger` catalog and exposed through the standard Notification module. Service Request create/assign/validate/diagnose/in-progress/await-return/resolve/close/cancel/reopen/delete and Warranty create can use the same user, third-party-contact and fixed-address subscriptions as native Dolibarr events.
+- `svcrequest` and `svcwarranty` are now registered as standard Dolibarr Email Template types, so Notification events can use templates managed under Tools / Email templates instead of module-hardcoded mail bodies.
 - Added a module-neutral Intervention intake factory (`SvcRequest::createFromIntervention`) and REST endpoint (`POST /warrantysvc/requests/createfromintervention/{id}`) so Field Service or other modules can hand off a work sheet without writing WarrantySvc tables directly. The factory inherits stable Intervention context, validates Product/serial/warranty ownership, creates a Draft SR and links it through the existing `fk_intervention`/`element_element` mechanism.
 - Restored the Service Request Documents tab with standard Dolibarr file attachments, links and PDF generation.
 - New Warranty Claim now uses a customer warranty/device table instead of chained Product / serial / warranty dropdowns, with live search and Issue Date-aware Active/Expired status.
@@ -15,6 +17,8 @@
 - PHP syntax-lint workflow for the fork branch.
 
 ### Changed
+- Removed the WarrantySvc-specific trigger email sender and the `WARRANTYSVC_NOTIFY_WARRANTY_CREATED` setup toggle. Lifecycle email recipients, sender and templates are now controlled by Dolibarr's Notification/Email Template configuration; notification deliveries are recorded in the native `llx_notify` log.
+- Service Request assignment now emits a real `WARRANTYSVC_ASSIGNED` business event when `fk_user_assigned` is initially set or changed. Dolibarr 23 Notification subscriptions are event-wide, so WarrantySvc does not silently reintroduce an assignee-only recipient rule outside the core notification model.
 - Phone-call intake no longer preselects the `guidance` Resolution Type; all intake paths now preserve the diagnosis-first rule that the solution path is chosen only after diagnosis.
 - Service Request PDF company identity is left-aligned as one block: the logo and the address/contact lines share the same left edge.
 - Service Request PDF company contact details are centered beneath the logo for a cleaner visual axis, and the signature block provides substantially more handwriting space while remaining clear of the footer.
