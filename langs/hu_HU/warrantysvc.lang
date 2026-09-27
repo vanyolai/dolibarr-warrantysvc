@@ -742,3 +742,14 @@ SubstReturnCarrier=Visszaküldő fuvarozó
 SubstReturnTracking=Visszaúti csomagszám
 SubstReturnTrackingUrl=Visszaúti csomagkövetési URL
 SubstReplacementSerialNumber=Cserekészülék sorozatszáma
+
+SupplierRmaRollback=Vissza egy állapotot
+ConfirmSupplierRmaRollback=Visszalépsz egy állapotot a folyamatban? A korrekció bekerül a beszállítói RMA életútjába.
+SupplierRmaRollbackAuditNote=A folyamat állapota egy lépéssel vissza lett korrigálva.
+SupplierRmaRolledBack=A beszállítói RMA egy állapottal visszalépett.
+SupplierRmaEventROLLBACK=Állapotkorrekció
+ErrorSupplierRmaNoPreviousStatus=Nincs visszaállítható korábbi beszállítói RMA állapot.
+ErrorSupplierRmaRollbackOutboundStock=Nem lehet az Elküldve állapot elé visszalépni, mert már létezik kimenő készletmozgás.
+ErrorSupplierRmaRollbackInboundStock=Nem lehet a Visszaérkezett állapot elé visszalépni, mert már létezik bejövő készletmozgás.
+ErrorSupplierRmaDeleteStockMovements=Ehhez a beszállítói RMA-hoz készletmozgás tartozik, ezért véglegesen nem törölhető.
+ErrorWarrantyRequiresLotProduct=Ehhez a termékhez nem hozható létre garanciális igény, mert a modul csak sorozatszám-/LOT-kezelésű termékeket engedélyez.
