@@ -615,3 +615,12 @@ BackToWarrantySelection = Back to warranty selection
 ManualClaimEntryWarning = Warranty-less service intake: no WarrantySvc warranty will be linked and the case starts as billable.
 ErrorLoadingWarrantyUnits = Could not load the customer's warranty records.
 ErrorWarrantyRequiredForClaim = Select a warranty record or switch to warranty-less service intake.
+
+#
+# Intervention intake
+#
+MissingInterventionId = Intervention ID is missing.
+InterventionNotFound = Intervention not found.
+InterventionEntityMismatch = The Intervention belongs to another entity.
+InterventionThirdPartyRequired = The Intervention must have a third party before a Service Request can be created.
+ModuleInterventionNotEnabled = The Intervention module is not enabled.
