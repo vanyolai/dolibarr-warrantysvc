@@ -26,6 +26,7 @@
 - Existing upstream schemas are upgraded explicitly and idempotently before normal module table loading.
 
 ### Fixed
+- Service Request PDF explicitly loads the Dolibarr core `Societe`, `Product` and `User` classes it instantiates, preventing `Class "Product" not found` during document generation.
 - Service Request PDF generation now uses Dolibarr 23's actual PDF helper signatures and core primitives; the removed `pdf_logo_and_address()` call and several latent page-dimension/helper-argument mismatches are gone.
 - The Diagnosing service-request status is now mapped by `SvcRequest::LibStatut()` and no longer appears as `Unknown` / `Ismeretlen` in the card banner.
 - Customer Return is available during diagnosis independently of Resolution Type. A physical return is treated as diagnostic logistics, not as a final solution choice.
