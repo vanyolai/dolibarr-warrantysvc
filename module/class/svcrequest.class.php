@@ -1768,7 +1768,6 @@ class SvcRequest extends CommonObject
 			$sql .= " AND fk_soc = ".((int) $this->fk_soc);
 			$sql .= " AND fk_product = ".((int) $this->fk_product);
 			$sql .= " AND serial_number = '".$this->db->escape($this->serial_number)."'";
-			$sql .= " AND status <> '".SvcWarranty::STATUS_VOIDED."'";
 			$sql .= " ORDER BY rowid DESC LIMIT 1";
 			$resql = $this->db->query($sql);
 			if (!$resql) {
@@ -1784,7 +1783,11 @@ class SvcRequest extends CommonObject
 					$this->errors = $warranty->errors;
 					return -1;
 				}
-				$this->fk_warranty = (int) $warranty->id;
+				if ($warranty->status === SvcWarranty::STATUS_VOIDED) {
+					$warranty = null;
+				} else {
+					$this->fk_warranty = (int) $warranty->id;
+				}
 			}
 		}
 
