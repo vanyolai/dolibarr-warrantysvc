@@ -1338,18 +1338,18 @@ class SvcRequest extends CommonObject
 		}
 
 		$to_email = $soc->email;
-		$subject  = $langs->trans('ReminderReturnSubject', $this->ref);
+		$subject  = $langs->transnoentitiesnoconv('ReminderReturnSubject', $this->ref);
 
 		// Build body
-		$body  = $langs->trans('ReminderReturnBody', $this->serial_number ? $this->serial_number : '-', $this->ref);
+		$body  = $langs->transnoentitiesnoconv('ReminderReturnBody', $this->serial_number ? $this->serial_number : '-', $this->ref);
 		$body .= "\n\n";
 		if (!empty($this->outbound_carrier)) {
-			$body .= $langs->trans('OutboundCarrier').': '.$this->outbound_carrier."\n";
+			$body .= $langs->transnoentitiesnoconv('OutboundCarrier').': '.$this->outbound_carrier."\n";
 		}
 		if (!empty($this->outbound_tracking)) {
-			$body .= $langs->trans('OutboundTracking').': '.$this->outbound_tracking."\n";
+			$body .= $langs->transnoentitiesnoconv('OutboundTracking').': '.$this->outbound_tracking."\n";
 		}
-		$body .= "\n".$langs->trans('ReminderReturnFooter');
+		$body .= "\n".$langs->transnoentitiesnoconv('ReminderReturnFooter');
 
 		$mail = new CMailFile(
 			$subject,
