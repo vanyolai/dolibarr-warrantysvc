@@ -3,6 +3,7 @@
 ## [Unreleased] - Dolibarr 23 fork
 
 ### Added
+- Added a module-neutral Intervention intake factory (`SvcRequest::createFromIntervention`) and REST endpoint (`POST /warrantysvc/requests/createfromintervention/{id}`) so Field Service or other modules can hand off a work sheet without writing WarrantySvc tables directly. The factory inherits stable Intervention context, validates Product/serial/warranty ownership, creates a Draft SR and links it through the existing `fk_intervention`/`element_element` mechanism.
 - Restored the Service Request Documents tab with standard Dolibarr file attachments, links and PDF generation.
 - New Warranty Claim now uses a customer warranty/device table instead of chained Product / serial / warranty dropdowns, with live search and Issue Date-aware Active/Expired status.
 - Explicit warranty-less service intake remains available as a separate, billable workflow.
@@ -14,6 +15,7 @@
 - PHP syntax-lint workflow for the fork branch.
 
 ### Changed
+- Phone-call intake no longer preselects the `guidance` Resolution Type; all intake paths now preserve the diagnosis-first rule that the solution path is chosen only after diagnosis.
 - Service Request PDF company identity is left-aligned as one block: the logo and the address/contact lines share the same left edge.
 - Service Request PDF company contact details are centered beneath the logo for a cleaner visual axis, and the signature block provides substantially more handwriting space while remaining clear of the footer.
 - Service Request PDF received a typography pass: company contact text is more readable, summary labels use a subtle shaded background, and the issue description has a distinct section header with improved spacing.
@@ -32,6 +34,7 @@
 - Existing upstream schemas are upgraded explicitly and idempotently before normal module table loading.
 
 ### Fixed
+- Generic REST creation now synchronizes populated FK relationships into Dolibarr linked objects after creating a Service Request.
 - Service Request PDF now positions the TCPDF cursor at the calculated header bottom before `pdf_writeLinkedObjects()`. Without linked objects, Dolibarr 23's helper returns the current PDF Y, which previously reset the summary into the header despite the dynamic header calculation.
 - Service Request PDF summary labels use a wider label column so long Hungarian labels such as `Bejelentés dátuma` no longer run into their values.
 - Service Request PDF summary fields no longer collide: long Product values use a full-width wrapping row, paired fields wrap within their own columns, and an empty Resolution Type is omitted during diagnosis.
