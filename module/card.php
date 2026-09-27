@@ -1608,8 +1608,15 @@ if ($action == 'create') {
 
 		// Native Dolibarr email form: partner + partner contacts, svcrequest
 		// templates, WarrantySvc substitutions and optional PDF attachment.
+		// Preselect explicitly assigned customer-side contacts; when there is no
+		// usable assigned contact, fall back to the customer's default email.
 		if ($permwrite && $action != 'presend') {
-			print dolGetButtonAction('', $langs->trans('SendMail'), 'email', dolBuildUrl($_SERVER['PHP_SELF'], array('id' => $object->id, 'action' => 'presend', 'mode' => 'init'), true).'#formmailbeforetitle', '');
+			$mailurl = dolBuildUrl($_SERVER['PHP_SELF'], array('id' => $object->id, 'action' => 'presend', 'mode' => 'init'), true);
+			foreach (warrantysvc_default_customer_email_receivers($object) as $receiverKey) {
+				$mailurl .= '&receiver%5B%5D='.urlencode((string) $receiverKey);
+			}
+			$mailurl .= '#formmailbeforetitle';
+			print dolGetButtonAction('', $langs->trans('SendMail'), 'email', $mailurl, '');
 		}
 
 		// DRAFT → Validate
