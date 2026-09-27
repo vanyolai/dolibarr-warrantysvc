@@ -15,6 +15,7 @@
 - [ ] Stock module enabled
 - [ ] Shipments module enabled
 - [ ] Orders module enabled
+- [ ] Notifications module enabled for notification tests
 
 ---
 
@@ -63,7 +64,7 @@
 - [ ] Navigate to Service Requests > New Service Request
 - [ ] Select customer, product, serial number
 - [ ] Verify warranty auto-lookup occurs (if serial has active warranty)
-- [ ] Select resolution type (try each: component, component_return, swap_cross, swap_wait, intervention, guidance, informational)
+- [ ] Do not select a resolution type at intake; resolution is chosen only after diagnosis
 - [ ] Save — verify SR created in Draft status
 
 ### 2.2 Warranty Claim Count
@@ -73,8 +74,9 @@
 - [ ] Create a second SR for the same warranty — verify count is now +2
 
 ### 2.3 Status Transitions
-- [ ] **Draft → Validated:** Click Validate > confirm. Verify status badge changes. If assigned technician set, verify notification email sent.
-- [ ] **Validated → In Progress:** Click "Set In Progress" > confirm. Verify status changes.
+- [ ] **Draft → Validated:** Click Validate > confirm. Verify status badge changes.
+- [ ] **Validated → Diagnosing:** Click "Begin Diagnosis" > confirm.
+- [ ] **Diagnosing → In Progress:** Complete diagnosis and move to In Progress; Resolution Type may still be empty until a concrete work path is known.
 - [ ] **In Progress → Awaiting Return:** (only for return-type resolutions) Click "Set Awaiting Return" > confirm.
 - [ ] **Awaiting Return → In Progress:** (via return reception — see section 4)
 - [ ] **In Progress → Resolved:** Click "Mark Resolved" > confirm.
@@ -99,6 +101,18 @@
 - [ ] Add a public note and a private note
 - [ ] Save — verify both persist
 - [ ] Verify public/private visibility labels are correct
+
+
+### 2.8 Standard Dolibarr Notifications
+- [ ] Disable/enable WarrantySvc once after upgrading so the new action catalog and hook contexts are registered
+- [ ] Open Dolibarr Notifications setup and verify WarrantySvc Service Request / Warranty events are listed
+- [ ] Open a user Notifications tab and verify WarrantySvc events can be subscribed using the normal Dolibarr UI
+- [ ] Open Email Templates and verify **Warranty Service Request** and **Warranty** are available template types
+- [ ] With no WarrantySvc event subscription configured, assign/validate an SR — verify no module-specific direct email is sent
+- [ ] Subscribe a test user or fixed address to `WARRANTYSVC_ASSIGNED`; assign/reassign an SR — verify one notification is sent through Dolibarr
+- [ ] Verify the sent message is recorded in Dolibarr notification history (`llx_notify`)
+- [ ] Configure an event-specific Email Template and verify its subject/body substitutions are used
+- [ ] Verify Warranty creation uses `SVCWARRANTY_CREATE` subscriptions instead of the removed WarrantySvc-specific notify toggle
 
 ---
 
