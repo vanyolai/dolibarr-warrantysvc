@@ -155,20 +155,20 @@ function svcwarranty_status_badge($status, $mode = 0)
 	$langs->loadLangs(array('warrantysvc@warrantysvc'));
 
 	$map = array(
-		'active'  => array('label' => 'SvcActive',     'color' => 'status1'),
-		'expired' => array('label' => 'SvcExpired',    'color' => 'status8'),
-		'voided'  => array('label' => 'SvcVoided',     'color' => 'status9'),
-		'none'    => array('label' => 'NoCoverage', 'color' => 'status0'),
+		'active'  => array('label' => 'SvcActive',  'badge' => 'badge-status4'),
+		'expired' => array('label' => 'SvcExpired', 'badge' => 'badge-status8'),
+		'voided'  => array('label' => 'SvcVoided',  'badge' => 'badge-status9'),
+		'none'    => array('label' => 'NoCoverage',  'badge' => 'badge-status0'),
 	);
 
-	$s     = isset($map[$status]) ? $map[$status] : array('label' => 'NoCoverage', 'color' => 'status0');
+	$s = isset($map[$status]) ? $map[$status] : array('label' => 'NoCoverage', 'badge' => 'badge-status0');
 	$label = $langs->trans($s['label']);
 
 	if ($mode == 1) {
 		return $label;
 	}
 
-	return '<span class="badge '.$s['color'].'">'.$label.'</span>';
+	return '<span class="badge badge-status '.$s['badge'].'">'.$label.'</span>';
 }
 
 
