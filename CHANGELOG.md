@@ -14,6 +14,7 @@
 - PHP syntax-lint workflow for the fork branch.
 
 ### Changed
+- Service Request PDF received a typography pass: company contact text is more readable, summary labels use a subtle shaded background, and the issue description has a distinct section header with improved spacing.
 - Service Request PDF no longer relies on a fixed content Y-position: the header reports its rendered height, draws a separator, and the summary begins below it, preventing overlap for different logos, addresses and languages.
 - Service Request PDF header now follows the standard Dolibarr visual hierarchy: company logo and compact contact block on the left, document title/reference/date on the right, with the content block moved upward accordingly.
 - Generated Service Request PDFs now use the request reference directly as the filename (for example `SRQ-20260927-0001.pdf`) instead of the redundant `SvcRequest_` prefix.
