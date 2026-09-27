@@ -172,7 +172,9 @@ if ($action == 'update' && $permwrite) {
 	$object->reported_via        = GETPOST('reported_via', 'alpha');
 	$object->fk_pbxcall          = GETPOST('fk_pbxcall', 'int');
 	$object->issue_description   = GETPOST('issue_description', 'restricthtml');
-	$object->resolution_type     = GETPOST('resolution_type', 'alpha');
+	if (GETPOSTISSET('resolution_type')) {
+		$object->resolution_type = GETPOST('resolution_type', 'alpha');
+	}
 	$object->resolution_notes    = GETPOST('resolution_notes', 'restricthtml');
 	$object->serial_in           = GETPOST('serial_in', 'alpha');
 	$object->serial_out          = GETPOST('serial_out', 'alpha');
@@ -274,7 +276,13 @@ if ($action == 'confirm_reopen' && GETPOST('confirm', 'alpha') == 'yes' && $perm
 
 // Create return reception (warehouse chosen in inline form)
 if ($action == 'create_return_reception' && $permwrite && isModEnabled('reception')) {
-	if (in_array($object->resolution_type, $types_with_return) && empty($object->fk_reception)) {
+	$return_allowed_statuses = array(
+		SvcRequest::STATUS_VALIDATED,
+		SvcRequest::STATUS_DIAGNOSING,
+		SvcRequest::STATUS_IN_PROGRESS,
+		SvcRequest::STATUS_AWAIT_RETURN,
+	);
+	if (in_array($object->status, $return_allowed_statuses) && empty($object->fk_reception)) {
 		$rec_warehouse = GETPOST('rec_warehouse', 'int');
 		$object->serial_in = GETPOST('serial_in', 'alpha');
 		$rec_id = $object->createReturnReception($user, $rec_warehouse);
@@ -1207,24 +1215,33 @@ if ($action == 'create') {
 	}
 	print '</td></tr>';
 
-	// Resolution type
-	print '<tr><td>'.$form->textwithpicto($langs->trans('ResolutionType'), $langs->trans('TooltipResolutionType')).'</td><td>';
-	if ($action == 'edit' && $permwrite) {
-		print Form::selectarray('resolution_type', svcrequest_resolution_types(), $object->resolution_type, 1, 0, 0, '', 0, 0, 0, '', 'flat minwidth200');
-	} elseif ($object->status == SvcRequest::STATUS_DIAGNOSING && $permwrite) {
-		print '<form action="'.$_SERVER['PHP_SELF'].'?id='.$object->id.'" method="POST" style="display:inline">';
-		print '<input type="hidden" name="token" value="'.newToken().'">';
-		print '<input type="hidden" name="action" value="set_resolution_type">';
-		print Form::selectarray('resolution_type', svcrequest_resolution_types(), $object->resolution_type, 1, 0, 0, '', 0, 0, 0, '', 'flat minwidth200');
-		print ' <input type="submit" class="button smallpaddingimp" value="'.$langs->trans('Save').'">';
-		print '</form>';
-		if (empty($object->resolution_type)) {
-			print ' <span class="opacitymedium">'.$langs->trans('SvcChooseResolutionAfterDiagnosis').'</span>';
+	// Resolution type becomes relevant only after diagnosis has been completed.
+	if (in_array($object->status, array(
+		SvcRequest::STATUS_IN_PROGRESS,
+		SvcRequest::STATUS_AWAIT_RETURN,
+		SvcRequest::STATUS_RESOLVED,
+		SvcRequest::STATUS_CLOSED,
+	)) || (!empty($object->resolution_type) && $object->status != SvcRequest::STATUS_CANCELLED)) {
+		print '<tr><td>'.$form->textwithpicto($langs->trans('ResolutionType'), $langs->trans('TooltipResolutionType')).'</td><td>';
+		if ($action == 'edit' && $permwrite && in_array($object->status, array(SvcRequest::STATUS_IN_PROGRESS, SvcRequest::STATUS_AWAIT_RETURN))) {
+			print Form::selectarray('resolution_type', svcrequest_resolution_types(), $object->resolution_type, 1, 0, 0, '', 0, 0, 0, '', 'flat minwidth200');
+		} elseif ($object->status == SvcRequest::STATUS_IN_PROGRESS && $permwrite) {
+			print '<form action="'.$_SERVER['PHP_SELF'].'?id='.$object->id.'" method="POST" style="display:inline">';
+			print '<input type="hidden" name="token" value="'.newToken().'">';
+			print '<input type="hidden" name="action" value="set_resolution_type">';
+			print Form::selectarray('resolution_type', svcrequest_resolution_types(), $object->resolution_type, 1, 0, 0, '', 0, 0, 0, '', 'flat minwidth200');
+			print ' <input type="submit" class="button smallpaddingimp" value="'.$langs->trans('Save').'">';
+			print '</form>';
+			if (empty($object->resolution_type)) {
+				print ' <span class="opacitymedium">'.$langs->trans('SvcChooseResolutionAfterDiagnosis').'</span>';
+			}
+		} else {
+			print !empty($object->resolution_type)
+				? svcrequest_resolution_label($object->resolution_type)
+				: '<span class="opacitymedium">&mdash;</span>';
 		}
-	} else {
-		print svcrequest_resolution_label($object->resolution_type);
+		print '</td></tr>';
 	}
-	print '</td></tr>';
 
 	// Warranty
 	print '<tr><td>'.$langs->trans('WarrantyStatus').'</td><td>';
@@ -1291,7 +1308,10 @@ if ($action == 'create') {
 	$s        = $object->status;
 
 	$has_outbound     = in_array($res_type, $types_with_outbound);
-	$has_return       = in_array($res_type, $types_with_return);
+	$use_customerreturn = getDolGlobalString('WARRANTYSVC_USE_CUSTOMERRETURN') && isModEnabled('customerreturn');
+	$has_return       = in_array($res_type, $types_with_return)
+		|| $use_customerreturn
+		|| !empty($object->fk_reception);
 	$has_intervention = in_array($res_type, $types_intervention);
 	$is_no_movement   = in_array($res_type, $types_no_movement);
 
@@ -1406,10 +1426,9 @@ if ($action == 'create') {
 
 		// --- Return Reception row ---
 		if ($has_return) {
-			$use_customerreturn = getDolGlobalString('WARRANTYSVC_USE_CUSTOMERRETURN') && isModEnabled('customerreturn');
-
 			print '<tr class="oddeven">';
-			print '<td style="padding:8px 12px; font-weight:bold; width:220px;">'.img_picto('', 'leftarrow', 'class="pictofixedwidth"').$langs->trans('ReturnReception').'</td>';
+			$return_label = $use_customerreturn ? $langs->trans('CustomerReturn') : $langs->trans('ReturnReception');
+			print '<td style="padding:8px 12px; font-weight:bold; width:220px;">'.img_picto('', 'leftarrow', 'class="pictofixedwidth"').$return_label.'</td>';
 			print '<td style="padding:8px 12px;">';
 
 			if ($use_customerreturn) {
@@ -1577,14 +1596,11 @@ if ($action == 'create') {
 			print '<a href="'.$_SERVER['PHP_SELF'].'?id='.$object->id.'&action=confirm_setdiagnosing&token='.newToken().'" class="butAction">'.$langs->trans('BeginDiagnosis').'</a>';
 		}
 
-		// DIAGNOSING → troubleshoot + Set In Progress (gated on resolution type)
+		// DIAGNOSING → troubleshoot / finish diagnosis. Physical Customer Return is
+		// available independently in the RMA panel and does not require a solution yet.
 		if ($s == SvcRequest::STATUS_DIAGNOSING && $permwrite) {
 			print '<a href="'.DOL_URL_ROOT.'/custom/warrantysvc/troubleshoot.php?id='.$object->id.'" class="butAction">'.$langs->trans('OpenTroubleshoot').'</a>';
-			if (!empty($object->resolution_type)) {
-				print '<a href="'.$_SERVER['PHP_SELF'].'?id='.$object->id.'&action=confirm_setinprogress&token='.newToken().'" class="butAction">'.$langs->trans('SetInProgress').'</a>';
-			} else {
-				print '<span class="butActionRefused classfortooltip" title="'.dol_escape_htmltag($langs->trans('SvcRequestResolutionTypeRequiredBeforeProgress')).'">'.$langs->trans('SetInProgress').'</span>';
-			}
+			print '<a href="'.$_SERVER['PHP_SELF'].'?id='.$object->id.'&action=confirm_setinprogress&token='.newToken().'" class="butAction">'.$langs->trans('CompleteDiagnosis').'</a>';
 		}
 
 		// IN PROGRESS — resolution-type-specific next actions
