@@ -411,8 +411,7 @@ class ActionsWarrantySvc
 
 		$this->results = array(
 			'arrayofnotifsupported' => array(
-				'WARRANTYSVC_VALIDATE',
-				'WARRANTYSVC_CLOSE',
+				'WARRANTYSVC_ASSIGNED',
 				'SVCWARRANTY_CREATE',
 			),
 		);
