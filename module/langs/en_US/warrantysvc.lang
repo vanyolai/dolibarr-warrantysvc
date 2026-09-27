@@ -742,3 +742,14 @@ SubstReturnCarrier=Return carrier
 SubstReturnTracking=Return tracking number
 SubstReturnTrackingUrl=Return tracking URL
 SubstReplacementSerialNumber=Replacement serial number
+
+SupplierRmaRollback=Go back one status
+ConfirmSupplierRmaRollback=Go back one workflow status? This is a correction and will be recorded in the Supplier RMA lifecycle.
+SupplierRmaRollbackAuditNote=Workflow status corrected one step backwards.
+SupplierRmaRolledBack=Supplier RMA moved back one status.
+SupplierRmaEventROLLBACK=Status correction
+ErrorSupplierRmaNoPreviousStatus=There is no previous Supplier RMA status to restore.
+ErrorSupplierRmaRollbackOutboundStock=Cannot move back before Shipped because an outbound stock movement already exists.
+ErrorSupplierRmaRollbackInboundStock=Cannot move back before Returned because an inbound stock movement already exists.
+ErrorSupplierRmaDeleteStockMovements=This Supplier RMA has linked stock movements and cannot be permanently deleted.
+ErrorWarrantyRequiresLotProduct=This Service Request is not allowed because the module is configured to accept only products with serial/LOT tracking enabled.
