@@ -615,3 +615,12 @@ BackToWarrantySelection = Vissza a garanciákhoz
 ManualClaimEntryWarning = Garancia nélküli szervizigény: nem kapcsolódik WarrantySvc garanciához, ezért az ügy alapértelmezetten számlázható.
 ErrorLoadingWarrantyUnits = Nem sikerült betölteni a partner garanciáit.
 ErrorWarrantyRequiredForClaim = Válassz garanciát, vagy válts garancia nélküli szervizigényre.
+
+#
+# Intervention intake
+#
+MissingInterventionId = Hiányzik a munkalap azonosítója.
+InterventionNotFound = A munkalap nem található.
+InterventionEntityMismatch = A munkalap másik entitáshoz tartozik.
+InterventionThirdPartyRequired = A munkalaphoz partner szükséges a szervizigény létrehozásához.
+ModuleInterventionNotEnabled = A Munkalap (Intervention) modul nincs engedélyezve.
