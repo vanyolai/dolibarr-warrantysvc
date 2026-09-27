@@ -14,6 +14,7 @@
 - PHP syntax-lint workflow for the fork branch.
 
 ### Changed
+- Service Request PDF no longer relies on a fixed content Y-position: the header reports its rendered height, draws a separator, and the summary begins below it, preventing overlap for different logos, addresses and languages.
 - Service Request PDF header now follows the standard Dolibarr visual hierarchy: company logo and compact contact block on the left, document title/reference/date on the right, with the content block moved upward accordingly.
 - Generated Service Request PDFs now use the request reference directly as the filename (for example `SRQ-20260927-0001.pdf`) instead of the redundant `SvcRequest_` prefix.
 - Service Request PDF output now follows the standard per-object document directory (`warrantysvc/<SRQ-ref>/`).
@@ -28,6 +29,7 @@
 - Existing upstream schemas are upgraded explicitly and idempotently before normal module table loading.
 
 ### Fixed
+- Service Request PDF summary labels use a wider label column so long Hungarian labels such as `Bejelentés dátuma` no longer run into their values.
 - Service Request PDF summary fields no longer collide: long Product values use a full-width wrapping row, paired fields wrap within their own columns, and an empty Resolution Type is omitted during diagnosis.
 - Service Request PDF uses DejaVu Sans under TCPDF unless an administrator explicitly forces another PDF font, preserving Hungarian `ő`/`ű` characters that are missing from TCPDF's built-in Helvetica.
 - Service Request PDF explicitly loads the Dolibarr core `Societe`, `Product` and `User` classes it instantiates, preventing `Class "Product" not found` during document generation.
