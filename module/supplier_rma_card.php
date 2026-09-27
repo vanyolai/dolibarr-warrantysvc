@@ -146,6 +146,17 @@ if ($action === 'setstatus' && $permwrite && $object->id > 0) {
 	exit;
 }
 
+if ($action === 'confirm_rollback' && GETPOST('confirm', 'alpha') === 'yes' && $permwrite && $object->id > 0) {
+	$result = $object->rollbackStatus($user, $langs->transnoentitiesnoconv('SupplierRmaRollbackAuditNote'));
+	if ($result > 0) {
+		setEventMessages($langs->trans('SupplierRmaRolledBack'), null, 'mesgs');
+	} else {
+		setEventMessages($langs->trans($object->error), $object->errors, 'errors');
+	}
+	header('Location: '.$_SERVER['PHP_SELF'].'?id='.$object->id);
+	exit;
+}
+
 if ($action === 'confirm_delete' && GETPOST('confirm', 'alpha') === 'yes' && $permdelete && $object->id > 0) {
 	$srid = (int) $object->fk_svc_request;
 	$result = $object->delete($user);
@@ -253,6 +264,16 @@ if ($action === 'delete') {
 		$langs->trans('DeleteSupplierRma'),
 		$langs->trans('ConfirmDeleteSupplierRma', $object->ref),
 		'confirm_delete',
+		'',
+		0,
+		1
+	);
+} elseif ($action === 'rollback') {
+	$formconfirm = $form->formconfirm(
+		$_SERVER['PHP_SELF'].'?id='.$object->id,
+		$langs->trans('SupplierRmaRollback'),
+		$langs->trans('ConfirmSupplierRmaRollback'),
+		'confirm_rollback',
 		'',
 		0,
 		1
@@ -523,8 +544,12 @@ if ($isEdit) {
 		}
 	}
 
-	if ($permdelete && in_array($object->status, array(SvcSupplierRma::STATUS_DRAFT, SvcSupplierRma::STATUS_CANCELLED), true)) {
-		print '<a href="'.$_SERVER['PHP_SELF'].'?id='.$object->id.'&action=delete&token='.newToken().'" class="butActionDelete">'.$langs->trans('Delete').'</a>';
+	if ($permwrite && $object->status !== SvcSupplierRma::STATUS_DRAFT) {
+		print '<a href="'.$_SERVER['PHP_SELF'].'?id='.$object->id.'&action=rollback&token='.newToken().'" class="butAction">'.$langs->trans('SupplierRmaRollback').'</a>';
+	}
+
+	if ($permdelete && empty($object->fk_stock_movement_out) && empty($object->fk_stock_movement_in)) {
+		print '<a href="'.$_SERVER['PHP_SELF'].'?id='.$object->id.'&action=delete&token='.newToken().'" class="butActionDelete">'.$langs->trans('DeleteSupplierRma').'</a>';
 	}
 }
 
