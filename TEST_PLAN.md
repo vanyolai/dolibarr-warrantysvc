@@ -111,6 +111,7 @@
 - [ ] With no WarrantySvc event subscription configured, assign/validate an SR — verify no module-specific direct email is sent
 - [ ] Subscribe a test user or fixed address to `WARRANTYSVC_ASSIGNED`; assign/reassign an SR — verify one notification is sent through Dolibarr
 - [ ] Verify the sent message is recorded in Dolibarr notification history (`llx_notify`)
+- [ ] Subscribe a customer contact to a WarrantySvc create event and verify a freshly created SR/garancia can notify through the normal third-party-contact subscription path
 - [ ] Configure an event-specific Email Template and verify its subject/body substitutions are used
 - [ ] Verify Warranty creation uses `SVCWARRANTY_CREATE` subscriptions instead of the removed WarrantySvc-specific notify toggle
 
