@@ -286,18 +286,6 @@ ChecklistFirmware = Firmware / szoftververzió ellenőrzése
 ChecklistFirmwareDesc = Ellenőrizd, hogy a készülék aktuális firmware-t használ-e. Jegyezd fel a verziót.
 
 #
-# Email notifications — trigger-based
-#
-NotifTechValidateSubject = [Új feladat] A(z) %s garanciális igény hozzád lett rendelve
-NotifTechValidateBody = Üdv %s!\n\nA(z) %s garanciális igényt hitelesítették és hozzád rendelték.
-NotifTechInProgressSubject = [Folyamatban] Garanciális igény: %s
-NotifTechInProgressBody = Üdv %s!\n\nA(z) %s garanciális igény Folyamatban állapotba került.
-NotifCustAwaitReturnSubject = [Teendő] Kérjük, küldje vissza a készüléket — garanciális igény: %s
-NotifCustAwaitReturnBody = Tisztelt Ügyfelünk!\n\nA(z) %s garanciális igényhez cserekészüléket küldtünk (sorozatszám: %s).\n\nKérjük, gondoskodjon az eredeti készülék visszaküldéséről.
-NotifCustResolvedSubject = [Megoldva] Garanciális igény: %s
-NotifCustResolvedBody = Tisztelt Ügyfelünk!\n\nA(z) %s garanciális igényt megoldottuk.
-NotifWarrantyCreatedSubject = Garanciaregisztráció — %s
-NotifWarrantyCreatedBody = Tisztelt Ügyfelünk!\n\nA(z) %s garancia a(z) %s sorozatszámú készülékhez regisztrálva lett.\n\nGarancia vége: %s
 NoExpiryDate = Nincs lejárati dátum
 
 #
@@ -356,8 +344,6 @@ ErrorInvalidProductWarrantyMonthsField = A kiválasztott garanciaidő-mező nem 
 DefaultCoverageDays = Alapértelmezett garanciaidő (nap)
 DefaultCoverageDaysDesc = Örökölt alapértelmezett időtartam, csak Warranty Type módban használatos.
 SvcDays = nap
-NotifyWarrantyCreated = Ügyfél értesítése garancia létrehozásakor
-NotifyWarrantyCreatedDesc = Új garancia létrehozásakor e-mail-értesítést küld az ügyfélnek.
 WarrantyRequiresLots = Garanciális igények korlátozása sorozatszámos/LOT-os termékekre
 WarrantyRequiresLotsDesc = Bekapcsolva a garanciális igény termékválasztója csak LOT-/sorozatszám-kezelésű termékeket mutat.
 UseCustomerReturns = Customer Returns modul használata beérkező visszárukhoz
@@ -444,7 +430,7 @@ TooltipCoverageTerms = Annak leírása, hogy mire terjed ki a garancia — péld
 TooltipExclusions = A garanciából kizárt esetek felsorolása — például fizikai sérülés, fogyóeszköz, helytelen használat.
 OriginOrder = Forrásrendelés
 TooltipOriginOrder = A Dolibarr-rendelés, amelyből a garancia származik. Opcionális nyomonkövetési adat.
-TooltipNotePublic = Az ügyfél számára látható megjegyzés. Értesítés esetén a garanciaregisztrációs kommunikációban is használható.
+TooltipNotePublic = Az ügyfél számára látható megjegyzés.
 TooltipWTypeCode = Rövid, géppel feldolgozható azonosító, például „standard” vagy „extended_2yr”. Szóköz nem használható.
 TooltipWTypeLabel = A garanciatípus ember számára olvasható megnevezése.
 TooltipWTypeDescription = Opcionális leírás arról, hogy ez a garanciatípus mit jelent.
