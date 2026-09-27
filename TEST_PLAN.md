@@ -111,6 +111,7 @@
 - [ ] With no WarrantySvc event subscription configured, validate/close an SR — verify no module-specific direct email is sent
 - [ ] Subscribe a test user or fixed address to `WARRANTYSVC_VALIDATE`; validate an SR — verify one notification is sent through Dolibarr
 - [ ] Verify the sent message is recorded in Dolibarr notification history (`llx_notify`)
+- [ ] On the fixed/automatic notification screen, verify the net-amount threshold field is hidden for both WarrantySvc events
 - [ ] In fixed-address automatic notifications, verify the amount threshold field is not shown for the three WarrantySvc rows
 - [ ] Subscribe a customer contact to a WarrantySvc create event and verify a freshly created SR/garancia can notify through the normal third-party-contact subscription path
 - [ ] Configure an event-specific Email Template and verify its subject/body substitutions are used
