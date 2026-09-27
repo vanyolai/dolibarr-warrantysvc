@@ -197,6 +197,11 @@ class pdf_svcrequest_standard extends ModelePDFWarrantySvc
 		$curY = $this->_pagehead($pdf, $object, 1, $outputlangs) + 5;
 
 		// ---- INFO BLOCK ----
+		// pdf_writeLinkedObjects() returns the PDF's current Y when there are no
+		// linked objects. Explicitly position the cursor first, otherwise the
+		// helper can return the Y left behind by the header and make the summary
+		// jump back into it.
+		$pdf->SetXY($this->marge_gauche, $curY);
 		$curY = pdf_writeLinkedObjects(
 			$pdf,
 			$object,
