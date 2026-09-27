@@ -109,6 +109,8 @@ class SvcSupplierRma extends CommonObject
 	public $fk_user_creat;
 	public $fk_user_modif;
 	public $date_creation;
+	public $model_pdf = '';
+	public $last_main_doc = '';
 
 	public function __construct($db)
 	{
