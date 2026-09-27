@@ -14,6 +14,7 @@
 - PHP syntax-lint workflow for the fork branch.
 
 ### Changed
+- Service Request PDF header now follows the standard Dolibarr visual hierarchy: company logo and compact contact block on the left, document title/reference/date on the right, with the content block moved upward accordingly.
 - Generated Service Request PDFs now use the request reference directly as the filename (for example `SRQ-20260927-0001.pdf`) instead of the redundant `SvcRequest_` prefix.
 - Service Request PDF output now follows the standard per-object document directory (`warrantysvc/<SRQ-ref>/`).
 - Plain-text WarrantySvc notification and return-reminder emails now use raw UTF-8 translations instead of HTML-entity encoded text.
