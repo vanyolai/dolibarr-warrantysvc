@@ -29,6 +29,7 @@
 - Existing upstream schemas are upgraded explicitly and idempotently before normal module table loading.
 
 ### Fixed
+- Service Request PDF now positions the TCPDF cursor at the calculated header bottom before `pdf_writeLinkedObjects()`. Without linked objects, Dolibarr 23's helper returns the current PDF Y, which previously reset the summary into the header despite the dynamic header calculation.
 - Service Request PDF summary labels use a wider label column so long Hungarian labels such as `Bejelentés dátuma` no longer run into their values.
 - Service Request PDF summary fields no longer collide: long Product values use a full-width wrapping row, paired fields wrap within their own columns, and an empty Resolution Type is omitted during diagnosis.
 - Service Request PDF uses DejaVu Sans under TCPDF unless an administrator explicitly forces another PDF font, preserving Hungarian `ő`/`ű` characters that are missing from TCPDF's built-in Helvetica.
