@@ -619,6 +619,7 @@ WarrantySvcNotificationsDesc=WarrantySvc email notifications are handled by Doli
 WarrantySvcConfigureNotifications=Configure Dolibarr notifications
 WarrantySvcNotificationModuleDisabled=The Dolibarr Notifications module is not enabled.
 MailToSvcRequest=Warranty Service Request
+SvcRequestEmailSubject=Warranty Service Request - %s
 MailToSvcWarranty=Warranty
 Notify_WARRANTYSVC_CREATE=Warranty Service Request created
 Notify_WARRANTYSVC_ASSIGNED=Warranty Service Request assigned
