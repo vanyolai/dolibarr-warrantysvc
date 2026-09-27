@@ -286,18 +286,6 @@ ChecklistFirmware = Verify firmware / software version
 ChecklistFirmwareDesc = Check if unit is on current firmware. Note version.
 
 #
-# Email notifications — trigger-based
-#
-NotifTechValidateSubject = [New Assignment] Warranty Claim %s assigned to you
-NotifTechValidateBody = Hello %s,\n\nWarranty claim %s has been validated and assigned to you.
-NotifTechInProgressSubject = [In Progress] Warranty Claim %s
-NotifTechInProgressBody = Hello %s,\n\nWarranty claim %s has been moved to In Progress status.
-NotifCustAwaitReturnSubject = [Action Required] Please return unit — Warranty Claim %s
-NotifCustAwaitReturnBody = Dear customer,\n\nA replacement unit has been shipped for warranty claim %s (serial: %s).\n\nPlease arrange the return of the original unit.
-NotifCustResolvedSubject = [Resolved] Warranty Claim %s
-NotifCustResolvedBody = Dear customer,\n\nYour warranty claim %s has been resolved.
-NotifWarrantyCreatedSubject = Warranty Registration — %s
-NotifWarrantyCreatedBody = Dear customer,\n\nYour warranty %s for serial number %s has been registered.\n\nCoverage expires: %s
 NoExpiryDate = No expiry date
 
 #
@@ -356,8 +344,6 @@ ErrorInvalidProductWarrantyMonthsField = The selected Product warranty duration 
 DefaultCoverageDays = Default warranty coverage (days)
 DefaultCoverageDaysDesc = Legacy fallback coverage period used only when no Product warranty-month field is configured.
 SvcDays = days
-NotifyWarrantyCreated = Email customer on warranty creation
-NotifyWarrantyCreatedDesc = Send an email notification to the customer when a new warranty record is created for their unit.
 WarrantyRequiresLots = Restrict warranty claims to serialized products
 WarrantyRequiresLotsDesc = When enabled, the product selector on warranty claim forms will only show products that have serial number or lot tracking enabled in the Stocks module.
 UseCustomerReturns = Use Customer Returns module for inbound returns
@@ -444,7 +430,7 @@ TooltipCoverageTerms = Describe what this warranty covers — parts, labour, on-
 TooltipExclusions = Explicitly list what is not covered — physical damage, accessories, misuse, etc. Printed on warranty documents.
 OriginOrder = Origin Order
 TooltipOriginOrder = Dolibarr order ID this warranty originated from. Optional — used for purchase traceability.
-TooltipNotePublic = Notes visible to the customer. Included in warranty registration emails if notifications are enabled.
+TooltipNotePublic = Notes visible to the customer.
 TooltipWTypeCode = Short machine-readable identifier, e.g. "standard" or "extended_2yr". Used internally — no spaces allowed.
 TooltipWTypeLabel = Human-readable name shown in warranty type dropdowns and on warranty records.
 TooltipWTypeDescription = Optional description of what this warranty type covers. Visible to staff when choosing a type.
@@ -624,3 +610,25 @@ InterventionNotFound = Intervention not found.
 InterventionEntityMismatch = The Intervention belongs to another entity.
 InterventionThirdPartyRequired = The Intervention must have a third party before a Service Request can be created.
 ModuleInterventionNotEnabled = The Intervention module is not enabled.
+
+#
+# Standard Dolibarr notifications / email templates
+#
+WarrantySvcNotifications=Notifications
+WarrantySvcNotificationsDesc=WarrantySvc email notifications are handled by Dolibarr's standard Notifications module. Recipients and per-event email templates are configured there.
+WarrantySvcConfigureNotifications=Configure Dolibarr notifications
+WarrantySvcNotificationModuleDisabled=The Dolibarr Notifications module is not enabled.
+MailToSvcRequest=Warranty Service Request
+MailToSvcWarranty=Warranty
+Notify_WARRANTYSVC_CREATE=Warranty Service Request created
+Notify_WARRANTYSVC_ASSIGNED=Warranty Service Request assigned
+Notify_WARRANTYSVC_VALIDATE=Warranty Service Request validated
+Notify_WARRANTYSVC_SETDIAGNOSING=Warranty Service Request diagnosis started
+Notify_WARRANTYSVC_SETINPROGRESS=Warranty Service Request in progress
+Notify_WARRANTYSVC_AWAITRETURN=Warranty Service Request awaiting return
+Notify_WARRANTYSVC_RESOLVE=Warranty Service Request resolved
+Notify_WARRANTYSVC_CLOSE=Warranty Service Request closed
+Notify_WARRANTYSVC_CANCEL=Warranty Service Request cancelled
+Notify_WARRANTYSVC_REOPEN=Warranty Service Request reopened
+Notify_WARRANTYSVC_DELETE=Warranty Service Request deleted
+Notify_SVCWARRANTY_CREATE=Warranty created
