@@ -4,7 +4,7 @@
 /**
  * \file    core/triggers/interface_99_modWarrantySvc_WarrantySvcTrigger.class.php
  * \ingroup warrantysvc
- * \brief   Email notification trigger for Warranty & Service module events
+ * \brief   Automation trigger for Warranty & Service module events
  *
  * Fires on SVCREQUEST_* and SVCWARRANTY_* trigger codes produced by
  * SvcRequest::call_trigger() / SvcWarranty::call_trigger().
@@ -32,7 +32,7 @@ class InterfaceWarrantySvcTrigger extends DolibarrTriggers
 		$this->name        = preg_replace('/^Interface/i', '', get_class($this));
 		$this->description = 'Automation for Warranty & Service module events';
 		$this->version     = '1.0.0';
-		$this->picto       = 'email';
+		$this->picto       = 'technic';
 		$this->family      = 'warrantysvc';
 	}
 
