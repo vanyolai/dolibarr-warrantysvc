@@ -620,8 +620,8 @@ class pdf_svcrequest_standard extends ModelePDFWarrantySvc
 		$default_font_size = pdf_getPDFFontSize($outputlangs);
 		$usablewidth = $pagewidth - $this->marge_gauche - $this->marge_droite;
 
-		// Place near bottom
-		$sigY = 250;
+		// Place near bottom while preserving a comfortable handwriting area above the footer.
+		$sigY = 238;
 		if ($pdf->GetY() > $sigY) {
 			$sigY = $pdf->GetY() + 5;
 		}
@@ -639,7 +639,7 @@ class pdf_svcrequest_standard extends ModelePDFWarrantySvc
 		$pdf->Cell($colw, 5, $outputlangs->transnoentities('DateSigned'),          0, 1, 'C');
 
 		// Leave enough vertical space for a real handwritten signature.
-		$sigY += 24;
+		$sigY += 22;
 		$pdf->SetFont('', '', $default_font_size - 1);
 		$pdf->Line($this->marge_gauche,             $sigY, $this->marge_gauche + $colw - 5,             $sigY);
 		$pdf->Line($this->marge_gauche + $colw,     $sigY, $this->marge_gauche + $colw * 2 - 5,         $sigY);
