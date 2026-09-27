@@ -421,6 +421,7 @@ class ActionsWarrantySvc
 				'WARRANTYSVC_CLOSE',
 				'WARRANTYSVC_CANCEL',
 				'WARRANTYSVC_REOPEN',
+				'WARRANTYSVC_DELETE',
 				'SVCWARRANTY_CREATE',
 			),
 		);
