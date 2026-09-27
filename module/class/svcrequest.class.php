@@ -628,25 +628,19 @@ class SvcRequest extends CommonObject
 	}
 
 	/**
-	 * Set RMA to In Progress. Allowed from DIAGNOSING (normal forward path)
-	 * or AWAIT_RETURN (return-received auto-advance). A resolution type must
-	 * have been chosen before fulfillment can begin.
+	 * Set RMA to In Progress after diagnosis.
+	 *
+	 * The final resolution/work path is intentionally not required here:
+	 * a physical return can be part of diagnosis, and the actual resolution
+	 * may only become known after the returned unit has been inspected.
 	 *
 	 * @param  User $user User performing action
 	 * @return int        >0 if OK, <0 if KO
 	 */
 	public function setInProgress($user)
 	{
-		// AWAIT_RETURN is a valid entry point: the CustomerReturn trigger advances
-		// the case here once the returned goods are booked in. VALIDATED is not --
-		// the forward path goes through setDiagnosing() first.
 		if (!in_array($this->status, array(self::STATUS_DIAGNOSING, self::STATUS_AWAIT_RETURN))) {
 			$this->error = 'SvcRequestNotInDiagnosingStatus';
-			return -1;
-		}
-
-		if (empty($this->resolution_type)) {
-			$this->error = 'SvcRequestResolutionTypeRequiredBeforeProgress';
 			return -1;
 		}
 
