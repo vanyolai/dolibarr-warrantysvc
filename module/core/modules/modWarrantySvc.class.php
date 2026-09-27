@@ -44,7 +44,7 @@ class modWarrantySvc extends DolibarrModules
 		// Module name (no spaces), used if translation string 'ModuleXXXName' not found
 		$this->name = preg_replace('/^mod/i', '', get_class($this));
 		$this->description = 'ModuleWarrantySvcDesc';
-		$this->version = '1.40.0';
+		$this->version = '1.41.0';
 		$this->const_name = 'MAIN_MODULE_'.strtoupper($this->name);
 		$this->picto = 'technic';
 
@@ -370,6 +370,58 @@ class modWarrantySvc extends DolibarrModules
 	}
 
 	/**
+	 * Register native Dolibarr contact roles for Service Requests.
+	 *
+	 * Rows are updated in place so existing llx_element_contact relations keep
+	 * their fk_c_type_contact values across module upgrades/re-enables.
+	 *
+	 * @return int 1 if OK, -1 on error
+	 */
+	private function syncContactTypeCatalog()
+	{
+		$types = array(
+			array('internal', 'SERVICE_MANAGER', 'Service Request handler', 10),
+			array('external', 'CUSTOMER_SERVICE', 'Customer service contact', 20),
+		);
+
+		foreach ($types as $type) {
+			list($source, $code, $label, $position) = $type;
+			$sql = "SELECT rowid FROM ".MAIN_DB_PREFIX."c_type_contact";
+			$sql .= " WHERE element = 'svcrequest'";
+			$sql .= " AND source = '".$this->db->escape($source)."'";
+			$sql .= " AND code = '".$this->db->escape($code)."'";
+			$resql = $this->db->query($sql);
+			if (!$resql) {
+				return -1;
+			}
+			$obj = $this->db->fetch_object($resql);
+			$this->db->free($resql);
+
+			if ($obj) {
+				$sql = "UPDATE ".MAIN_DB_PREFIX."c_type_contact SET";
+				$sql .= " libelle = '".$this->db->escape($label)."'";
+				$sql .= ", active = 1";
+				$sql .= ", module = 'warrantysvc'";
+				$sql .= ", position = ".((int) $position);
+				$sql .= " WHERE rowid = ".((int) $obj->rowid);
+			} else {
+				$sql = "INSERT INTO ".MAIN_DB_PREFIX."c_type_contact";
+				$sql .= " (element, source, code, libelle, active, module, position) VALUES (";
+				$sql .= "'svcrequest',";
+				$sql .= "'".$this->db->escape($source)."',";
+				$sql .= "'".$this->db->escape($code)."',";
+				$sql .= "'".$this->db->escape($label)."',1,'warrantysvc',".((int) $position).")";
+			}
+
+			if (!$this->db->query($sql)) {
+				return -1;
+			}
+		}
+
+		return 1;
+	}
+
+	/**
 	 * Register WarrantySvc trigger codes in Dolibarr's central action catalog.
 	 *
 	 * Existing rows are updated in place instead of deleted/reinserted so
@@ -436,6 +488,9 @@ class modWarrantySvc extends DolibarrModules
 
 		$result = $this->_load_tables('/warrantysvc/sql/');
 		if ($result < 0) {
+			return -1;
+		}
+		if ($this->syncContactTypeCatalog() < 0) {
 			return -1;
 		}
 		if ($this->syncNotificationEventCatalog() < 0) {
