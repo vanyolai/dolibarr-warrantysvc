@@ -14,6 +14,7 @@
 - PHP syntax-lint workflow for the fork branch.
 
 ### Changed
+- Generated Service Request PDFs now use the request reference directly as the filename (for example `SRQ-20260927-0001.pdf`) instead of the redundant `SvcRequest_` prefix.
 - Service Request PDF output now follows the standard per-object document directory (`warrantysvc/<SRQ-ref>/`).
 - Plain-text WarrantySvc notification and return-reminder emails now use raw UTF-8 translations instead of HTML-entity encoded text.
 - Warranty status badges now use Dolibarr's native badge-status classes; JavaScript-translated labels use non-entity text to avoid literal HTML entities in the UI.
@@ -26,6 +27,8 @@
 - Existing upstream schemas are upgraded explicitly and idempotently before normal module table loading.
 
 ### Fixed
+- Service Request PDF summary fields no longer collide: long Product values use a full-width wrapping row, paired fields wrap within their own columns, and an empty Resolution Type is omitted during diagnosis.
+- Service Request PDF uses DejaVu Sans under TCPDF unless an administrator explicitly forces another PDF font, preserving Hungarian `ő`/`ű` characters that are missing from TCPDF's built-in Helvetica.
 - Service Request PDF explicitly loads the Dolibarr core `Societe`, `Product` and `User` classes it instantiates, preventing `Class "Product" not found` during document generation.
 - Service Request PDF generation now uses Dolibarr 23's actual PDF helper signatures and core primitives; the removed `pdf_logo_and_address()` call and several latent page-dimension/helper-argument mismatches are gone.
 - The Diagnosing service-request status is now mapped by `SvcRequest::LibStatut()` and no longer appears as `Unknown` / `Ismeretlen` in the card banner.
