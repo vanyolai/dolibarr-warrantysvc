@@ -619,6 +619,7 @@ WarrantySvcNotificationsDesc=A WarrantySvc e-mail értesítéseit a Dolibarr sza
 WarrantySvcConfigureNotifications=Dolibarr értesítések beállítása
 WarrantySvcNotificationModuleDisabled=A Dolibarr Értesítések modul nincs engedélyezve.
 MailToSvcRequest=Garanciális igény
+SvcRequestEmailSubject=Garanciális igény - %s
 MailToSvcWarranty=Garancia
 Notify_WARRANTYSVC_CREATE=Garanciális igény létrehozva
 Notify_WARRANTYSVC_ASSIGNED=Garanciális igény hozzárendelve
