@@ -382,7 +382,7 @@ class modWarrantySvc extends DolibarrModules
 		$events = array(
 			array('WARRANTYSVC_ASSIGNED', 'Service Request assigned', 'Executed when a WarrantySvc Service Request is assigned to a user', 'svcrequest', 511),
 			array('SVCWARRANTY_CREATE', 'Warranty created', 'Executed when a WarrantySvc warranty record is created', 'svcwarranty', 521),
-		)
+		);
 
 		foreach ($events as $event) {
 			list($code, $label, $description, $elementtype, $rang) = $event;
