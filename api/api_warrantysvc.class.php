@@ -13,6 +13,7 @@
  *   POST /api/index.php/warrantysvc/requests
  *   PUT  /api/index.php/warrantysvc/requests/{id}
  *   POST /api/index.php/warrantysvc/requests/{id}/createfromcall
+ *   POST /api/index.php/warrantysvc/requests/{id}/createfromintervention
  *   GET  /api/index.php/warrantysvc/warranties
  *   GET  /api/index.php/warrantysvc/warranties/{id}
  *   GET  /api/index.php/warrantysvc/warranties/byserial/{serial}
@@ -149,6 +150,7 @@ class WarrantySvc extends DolibarrApi
 		if ($result < 0) {
 			throw new RestException(500, $obj->error);
 		}
+		$obj->syncLinkedObjects();
 
 		return $result;
 	}
@@ -231,6 +233,41 @@ class WarrantySvc extends DolibarrApi
 
 		return $result;
 	}
+
+	/**
+	 * Create a service request from a core Intervention.
+	 *
+	 * Customer, project, date and description are inherited from the work sheet.
+	 * Asset identity is supplied in the optional request body; at minimum
+	 * fk_product is required unless fk_warranty identifies the covered asset.
+	 *
+	 * @param int   $id      Intervention ID
+	 * @param array $request Optional intake fields / asset identity
+	 *
+	 * @url POST /requests/createfromintervention/{id}
+	 * @return int New service request ID
+	 * @throws RestException
+	 */
+	public function postRequestFromIntervention($id, $request = array())
+	{
+		if (!DolibarrApiAccess::$user->hasRight('warrantysvc', 'svcrequest', 'write')) {
+			throw new RestException(403);
+		}
+
+		if (!is_array($request)) {
+			$request = array();
+		}
+
+		$obj = new SvcRequest($this->db);
+		$result = $obj->createFromIntervention((int) $id, DolibarrApiAccess::$user, $request);
+		if ($result < 0) {
+			$message = !empty($obj->error) ? $obj->error : 'Unable to create Service Request from Intervention';
+			throw new RestException(500, $message);
+		}
+
+		return $result;
+	}
+
 
 	// ====================================================================
 	// WARRANTIES
