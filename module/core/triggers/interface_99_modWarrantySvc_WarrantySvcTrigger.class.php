@@ -201,7 +201,7 @@ class InterfaceWarrantySvcTrigger extends DolibarrTriggers
 				return 0;
 
 			// ------------------------------------------------------------------
-			// Customer Return validated — if linked to an SR, auto-advance the SR
+			// Customer Return validated — if linked to an SR, record the receipt
 			// ------------------------------------------------------------------
 			case 'CUSTOMERRETURN_CUSTOMERRETURN_VALIDATE':
 				if (!getDolGlobalString('WARRANTYSVC_USE_CUSTOMERRETURN')) {
@@ -260,7 +260,9 @@ class InterfaceWarrantySvcTrigger extends DolibarrTriggers
 
 	/**
 	 * When a Customer Return is validated, check if it was linked to an SR.
-	 * If so, set date_return_received and advance the SR status.
+	 * Record the physical receipt. If an older workflow had explicitly put the
+	 * request in Await Return, resume Diagnosing: receiving the unit is an input
+	 * to diagnosis, not proof that a final resolution is already known.
 	 *
 	 * @param  object $object  The validated CustomerReturn
 	 * @param  User   $user    Actor
@@ -292,12 +294,13 @@ class InterfaceWarrantySvcTrigger extends DolibarrTriggers
 		$sr->date_return_received = dol_now();
 		$sr->update($user);
 
-		// Advance SR: awaiting return -> in progress, now that the goods are booked in.
+		// Legacy/explicit Await Return cases resume diagnosis when the unit arrives.
 		if ($sr->status == SvcRequest::STATUS_AWAIT_RETURN) {
-			if ($sr->setInProgress($user) < 0) {
-				// Do not fail the return over this — the stock movement is the
-				// important half — but never let it fail silently again.
-				dol_syslog('WarrantySvcTrigger: could not advance SR '.$sr_id.' from Await Return: '.$sr->error, LOG_WARNING);
+			$sr->status = SvcRequest::STATUS_DIAGNOSING;
+			if ($sr->update($user) < 0) {
+				// Do not fail Customer Return validation over an SR status update:
+				// the stock receipt is the authoritative physical event.
+				dol_syslog('WarrantySvcTrigger: could not resume diagnosis for SR '.$sr_id.' after CustomerReturn receipt: '.$sr->error, LOG_WARNING);
 			}
 		}
 
@@ -306,11 +309,10 @@ class InterfaceWarrantySvcTrigger extends DolibarrTriggers
 
 	/**
 	 * When a Customer Return linked to an SR is reopened, its stock movements
-	 * have been reversed — the goods are no longer booked in. Undo what
-	 * _handleCustomerReturnValidated() recorded: clear date_return_received,
-	 * and put an In Progress case back to Await Return. A case that has moved
-	 * on to Resolved/Closed is not yanked backward automatically; that is a
-	 * human decision, so it is logged for review instead.
+	 * have been reversed — the goods are no longer booked in. Clear the physical
+	 * receipt date, but do not infer a Service Request status transition from
+	 * that bookkeeping reversal. Diagnosis may have started before the return,
+	 * and Resolved/Closed cases must never be moved backward automatically.
 	 *
 	 * @param  object $object  The reopened CustomerReturn
 	 * @param  User   $user    Actor
@@ -341,11 +343,7 @@ class InterfaceWarrantySvcTrigger extends DolibarrTriggers
 		$sr->date_return_received = null;
 		$sr->update($user);
 
-		if ($sr->status == SvcRequest::STATUS_IN_PROGRESS) {
-			if ($sr->setAwaitingReturn($user) < 0) {
-				dol_syslog('WarrantySvcTrigger: could not move SR '.$sr_id.' back to Await Return after return reopen: '.$sr->error, LOG_WARNING);
-			}
-		} elseif (in_array($sr->status, array(SvcRequest::STATUS_RESOLVED, SvcRequest::STATUS_CLOSED))) {
+		if (in_array($sr->status, array(SvcRequest::STATUS_RESOLVED, SvcRequest::STATUS_CLOSED))) {
 			dol_syslog('WarrantySvcTrigger: CustomerReturn '.$cr_id.' reopened but SR '.$sr_id.' is already resolved/closed (status '.$sr->status.') — review manually', LOG_WARNING);
 		}
 
