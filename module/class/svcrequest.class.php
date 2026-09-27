@@ -1497,6 +1497,35 @@ class SvcRequest extends CommonObject
 	}
 
 	/**
+	 * Generate the Service Request PDF using Dolibarr's standard document pipeline.
+	 *
+	 * @param string $modele Document model
+	 * @param Translate $outputlangs Output language
+	 * @param int $hidedetails Hide line details
+	 * @param int $hidedesc Hide descriptions
+	 * @param int $hideref Hide references
+	 * @param array<string,mixed>|null $moreparams Additional generation parameters
+	 * @return int >0 on success, <0 on error
+	 */
+	public function generateDocument($modele, $outputlangs, $hidedetails = 0, $hidedesc = 0, $hideref = 0, $moreparams = null)
+	{
+		if (empty($modele)) {
+			$modele = !empty($this->model_pdf) ? $this->model_pdf : 'svcrequest_standard';
+		}
+
+		return $this->commonGenerateDocument(
+			'core/modules/warrantysvc/',
+			$modele,
+			$outputlangs,
+			$hidedetails,
+			$hidedesc,
+			$hideref,
+			$moreparams
+		);
+	}
+
+
+	/**
 	 * Get next reference number
 	 *
 	 * @param  Societe|null $objsoc Thirdparty (unused, for compatibility)
