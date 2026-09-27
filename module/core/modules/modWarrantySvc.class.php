@@ -55,7 +55,7 @@ class modWarrantySvc extends DolibarrModules
 			'login' => 0,
 			'substitutions' => 0,
 			'menus' => 0,
-			'hooks' => array('data' => array('elementproperties', 'productcard', 'commonobject', 'ordercard'), 'entity' => '0'),
+			'hooks' => array('data' => array('elementproperties', 'productcard', 'commonobject', 'ordercard', 'notification', 'emailtemplates'), 'entity' => '0'),
 			'apis' => 1,      // api/ directory enabled (registers via Luracast)
 		);
 
@@ -370,6 +370,68 @@ class modWarrantySvc extends DolibarrModules
 	}
 
 	/**
+	 * Register WarrantySvc trigger codes in Dolibarr's central action catalog.
+	 *
+	 * Existing rows are updated in place instead of deleted/reinserted so
+	 * llx_notify_def subscriptions keep their fk_action references.
+	 *
+	 * @return int 1 if OK, -1 on error
+	 */
+	private function syncNotificationEventCatalog()
+	{
+		$events = array(
+			array('WARRANTYSVC_CREATE', 'Service Request created', 'Executed when a WarrantySvc Service Request is created', 'svcrequest', 510),
+			array('WARRANTYSVC_ASSIGNED', 'Service Request assigned', 'Executed when a WarrantySvc Service Request is assigned to a user', 'svcrequest', 511),
+			array('WARRANTYSVC_VALIDATE', 'Service Request validated', 'Executed when a WarrantySvc Service Request is validated', 'svcrequest', 512),
+			array('WARRANTYSVC_SETDIAGNOSING', 'Service Request diagnosis started', 'Executed when a WarrantySvc Service Request enters diagnosis', 'svcrequest', 513),
+			array('WARRANTYSVC_SETINPROGRESS', 'Service Request in progress', 'Executed when a WarrantySvc Service Request enters In Progress', 'svcrequest', 514),
+			array('WARRANTYSVC_AWAITRETURN', 'Service Request awaiting return', 'Executed when a WarrantySvc Service Request waits for a return', 'svcrequest', 515),
+			array('WARRANTYSVC_RESOLVE', 'Service Request resolved', 'Executed when a WarrantySvc Service Request is resolved', 'svcrequest', 516),
+			array('WARRANTYSVC_CLOSE', 'Service Request closed', 'Executed when a WarrantySvc Service Request is closed', 'svcrequest', 517),
+			array('WARRANTYSVC_CANCEL', 'Service Request cancelled', 'Executed when a WarrantySvc Service Request is cancelled', 'svcrequest', 518),
+			array('WARRANTYSVC_REOPEN', 'Service Request reopened', 'Executed when a WarrantySvc Service Request is reopened', 'svcrequest', 519),
+			array('WARRANTYSVC_DELETE', 'Service Request deleted', 'Executed when a WarrantySvc Service Request is deleted', 'svcrequest', 520),
+			array('SVCWARRANTY_CREATE', 'Warranty created', 'Executed when a WarrantySvc warranty record is created', 'svcwarranty', 521),
+		);
+
+		foreach ($events as $event) {
+			list($code, $label, $description, $elementtype, $rang) = $event;
+			$sql = "SELECT rowid FROM ".MAIN_DB_PREFIX."c_action_trigger";
+			$sql .= " WHERE code = '".$this->db->escape($code)."'";
+			$resql = $this->db->query($sql);
+			if (!$resql) {
+				return -1;
+			}
+			$obj = $this->db->fetch_object($resql);
+			$this->db->free($resql);
+
+			if ($obj) {
+				$sql = "UPDATE ".MAIN_DB_PREFIX."c_action_trigger SET";
+				$sql .= " label = '".$this->db->escape($label)."'";
+				$sql .= ", description = '".$this->db->escape($description)."'";
+				$sql .= ", elementtype = '".$this->db->escape($elementtype)."'";
+				$sql .= ", rang = ".((int) $rang);
+				$sql .= " WHERE rowid = ".((int) $obj->rowid);
+			} else {
+				$sql = "INSERT INTO ".MAIN_DB_PREFIX."c_action_trigger";
+				$sql .= " (code, label, description, elementtype, rang) VALUES (";
+				$sql .= "'".$this->db->escape($code)."',";
+				$sql .= "'".$this->db->escape($label)."',";
+				$sql .= "'".$this->db->escape($description)."',";
+				$sql .= "'".$this->db->escape($elementtype)."',";
+				$sql .= ((int) $rang).")";
+			}
+
+			if (!$this->db->query($sql)) {
+				return -1;
+			}
+		}
+
+		return 1;
+	}
+
+
+	/**
 	 * Function called when module is enabled.
 	 * Loads SQL tables from sql/ directory using standard Dolibarr mechanism.
 	 *
@@ -384,6 +446,9 @@ class modWarrantySvc extends DolibarrModules
 
 		$result = $this->_load_tables('/warrantysvc/sql/');
 		if ($result < 0) {
+			return -1;
+		}
+		if ($this->syncNotificationEventCatalog() < 0) {
 			return -1;
 		}
 		return $this->_init(array(), $options);
