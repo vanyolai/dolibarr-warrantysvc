@@ -42,6 +42,40 @@ class WarrantySvc extends DolibarrApi
 		$this->db = $db;
 	}
 
+	/**
+	 * WarrantySvc REST is an internal staff API.
+	 *
+	 * @return void
+	 * @throws RestException
+	 */
+	protected function assertInternalUser()
+	{
+		if (!empty(DolibarrApiAccess::$user->socid)) {
+			throw new RestException(403, 'WarrantySvc API is restricted to internal users');
+		}
+	}
+
+	/**
+	 * Apply only explicitly supported request fields.
+	 *
+	 * @param object $object  Target object
+	 * @param array  $payload Request payload
+	 * @param array  $allowed Allowed field names
+	 * @return void
+	 */
+	protected function applyAllowedFields($object, $payload, $allowed)
+	{
+		if (!is_array($payload)) {
+			return;
+		}
+		$allowedMap = array_fill_keys($allowed, true);
+		foreach ($payload as $field => $value) {
+			if (isset($allowedMap[$field])) {
+				$object->{$field} = $value;
+			}
+		}
+	}
+
 	// ====================================================================
 	// SERVICE REQUESTS
 	// ====================================================================
@@ -61,6 +95,7 @@ class WarrantySvc extends DolibarrApi
 	 */
 	public function indexRequests($sortfield = 't.rowid', $sortorder = 'ASC', $limit = 100, $page = 0, $sqlfilters = '')
 	{
+		$this->assertInternalUser();
 		if (!DolibarrApiAccess::$user->hasRight('warrantysvc', 'svcrequest', 'read')) {
 			throw new RestException(403);
 		}
@@ -106,6 +141,7 @@ class WarrantySvc extends DolibarrApi
 	 */
 	public function getRequest($id)
 	{
+		$this->assertInternalUser();
 		if (!DolibarrApiAccess::$user->hasRight('warrantysvc', 'svcrequest', 'read')) {
 			throw new RestException(403);
 		}
@@ -134,17 +170,18 @@ class WarrantySvc extends DolibarrApi
 	 */
 	public function postRequest($request)
 	{
+		$this->assertInternalUser();
 		if (!DolibarrApiAccess::$user->hasRight('warrantysvc', 'svcrequest', 'write')) {
 			throw new RestException(403);
 		}
 
 		$obj = new SvcRequest($this->db);
-		foreach ($request as $field => $value) {
-			if ($field == 'rowid') {
-				continue;
-			}
-			$obj->$field = $value;
-		}
+		$this->applyAllowedFields($obj, $request, array(
+			'fk_soc', 'fk_product', 'serial_number', 'fk_contact', 'customer_site',
+			'fk_project', 'fk_commande', 'fk_expedition_origin', 'fk_lot',
+			'issue_description', 'issue_date', 'reported_via', 'fk_pbxcall',
+			'fk_warranty', 'fk_user_assigned', 'note_private', 'note_public',
+		));
 
 		$result = $obj->create(DolibarrApiAccess::$user);
 		if ($result < 0) {
@@ -167,6 +204,7 @@ class WarrantySvc extends DolibarrApi
 	 */
 	public function putRequest($id, $request)
 	{
+		$this->assertInternalUser();
 		if (!DolibarrApiAccess::$user->hasRight('warrantysvc', 'svcrequest', 'write')) {
 			throw new RestException(403);
 		}
@@ -180,12 +218,17 @@ class WarrantySvc extends DolibarrApi
 			throw new RestException(500, $obj->error);
 		}
 
-		foreach ($request as $field => $value) {
-			if (in_array($field, array('rowid', 'entity', 'ref', 'date_creation'))) {
-				continue;
-			}
-			$obj->$field = $value;
-		}
+		$this->applyAllowedFields($obj, $request, array(
+			'fk_soc', 'fk_product', 'serial_number', 'fk_contact', 'customer_site',
+			'fk_project', 'fk_commande', 'fk_expedition_origin', 'fk_lot',
+			'issue_description', 'issue_date', 'reported_via', 'fk_pbxcall',
+			'resolution_type', 'resolution_notes', 'fk_warranty',
+			'serial_in', 'serial_out', 'seal_number',
+			'fk_warehouse_source', 'fk_warehouse_return',
+			'outbound_carrier', 'outbound_tracking',
+			'return_carrier', 'return_tracking', 'date_return_expected',
+			'fk_intervention', 'fk_user_assigned', 'note_private', 'note_public',
+		));
 
 		$result = $obj->update(DolibarrApiAccess::$user);
 		if ($result < 0) {
@@ -210,21 +253,18 @@ class WarrantySvc extends DolibarrApi
 	 */
 	public function postRequestFromCall($id, $request = array())
 	{
+		$this->assertInternalUser();
 		if (!DolibarrApiAccess::$user->hasRight('warrantysvc', 'svcrequest', 'write')) {
 			throw new RestException(403);
 		}
 
 		$obj = new SvcRequest($this->db);
 
-		// Apply any extra fields passed in the body before createFromCall
-		if (!empty($request)) {
-			foreach ($request as $field => $value) {
-				if (in_array($field, array('rowid', 'entity', 'ref', 'date_creation'))) {
-					continue;
-				}
-				$obj->$field = $value;
-			}
-		}
+		// Only asset/intake fields may override values inherited from the call.
+		$this->applyAllowedFields($obj, $request, array(
+			'fk_product', 'serial_number', 'fk_warranty', 'customer_site',
+			'fk_project', 'fk_user_assigned', 'note_private', 'note_public',
+		));
 
 		$result = $obj->createFromCall((int) $id, DolibarrApiAccess::$user);
 		if ($result < 0) {
@@ -250,6 +290,7 @@ class WarrantySvc extends DolibarrApi
 	 */
 	public function postRequestFromIntervention($id, $request = array())
 	{
+		$this->assertInternalUser();
 		if (!DolibarrApiAccess::$user->hasRight('warrantysvc', 'svcrequest', 'write')) {
 			throw new RestException(403);
 		}
@@ -258,8 +299,19 @@ class WarrantySvc extends DolibarrApi
 			$request = array();
 		}
 
+		$allowed = array(
+			'fk_product', 'serial_number', 'fk_warranty', 'fk_contact', 'customer_site',
+			'fk_project', 'issue_description', 'issue_date', 'fk_user_assigned',
+			'reported_via', 'note_private', 'note_public',
+		);
+		$filtered = array();
+		foreach ($allowed as $field) {
+			if (array_key_exists($field, $request)) {
+				$filtered[$field] = $request[$field];
+			}
+		}
 		$obj = new SvcRequest($this->db);
-		$result = $obj->createFromIntervention((int) $id, DolibarrApiAccess::$user, $request);
+		$result = $obj->createFromIntervention((int) $id, DolibarrApiAccess::$user, $filtered);
 		if ($result < 0) {
 			$message = !empty($obj->error) ? $obj->error : 'Unable to create Service Request from Intervention';
 			throw new RestException(500, $message);
@@ -288,6 +340,7 @@ class WarrantySvc extends DolibarrApi
 	 */
 	public function indexWarranties($sortfield = 't.rowid', $sortorder = 'ASC', $limit = 100, $page = 0, $sqlfilters = '')
 	{
+		$this->assertInternalUser();
 		if (!DolibarrApiAccess::$user->hasRight('warrantysvc', 'svcwarranty', 'read')) {
 			throw new RestException(403);
 		}
@@ -333,6 +386,7 @@ class WarrantySvc extends DolibarrApi
 	 */
 	public function getWarranty($id)
 	{
+		$this->assertInternalUser();
 		if (!DolibarrApiAccess::$user->hasRight('warrantysvc', 'svcwarranty', 'read')) {
 			throw new RestException(403);
 		}
@@ -361,6 +415,7 @@ class WarrantySvc extends DolibarrApi
 	 */
 	public function getWarrantyBySerial($serial)
 	{
+		$this->assertInternalUser();
 		if (!DolibarrApiAccess::$user->hasRight('warrantysvc', 'svcwarranty', 'read')) {
 			throw new RestException(403);
 		}
