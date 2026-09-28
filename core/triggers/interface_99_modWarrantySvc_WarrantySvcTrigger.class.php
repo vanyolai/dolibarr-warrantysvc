@@ -130,6 +130,26 @@ class InterfaceWarrantySvcTrigger extends DolibarrTriggers
 				return 1;
 
 			// ------------------------------------------------------------------
+			// Supplier RMA email sent through Dolibarr's native
+			// actions_sendmails.inc.php pipeline. The physical message has already
+			// been accepted by CMailFile at this point, so add a non-status audit
+			// event to the Supplier RMA lifecycle.
+			// ------------------------------------------------------------------
+			case 'SVCSUPPLIERRMA_SENTBYMAIL':
+				if (isset($object->element) && $object->element === 'svcsupplierrma' && method_exists($object, 'logEvent')) {
+					$recipient = !empty($object->email_to) ? (string) $object->email_to : '';
+					$subject = !empty($object->email_subject) ? (string) $object->email_subject : '';
+					$note = $langs->transnoentitiesnoconv('SupplierRmaEmailAuditNote', $recipient, $subject);
+					$result = $object->logEvent('EMAIL', (string) $object->status, (string) $object->status, $note, $user);
+					if ($result < 0) {
+						// The email has already been sent. Do not turn a logging
+						// failure into a misleading "mail failed" result.
+						dol_syslog('WarrantySvcTrigger: unable to audit SVCSUPPLIERRMA_SENTBYMAIL for '.$object->ref.': '.$object->error, LOG_ERR);
+					}
+				}
+				return 1;
+
+			// ------------------------------------------------------------------
 			// Shipment closed or validated — auto-create warranty records
 			// for each shipped serialized product line.
 			// Gated by WARRANTYSVC_AUTO_WARRANTY_ON_SHIPMENT (master switch)

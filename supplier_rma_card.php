@@ -170,8 +170,11 @@ if ($action === 'confirm_delete' && GETPOST('confirm', 'alpha') === 'yes' && $pe
 }
 
 // Native Dolibarr email backend.
+// The trigger is fired by actions_sendmails.inc.php only after CMailFile
+// successfully sent the message, so the Supplier RMA audit trail reflects
+// real outgoing emails instead of merely opening/submitting the mail form.
 if ($object->id > 0 && $permwrite) {
-	$triggersendname = '';
+	$triggersendname = 'SVCSUPPLIERRMA_SENTBYMAIL';
 	$autocopy = '';
 	$trackid = 'wsvcsrma'.$object->id;
 	include DOL_DOCUMENT_ROOT.'/core/actions_sendmails.inc.php';
