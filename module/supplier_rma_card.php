@@ -78,6 +78,7 @@ function warrantysvc_supplier_rma_fill_from_post($object)
 	$object->fk_svc_request = GETPOSTINT('fk_svc_request');
 	$object->fk_soc_supplier = GETPOSTINT('fk_soc_supplier');
 	$object->fk_product = GETPOSTINT('fk_product');
+	$object->qty = price2num(GETPOST('qty', 'alphanohtml'));
 	$object->serial_number = GETPOST('serial_number', 'alphanohtml');
 	$object->supplier_rma_ref = GETPOST('supplier_rma_ref', 'alphanohtml');
 	$object->outbound_carrier = GETPOST('outbound_carrier', 'alphanohtml');
@@ -211,6 +212,10 @@ if ($action === 'create') {
 	print $form->select_produits($object->fk_product, 'fk_product', '', 0, 0, -1, 2, '', 0, array(), 0, 0, 0, 'minwidth300');
 	print '</td></tr>';
 
+	print '<tr><td class="fieldrequired">'.$langs->trans('Qty').'</td><td>';
+	print '<input type="number" name="qty" min="0.00000001" step="any" class="width100" value="'.dol_escape_htmltag((string) ($object->qty ?: 1)).'">';
+	print '</td></tr>';
+
 	print '<tr><td>'.$langs->trans('SerialNumber').'</td><td>';
 	print '<input type="text" name="serial_number" class="minwidth300" value="'.dol_escape_htmltag($object->serial_number).'">';
 	print '</td></tr>';
@@ -327,6 +332,14 @@ if ($isEdit) {
 	if ($product->fetch($object->fk_product) > 0) {
 		print $product->getNomUrl(1).' - '.dol_escape_htmltag($product->label);
 	}
+}
+print '</td></tr>';
+
+print '<tr><td>'.$langs->trans('Qty').'</td><td>';
+if ($isEdit) {
+	print '<input type="number" name="qty" min="0.00000001" step="any" class="width100" value="'.dol_escape_htmltag((string) $object->qty).'">';
+} else {
+	print price($object->qty, 0, $langs, 0, 0, -1);
 }
 print '</td></tr>';
 
