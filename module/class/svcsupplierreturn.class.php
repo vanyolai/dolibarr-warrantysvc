@@ -435,7 +435,7 @@ class SvcSupplierReturn extends CommonObject
 		return $this->setSimpleStatus(self::STATUS_DRAFT, $user, $note);
 	}
 
-	private function setSimpleStatus($newStatus, $user, $note = '')
+	private function setSimpleStatus($newStatus, $user, $note = '', $eventCode = 'STATUS')
 	{
 		$oldStatus = $this->status;
 		$sets = array(
@@ -464,7 +464,7 @@ class SvcSupplierReturn extends CommonObject
 			return -1;
 		}
 		$this->status = $newStatus;
-		if ($this->logEvent('STATUS', $oldStatus, $newStatus, $note, $user) < 0) {
+		if ($this->logEvent($eventCode, $oldStatus, $newStatus, $note, $user) < 0) {
 			$this->db->rollback();
 			return -1;
 		}
@@ -611,14 +611,7 @@ class SvcSupplierReturn extends CommonObject
 			if ($this->refuseIfStockMoved('ErrorSupplierReturnRollbackStockMovement') < 0) {
 				return -1;
 			}
-			$oldStatus = $this->status;
-			$result = $this->setSimpleStatus(self::STATUS_DRAFT, $user, $note);
-			if ($result > 0) {
-				// setSimpleStatus records STATUS; add an explicit correction marker
-				// so the audit trail distinguishes a rollback from normal progress.
-				$this->logEvent('ROLLBACK', $oldStatus, self::STATUS_DRAFT, $note, $user);
-			}
-			return $result;
+			return $this->setSimpleStatus(self::STATUS_DRAFT, $user, $note, 'ROLLBACK');
 		}
 
 		if ($this->status === self::STATUS_CLOSED) {
