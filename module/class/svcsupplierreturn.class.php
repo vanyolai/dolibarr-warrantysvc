@@ -94,6 +94,65 @@ class SvcSupplierReturn extends CommonObject
 		return ((int) $value > 0) ? (string) ((int) $value) : "NULL";
 	}
 
+	/**
+	 * Check whether this return already has any physical outbound movement.
+	 *
+	 * We inspect both the local line FK and the stock movement origin. The latter
+	 * is essential for crash recovery: a movement may have committed before its
+	 * local FK was persisted by an older build.
+	 *
+	 * @return int 1 if movement exists, 0 if none, -1 on database error
+	 */
+	public function hasStockMovements()
+	{
+		if ((int) $this->id <= 0) {
+			return 0;
+		}
+
+		$sql = "SELECT rowid FROM ".MAIN_DB_PREFIX."svc_supplier_return_line";
+		$sql .= " WHERE fk_supplier_return = ".((int) $this->id);
+		$sql .= " AND fk_stock_movement_out IS NOT NULL AND fk_stock_movement_out > 0";
+		$sql .= $this->db->plimit(1);
+		$resql = $this->db->query($sql);
+		if (!$resql) {
+			$this->error = $this->db->lasterror();
+			return -1;
+		}
+		$found = (bool) $this->db->fetch_object($resql);
+		$this->db->free($resql);
+		if ($found) {
+			return 1;
+		}
+
+		$sql = "SELECT rowid FROM ".MAIN_DB_PREFIX."stock_mouvement";
+		$sql .= " WHERE origintype = 'svcsupplierreturn'";
+		$sql .= " AND fk_origin = ".((int) $this->id);
+		$sql .= " AND value < 0";
+		$sql .= $this->db->plimit(1);
+		$resql = $this->db->query($sql);
+		if (!$resql) {
+			$this->error = $this->db->lasterror();
+			return -1;
+		}
+		$found = (bool) $this->db->fetch_object($resql);
+		$this->db->free($resql);
+
+		return $found ? 1 : 0;
+	}
+
+	private function refuseIfStockMoved($errorKey = 'ErrorSupplierReturnStockLocked')
+	{
+		$hasMovements = $this->hasStockMovements();
+		if ($hasMovements < 0) {
+			return -1;
+		}
+		if ($hasMovements > 0) {
+			$this->error = $errorKey;
+			return -1;
+		}
+		return 1;
+	}
+
 	private function validateSupplier()
 	{
 		if ((int) $this->fk_soc_supplier <= 0) {
@@ -274,6 +333,9 @@ class SvcSupplierReturn extends CommonObject
 			$this->error = 'ErrorSupplierReturnNotEditable';
 			return -1;
 		}
+		if ($this->refuseIfStockMoved() < 0) {
+			return -1;
+		}
 		if ($this->validateSupplier() < 0 || $this->validateOrigins() < 0) {
 			return -1;
 		}
@@ -281,7 +343,9 @@ class SvcSupplierReturn extends CommonObject
 			$this->error = 'ErrorSupplierReturnReasonRequired';
 			return -1;
 		}
+
 		$this->fk_user_modif = (int) $user->id;
+		$expectedStatus = $this->status;
 		$sql = "UPDATE ".MAIN_DB_PREFIX."svc_supplier_return SET";
 		$sql .= " fk_soc_supplier = ".((int) $this->fk_soc_supplier);
 		$sql .= ", fk_supplier_order = ".$this->sqlIntOrNull($this->fk_supplier_order);
@@ -296,10 +360,35 @@ class SvcSupplierReturn extends CommonObject
 		$sql .= ", note_private = ".$this->sqlStringOrNull($this->note_private);
 		$sql .= ", fk_user_modif = ".((int) $this->fk_user_modif);
 		$sql .= " WHERE rowid = ".((int) $this->id);
-		if (!$this->db->query($sql)) {
+		$sql .= " AND entity = ".((int) $this->entity);
+		$sql .= " AND status = '".$this->db->escape($expectedStatus)."'";
+		$resql = $this->db->query($sql);
+		if (!$resql) {
 			$this->error = $this->db->lasterror();
 			return -1;
 		}
+
+		// affected_rows may be zero for a legitimate no-op update. Distinguish
+		// that from a concurrent workflow transition before reporting success.
+		if ($this->db->affected_rows($resql) < 1) {
+			$sql = "SELECT status FROM ".MAIN_DB_PREFIX."svc_supplier_return";
+			$sql .= " WHERE rowid = ".((int) $this->id);
+			$sql .= " AND entity = ".((int) $this->entity);
+			$resql = $this->db->query($sql);
+			if (!$resql || !($current = $this->db->fetch_object($resql))) {
+				if ($resql) {
+					$this->db->free($resql);
+				}
+				$this->error = $resql ? 'ErrorRecordNotFound' : $this->db->lasterror();
+				return -1;
+			}
+			$this->db->free($resql);
+			if ((string) $current->status !== (string) $expectedStatus) {
+				$this->error = 'ErrorSupplierReturnConcurrentUpdate';
+				return -1;
+			}
+		}
+
 		$this->socid = (int) $this->fk_soc_supplier;
 		return 1;
 	}
@@ -328,6 +417,9 @@ class SvcSupplierReturn extends CommonObject
 			$this->error = 'ErrorSupplierReturnInvalidTransition';
 			return -1;
 		}
+		if ($this->refuseIfStockMoved() < 0) {
+			return -1;
+		}
 		return $this->setSimpleStatus(self::STATUS_CANCELLED, $user, $note);
 	}
 
@@ -335,6 +427,9 @@ class SvcSupplierReturn extends CommonObject
 	{
 		if ($this->status !== self::STATUS_CANCELLED) {
 			$this->error = 'ErrorSupplierReturnInvalidTransition';
+			return -1;
+		}
+		if ($this->refuseIfStockMoved() < 0) {
 			return -1;
 		}
 		return $this->setSimpleStatus(self::STATUS_DRAFT, $user, $note);
@@ -392,9 +487,44 @@ class SvcSupplierReturn extends CommonObject
 			$this->error = 'ErrorSupplierReturnWarehouseRequired';
 			return -1;
 		}
-		$this->fetchLines();
+
+		/*
+		 * Serialize shipment against edits/cancel/delete and keep all line
+		 * movements plus the workflow transition in one outer transaction.
+		 * MouvementStock uses nested DoliDB transactions, so its commits are
+		 * deferred until this outer transaction commits.
+		 */
+		$this->db->begin();
+
+		$sql = "SELECT status FROM ".MAIN_DB_PREFIX."svc_supplier_return";
+		$sql .= " WHERE rowid = ".((int) $this->id);
+		$sql .= " AND entity = ".((int) $this->entity);
+		if ($this->db->type !== 'sqlite3') {
+			$sql .= " FOR UPDATE";
+		}
+		$resql = $this->db->query($sql);
+		if (!$resql || !($current = $this->db->fetch_object($resql))) {
+			if ($resql) {
+				$this->db->free($resql);
+			}
+			$this->error = $resql ? 'ErrorRecordNotFound' : $this->db->lasterror();
+			$this->db->rollback();
+			return -1;
+		}
+		$this->db->free($resql);
+		if ((string) $current->status !== self::STATUS_AUTHORIZED) {
+			$this->error = 'ErrorSupplierReturnConcurrentUpdate';
+			$this->db->rollback();
+			return -1;
+		}
+
+		if ($this->fetchLines() < 0) {
+			$this->db->rollback();
+			return -1;
+		}
 		if (empty($this->lines)) {
 			$this->error = 'ErrorSupplierReturnNeedsLines';
+			$this->db->rollback();
 			return -1;
 		}
 
@@ -417,14 +547,24 @@ class SvcSupplierReturn extends CommonObject
 			if ($movementId <= 0) {
 				$this->error = $stock->error;
 				$this->errors = $stock->errors;
+				$this->db->rollback();
 				return -1;
 			}
+
 			$sql = "UPDATE ".MAIN_DB_PREFIX."svc_supplier_return_line";
 			$sql .= " SET fk_stock_movement_out = ".((int) $movementId);
 			$sql .= " WHERE rowid = ".((int) $line->id);
+			$sql .= " AND fk_supplier_return = ".((int) $this->id);
 			$sql .= " AND (fk_stock_movement_out IS NULL OR fk_stock_movement_out = 0)";
-			if (!$this->db->query($sql)) {
+			$resql = $this->db->query($sql);
+			if (!$resql) {
 				$this->error = $this->db->lasterror();
+				$this->db->rollback();
+				return -1;
+			}
+			if ($this->db->affected_rows($resql) < 1) {
+				$this->error = 'ErrorSupplierReturnConcurrentUpdate';
+				$this->db->rollback();
 				return -1;
 			}
 			$line->fk_stock_movement_out = $movementId;
@@ -432,12 +572,12 @@ class SvcSupplierReturn extends CommonObject
 
 		$oldStatus = $this->status;
 		$now = dol_now();
-		$this->db->begin();
 		$sql = "UPDATE ".MAIN_DB_PREFIX."svc_supplier_return SET";
 		$sql .= " status = '".self::STATUS_SHIPPED."'";
 		$sql .= ", date_shipped = '".$this->db->idate($now)."'";
 		$sql .= ", fk_user_modif = ".((int) $user->id);
 		$sql .= " WHERE rowid = ".((int) $this->id);
+		$sql .= " AND entity = ".((int) $this->entity);
 		$sql .= " AND status = '".self::STATUS_AUTHORIZED."'";
 		$resql = $this->db->query($sql);
 		if (!$resql || $this->db->affected_rows($resql) < 1) {
@@ -445,6 +585,7 @@ class SvcSupplierReturn extends CommonObject
 			$this->db->rollback();
 			return -1;
 		}
+
 		$this->status = self::STATUS_SHIPPED;
 		$this->date_shipped = $now;
 		if ($this->logEvent('STATUS', $oldStatus, self::STATUS_SHIPPED, $note, $user) < 0) {
@@ -467,47 +608,94 @@ class SvcSupplierReturn extends CommonObject
 	public function rollbackStatus($user, $note = '')
 	{
 		if ($this->status === self::STATUS_AUTHORIZED) {
-			return $this->setSimpleStatus(self::STATUS_DRAFT, $user, $note);
-		}
-		if ($this->status === self::STATUS_CLOSED) {
-			$oldStatus = $this->status;
-			$this->status = self::STATUS_SHIPPED;
-			$this->date_closed = null;
-			$sql = "UPDATE ".MAIN_DB_PREFIX."svc_supplier_return SET status = '".self::STATUS_SHIPPED."', date_closed = NULL, fk_user_modif = ".((int) $user->id);
-			$sql .= " WHERE rowid = ".((int) $this->id)." AND status = '".self::STATUS_CLOSED."'";
-			if (!$this->db->query($sql)) {
-				$this->status = $oldStatus;
-				$this->error = $this->db->lasterror();
+			if ($this->refuseIfStockMoved('ErrorSupplierReturnRollbackStockMovement') < 0) {
 				return -1;
 			}
-			return $this->logEvent('ROLLBACK', $oldStatus, self::STATUS_SHIPPED, $note, $user);
+			$oldStatus = $this->status;
+			$result = $this->setSimpleStatus(self::STATUS_DRAFT, $user, $note);
+			if ($result > 0) {
+				// setSimpleStatus records STATUS; add an explicit correction marker
+				// so the audit trail distinguishes a rollback from normal progress.
+				$this->logEvent('ROLLBACK', $oldStatus, self::STATUS_DRAFT, $note, $user);
+			}
+			return $result;
 		}
+
+		if ($this->status === self::STATUS_CLOSED) {
+			$oldStatus = $this->status;
+			$this->db->begin();
+			$sql = "UPDATE ".MAIN_DB_PREFIX."svc_supplier_return";
+			$sql .= " SET status = '".self::STATUS_SHIPPED."', date_closed = NULL, fk_user_modif = ".((int) $user->id);
+			$sql .= " WHERE rowid = ".((int) $this->id);
+			$sql .= " AND entity = ".((int) $this->entity);
+			$sql .= " AND status = '".self::STATUS_CLOSED."'";
+			$resql = $this->db->query($sql);
+			if (!$resql || $this->db->affected_rows($resql) < 1) {
+				$this->error = $resql ? 'ErrorSupplierReturnConcurrentUpdate' : $this->db->lasterror();
+				$this->db->rollback();
+				return -1;
+			}
+
+			$this->status = self::STATUS_SHIPPED;
+			$this->date_closed = null;
+			if ($this->logEvent('ROLLBACK', $oldStatus, self::STATUS_SHIPPED, $note, $user) < 0) {
+				$this->db->rollback();
+				return -1;
+			}
+			$this->db->commit();
+			return 1;
+		}
+
 		if ($this->status === self::STATUS_SHIPPED) {
 			$this->error = 'ErrorSupplierReturnRollbackStockMovement';
 			return -1;
 		}
+
 		if ($this->status === self::STATUS_CANCELLED) {
 			return $this->reopen($user, $note);
 		}
+
 		$this->error = 'ErrorSupplierReturnNoPreviousStatus';
 		return -1;
 	}
 
 	public function delete($user, $notrigger = 0)
 	{
-		$this->fetchLines();
-		foreach ($this->lines as $line) {
-			if (!empty($line->fk_stock_movement_out)) {
-				$this->error = 'ErrorSupplierReturnDeleteStockMovements';
-				return -1;
-			}
-		}
 		$this->db->begin();
+
+		$sql = "SELECT status FROM ".MAIN_DB_PREFIX."svc_supplier_return";
+		$sql .= " WHERE rowid = ".((int) $this->id);
+		$sql .= " AND entity = ".((int) $this->entity);
+		if ($this->db->type !== 'sqlite3') {
+			$sql .= " FOR UPDATE";
+		}
+		$resql = $this->db->query($sql);
+		if (!$resql || !$this->db->fetch_object($resql)) {
+			if ($resql) {
+				$this->db->free($resql);
+			}
+			$this->error = $resql ? 'ErrorRecordNotFound' : $this->db->lasterror();
+			$this->db->rollback();
+			return -1;
+		}
+		$this->db->free($resql);
+
+		$hasMovements = $this->hasStockMovements();
+		if ($hasMovements < 0) {
+			$this->db->rollback();
+			return -1;
+		}
+		if ($hasMovements > 0) {
+			$this->error = 'ErrorSupplierReturnDeleteStockMovements';
+			$this->db->rollback();
+			return -1;
+		}
+
 		foreach (array(
 			"DELETE FROM ".MAIN_DB_PREFIX."svc_supplier_return_log WHERE fk_supplier_return = ".((int) $this->id),
 			"DELETE FROM ".MAIN_DB_PREFIX."svc_supplier_return_line WHERE fk_supplier_return = ".((int) $this->id),
 			"DELETE FROM ".MAIN_DB_PREFIX."element_contact WHERE element_id = ".((int) $this->id)." AND fk_c_type_contact IN (SELECT rowid FROM ".MAIN_DB_PREFIX."c_type_contact WHERE element = 'svcsupplierreturn')",
-			"DELETE FROM ".MAIN_DB_PREFIX."svc_supplier_return WHERE rowid = ".((int) $this->id),
+			"DELETE FROM ".MAIN_DB_PREFIX."svc_supplier_return WHERE rowid = ".((int) $this->id)." AND entity = ".((int) $this->entity),
 		) as $sql) {
 			if (!$this->db->query($sql)) {
 				$this->error = $this->db->lasterror();
@@ -515,6 +703,7 @@ class SvcSupplierReturn extends CommonObject
 				return -1;
 			}
 		}
+
 		$this->db->commit();
 		return 1;
 	}
