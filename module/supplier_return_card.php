@@ -240,7 +240,10 @@ if (is_object($object->thirdparty)) $morehtmlref .= $object->thirdparty->getNomU
 $morehtmlref .= '</div>';
 dol_banner_tab($object, 'ref', $linkback, 1, 'ref', 'ref', $morehtmlref);
 
-$isEdit = ($action === 'edit' && $permwrite && in_array($object->status, array(SvcSupplierReturn::STATUS_DRAFT, SvcSupplierReturn::STATUS_AUTHORIZED), true));
+$movementState = $object->hasStockMovements();
+$supplierReturnStockLocked = ($movementState !== 0);
+
+$isEdit = ($action === 'edit' && $permwrite && !$supplierReturnStockLocked && in_array($object->status, array(SvcSupplierReturn::STATUS_DRAFT, SvcSupplierReturn::STATUS_AUTHORIZED), true));
 if ($isEdit) {
 	print '<form method="POST" action="'.$_SERVER['PHP_SELF'].'?id='.$object->id.'">';
 	print '<input type="hidden" name="token" value="'.newToken().'"><input type="hidden" name="action" value="update">';
@@ -290,7 +293,7 @@ if ($isEdit) {
 	print '<a class="butActionDelete" href="'.$_SERVER['PHP_SELF'].'?id='.$object->id.'">'.$langs->trans('Cancel').'</a></div></form>';
 } else {
 	print '<div class="tabsAction">';
-	if ($permwrite && in_array($object->status, array(SvcSupplierReturn::STATUS_DRAFT, SvcSupplierReturn::STATUS_AUTHORIZED), true) && $action !== 'presend') {
+	if ($permwrite && !$supplierReturnStockLocked && in_array($object->status, array(SvcSupplierReturn::STATUS_DRAFT, SvcSupplierReturn::STATUS_AUTHORIZED), true) && $action !== 'presend') {
 		print '<a class="butAction" href="'.$_SERVER['PHP_SELF'].'?id='.$object->id.'&action=edit&token='.newToken().'">'.$langs->trans('Modify').'</a>';
 	}
 	if ($permwrite && $action !== 'presend') {
@@ -302,11 +305,10 @@ if ($isEdit) {
 	if ($permwrite && $object->status === SvcSupplierReturn::STATUS_DRAFT) print '<a class="butAction" href="'.$_SERVER['PHP_SELF'].'?id='.$object->id.'&action=authorize&token='.newToken().'">'.$langs->trans('SupplierReturnAuthorize').'</a>';
 	if ($permwrite && $object->status === SvcSupplierReturn::STATUS_AUTHORIZED) print '<a class="butAction" href="'.$_SERVER['PHP_SELF'].'?id='.$object->id.'&action=ship&token='.newToken().'">'.$langs->trans('SupplierReturnShip').'</a>';
 	if ($permwrite && $object->status === SvcSupplierReturn::STATUS_SHIPPED) print '<a class="butAction" href="'.$_SERVER['PHP_SELF'].'?id='.$object->id.'&action=close&token='.newToken().'">'.$langs->trans('SupplierReturnClose').'</a>';
-	if ($permwrite && in_array($object->status, array(SvcSupplierReturn::STATUS_DRAFT, SvcSupplierReturn::STATUS_AUTHORIZED), true)) print '<a class="butActionDelete" href="'.$_SERVER['PHP_SELF'].'?id='.$object->id.'&action=cancel&token='.newToken().'">'.$langs->trans('Cancel').'</a>';
+	if ($permwrite && !$supplierReturnStockLocked && in_array($object->status, array(SvcSupplierReturn::STATUS_DRAFT, SvcSupplierReturn::STATUS_AUTHORIZED), true)) print '<a class="butActionDelete" href="'.$_SERVER['PHP_SELF'].'?id='.$object->id.'&action=cancel&token='.newToken().'">'.$langs->trans('Cancel').'</a>';
 	if ($permwrite && $object->status === SvcSupplierReturn::STATUS_CANCELLED) print '<a class="butAction" href="'.$_SERVER['PHP_SELF'].'?id='.$object->id.'&action=reopen&token='.newToken().'">'.$langs->trans('Reopen').'</a>';
-	if ($permwrite && in_array($object->status, array(SvcSupplierReturn::STATUS_AUTHORIZED, SvcSupplierReturn::STATUS_CLOSED), true)) print '<a class="butAction" href="'.$_SERVER['PHP_SELF'].'?id='.$object->id.'&action=rollback&token='.newToken().'">'.$langs->trans('SupplierReturnRollback').'</a>';
-	$hasMovement = false; foreach ($object->lines as $l) if (!empty($l->fk_stock_movement_out)) $hasMovement = true;
-	if ($permdelete && !$hasMovement) print '<a class="butActionDelete" href="'.$_SERVER['PHP_SELF'].'?id='.$object->id.'&action=delete&token='.newToken().'">'.$langs->trans('DeleteSupplierReturn').'</a>';
+	if ($permwrite && (!$supplierReturnStockLocked || $object->status === SvcSupplierReturn::STATUS_CLOSED) && in_array($object->status, array(SvcSupplierReturn::STATUS_AUTHORIZED, SvcSupplierReturn::STATUS_CLOSED), true)) print '<a class="butAction" href="'.$_SERVER['PHP_SELF'].'?id='.$object->id.'&action=rollback&token='.newToken().'">'.$langs->trans('SupplierReturnRollback').'</a>';
+	if ($permdelete && !$supplierReturnStockLocked) print '<a class="butActionDelete" href="'.$_SERVER['PHP_SELF'].'?id='.$object->id.'&action=delete&token='.newToken().'">'.$langs->trans('DeleteSupplierReturn').'</a>';
 	print '</div>';
 }
 
@@ -320,7 +322,7 @@ if (empty($object->lines)) print '<tr class="oddeven"><td colspan="6"><span clas
 foreach ($object->lines as $line) {
 	$p = new Product($db); $plabel = '#'.((int) $line->fk_product);
 	if ($p->fetch($line->fk_product) > 0) $plabel = $p->getNomUrl(1).' - '.dol_escape_htmltag($p->label);
-	if ($action === 'editline' && $lineid === $line->id && empty($line->fk_stock_movement_out)) {
+	if ($action === 'editline' && !$supplierReturnStockLocked && $lineid === $line->id && empty($line->fk_stock_movement_out)) {
 		print '<form method="POST" action="'.$_SERVER['PHP_SELF'].'?id='.$object->id.'#lines"><tr class="oddeven">';
 		print '<input type="hidden" name="token" value="'.newToken().'"><input type="hidden" name="action" value="updateline"><input type="hidden" name="lineid" value="'.$line->id.'">';
 		print '<td>'; $form->select_produits($line->fk_product, 'line_fk_product', 0, 0, 0, -1, 2, '', 0, array(), 0, 0, 0, 'minwidth250'); print '</td>';
@@ -331,14 +333,14 @@ foreach ($object->lines as $line) {
 	} else {
 		print '<tr class="oddeven"><td>'.$plabel.'</td><td>'.dol_escape_htmltag($line->batch ?: '—').'</td><td class="right">'.price($line->qty,0,$langs,0,0,-1).'</td><td>'.dol_escape_htmltag($line->reason ?: '—').'</td>';
 		print '<td>'.($line->fk_stock_movement_out ? '<a href="'.DOL_URL_ROOT.'/product/stock/movement.php?id='.$line->fk_stock_movement_out.'">#'.$line->fk_stock_movement_out.'</a>' : '—').'</td><td class="right">';
-		if ($permwrite && in_array($object->status,array(SvcSupplierReturn::STATUS_DRAFT,SvcSupplierReturn::STATUS_AUTHORIZED),true) && empty($line->fk_stock_movement_out)) {
+		if ($permwrite && !$supplierReturnStockLocked && in_array($object->status,array(SvcSupplierReturn::STATUS_DRAFT,SvcSupplierReturn::STATUS_AUTHORIZED),true) && empty($line->fk_stock_movement_out)) {
 			print '<a href="'.$_SERVER['PHP_SELF'].'?id='.$object->id.'&action=editline&lineid='.$line->id.'#lines">'.img_edit().'</a> ';
 			print '<a href="'.$_SERVER['PHP_SELF'].'?id='.$object->id.'&action=deleteline&lineid='.$line->id.'&token='.newToken().'#lines">'.img_delete().'</a>';
 		}
 		print '</td></tr>';
 	}
 }
-if ($permwrite && in_array($object->status,array(SvcSupplierReturn::STATUS_DRAFT,SvcSupplierReturn::STATUS_AUTHORIZED),true) && $action !== 'editline') {
+if ($permwrite && !$supplierReturnStockLocked && in_array($object->status,array(SvcSupplierReturn::STATUS_DRAFT,SvcSupplierReturn::STATUS_AUTHORIZED),true) && $action !== 'editline') {
 	print '<form method="POST" action="'.$_SERVER['PHP_SELF'].'?id='.$object->id.'#lines"><tr class="liste_titre_create">';
 	print '<input type="hidden" name="token" value="'.newToken().'"><input type="hidden" name="action" value="addline">';
 	print '<td>'; $form->select_produits(0, 'line_fk_product', 0, 0, 0, -1, 2, '', 0, array(), 0, 0, 0, 'minwidth250'); print '</td>';
