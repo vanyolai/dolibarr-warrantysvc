@@ -562,6 +562,26 @@ class SvcSupplierReturn extends CommonObject
 		return $out;
 	}
 
+
+	/**
+	 * Generate a Supplier Return document through Dolibarr's standard pipeline.
+	 */
+	public function generateDocument($modele, $outputlangs, $hidedetails = 0, $hidedesc = 0, $hideref = 0, $moreparams = null)
+	{
+		if (empty($modele)) {
+			$modele = !empty($this->model_pdf) ? $this->model_pdf : 'supplierreturn_standard';
+		}
+		return $this->commonGenerateDocument(
+			'core/modules/warrantysvc/',
+			$modele,
+			$outputlangs,
+			$hidedetails,
+			$hidedesc,
+			$hideref,
+			$moreparams
+		);
+	}
+
 	public function getNomUrl($withpicto = 0)
 	{
 		$url = DOL_URL_ROOT.'/custom/warrantysvc/supplier_return_card.php?id='.$this->id;
