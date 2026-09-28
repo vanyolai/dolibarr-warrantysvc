@@ -486,6 +486,7 @@ if ($permwrite && !$supplierReturnStockLocked && in_array($object->status,array(
 	$addProduct = new Product($db);
 	$addProductLoaded = ($addProductId > 0 && $addProduct->fetch($addProductId) > 0);
 	$addHasBatch = $addProductLoaded && (method_exists($addProduct, 'hasbatch') ? (bool) $addProduct->hasbatch() : !empty($addProduct->status_batch));
+	$batchOptions = array();
 	if ($addHasBatch) {
 		$batchChoices = $stockSelector->getSupplierReturnBatchChoices(
 			(int) $object->fk_soc_supplier,
@@ -513,7 +514,7 @@ if ($permwrite && !$supplierReturnStockLocked && in_array($object->status,array(
 	print '<td><input name="line_reason" class="minwidth250" value="'.dol_escape_htmltag($addReason).'" placeholder="'.dol_escape_htmltag($langs->trans('SupplierReturnLineReasonOptional')).'"></td>';
 	print '<td></td>';
 	$canAddLine = ($addProductId > 0);
-	if ($addHasBatch && ($addBatch === '' || $addBatch === '-1')) {
+	if ($addHasBatch && empty($batchOptions)) {
 		$canAddLine = false;
 	}
 	print '<td class="right"><button class="button" type="submit" name="do_addline" value="1"'.(!$canAddLine ? ' disabled' : '').'>'.$langs->trans('Add').'</button></td>';
