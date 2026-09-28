@@ -189,11 +189,101 @@ class SvcRequest extends CommonObject
 	 * @param  int  $notrigger 0=launch triggers, 1=disable
 	 * @return int             >0 if OK, <0 if KO
 	 */
+	/**
+	 * Check whether a product is eligible for Service Requests under the
+	 * optional serialized/LOT-only policy.
+	 *
+	 * @param  DoliDB $db        Database handler
+	 * @param  int    $productId Product ID
+	 * @return bool
+	 */
+	public static function isProductAllowedByPolicy($db, $productId)
+	{
+		$productId = (int) $productId;
+		if ($productId <= 0) {
+			return false;
+		}
+		if (!getDolGlobalString('WARRANTYSVC_WARRANTY_REQUIRES_LOTS')) {
+			return true;
+		}
+
+		$sql = "SELECT p.tobatch FROM ".MAIN_DB_PREFIX."product p";
+		$sql .= " WHERE p.rowid = ".$productId;
+		$sql .= " AND p.entity IN (".getEntity('product').")";
+		$resql = $db->query($sql);
+		if (!$resql) {
+			return false;
+		}
+		$obj = $db->fetch_object($resql);
+		$db->free($resql);
+		return $obj && (int) $obj->tobatch > 0;
+	}
+
+	/**
+	 * Validate invariants shared by every Service Request creation/update path.
+	 *
+	 * @return int 1 if valid, -1 otherwise
+	 */
+	public function validateBusinessRules()
+	{
+		global $conf;
+
+		if ((int) $this->fk_soc <= 0) {
+			$this->error = 'ErrorThirdPartyRequired';
+			return -1;
+		}
+		if ((int) $this->fk_product <= 0) {
+			$this->error = 'ErrorProductRequired';
+			return -1;
+		}
+		if (!self::isProductAllowedByPolicy($this->db, (int) $this->fk_product)) {
+			$this->error = 'ErrorWarrantyRequiresLotProduct';
+			return -1;
+		}
+
+		if (!empty($this->fk_warranty)) {
+			require_once DOL_DOCUMENT_ROOT.'/custom/warrantysvc/class/svcwarranty.class.php';
+			$warranty = new SvcWarranty($this->db);
+			if ($warranty->fetch((int) $this->fk_warranty) <= 0) {
+				$this->error = 'ErrorWarrantyNotFound';
+				return -1;
+			}
+			if ((int) $warranty->entity !== (int) $conf->entity
+				|| (int) $warranty->fk_soc !== (int) $this->fk_soc
+				|| (int) $warranty->fk_product !== (int) $this->fk_product
+			) {
+				$this->error = 'ErrorWarrantyDoesNotMatchClaim';
+				return -1;
+			}
+			if ($warranty->status === SvcWarranty::STATUS_VOIDED) {
+				$this->error = 'ErrorVoidedWarrantyClaim';
+				return -1;
+			}
+			if ((string) $this->serial_number !== ''
+				&& (string) $warranty->serial_number !== ''
+				&& (string) $warranty->serial_number !== (string) $this->serial_number
+			) {
+				$this->error = 'ErrorWarrantyDoesNotMatchClaim';
+				return -1;
+			}
+		}
+
+		return 1;
+	}
+
 	public function create($user, $notrigger = 0)
 	{
 		global $conf;
 
 		$error = 0;
+
+		if (!empty($this->socid) && empty($this->fk_soc)) {
+			$this->fk_soc = $this->socid;
+		}
+		$this->socid = (int) $this->fk_soc;
+		if ($this->validateBusinessRules() < 0) {
+			return -1;
+		}
 
 		$this->db->begin();
 
@@ -211,12 +301,6 @@ class SvcRequest extends CommonObject
 		if (empty($this->issue_date)) {
 			$this->issue_date = $now;
 		}
-
-		// fk_soc alias
-		if (!empty($this->socid) && empty($this->fk_soc)) {
-			$this->fk_soc = $this->socid;
-		}
-		$this->socid = (int) $this->fk_soc;
 
 		$sql = "INSERT INTO ".MAIN_DB_PREFIX."svc_request (";
 		$sql .= " ref, entity, fk_soc, fk_product, serial_number, fk_contact, customer_site,";
@@ -452,6 +536,14 @@ class SvcRequest extends CommonObject
 		$error = 0;
 		$previousAssignedUser = 0;
 
+		if (!empty($this->socid) && empty($this->fk_soc)) {
+			$this->fk_soc = $this->socid;
+		}
+		$this->socid = (int) $this->fk_soc;
+		if ($this->validateBusinessRules() < 0) {
+			return -1;
+		}
+
 		if (!$notrigger && !empty($this->id)) {
 			$sqlAssigned = "SELECT fk_user_assigned FROM ".MAIN_DB_PREFIX."svc_request WHERE rowid = ".((int) $this->id);
 			$resAssigned = $this->db->query($sqlAssigned);
@@ -464,11 +556,6 @@ class SvcRequest extends CommonObject
 		}
 
 		$this->db->begin();
-
-		if (!empty($this->socid) && empty($this->fk_soc)) {
-			$this->fk_soc = $this->socid;
-		}
-		$this->socid = (int) $this->fk_soc;
 
 		$sql = "UPDATE ".MAIN_DB_PREFIX."svc_request SET";
 		$sql .= " fk_soc = ".((int) $this->fk_soc);
@@ -560,6 +647,23 @@ class SvcRequest extends CommonObject
 	{
 		$error = 0;
 
+		// Supplier RMAs are auditable child business objects. Never orphan them
+		// or silently cascade them when the parent Service Request is deleted.
+		$sql = "SELECT COUNT(*) AS nb FROM ".MAIN_DB_PREFIX."svc_supplier_rma";
+		$sql .= " WHERE fk_svc_request = ".((int) $this->id);
+		$sql .= " AND entity = ".((int) $this->entity);
+		$resql = $this->db->query($sql);
+		if (!$resql) {
+			$this->error = $this->db->lasterror();
+			return -1;
+		}
+		$obj = $this->db->fetch_object($resql);
+		$this->db->free($resql);
+		if ($obj && (int) $obj->nb > 0) {
+			$this->error = 'ErrorSvcRequestHasSupplierRma';
+			return -1;
+		}
+
 		$this->db->begin();
 
 		if (!$notrigger) {
@@ -572,6 +676,34 @@ class SvcRequest extends CommonObject
 		if (!$error) {
 			// Delete lines first
 			$sql = "DELETE FROM ".MAIN_DB_PREFIX."svc_request_line WHERE fk_svc_request = ".((int) $this->id);
+			if (!$this->db->query($sql)) {
+				$error++;
+				$this->errors[] = $this->db->lasterror();
+			}
+		}
+
+		if (!$error) {
+			$sql = "DELETE FROM ".MAIN_DB_PREFIX."svc_troubleshoot WHERE fk_svcrequest = ".((int) $this->id);
+			if (!$this->db->query($sql)) {
+				$error++;
+				$this->errors[] = $this->db->lasterror();
+			}
+		}
+
+		if (!$error) {
+			$sql = "DELETE FROM ".MAIN_DB_PREFIX."element_contact";
+			$sql .= " WHERE element_id = ".((int) $this->id);
+			$sql .= " AND fk_c_type_contact IN (SELECT rowid FROM ".MAIN_DB_PREFIX."c_type_contact WHERE element = 'svcrequest')";
+			if (!$this->db->query($sql)) {
+				$error++;
+				$this->errors[] = $this->db->lasterror();
+			}
+		}
+
+		if (!$error) {
+			$sql = "DELETE FROM ".MAIN_DB_PREFIX."element_element";
+			$sql .= " WHERE (fk_source = ".((int) $this->id)." AND sourcetype IN ('svcrequest','warrantysvc_svcrequest'))";
+			$sql .= " OR (fk_target = ".((int) $this->id)." AND targettype IN ('svcrequest','warrantysvc_svcrequest'))";
 			if (!$this->db->query($sql)) {
 				$error++;
 				$this->errors[] = $this->db->lasterror();
@@ -977,7 +1109,8 @@ class SvcRequest extends CommonObject
 
 		// Insert reception lines (no PO line — fk_commandefourndet NULL)
 		foreach ($lines_to_receive as $line) {
-			$sql = "INSERT INTO ".MAIN_DB_PREFIX."receptiondet_batch (fk_reception, fk_product, qty, fk_entrepot, fk_commandefourndet, comment, status) VALUES (".$rec_id.", ".$line['fk_product'].", ".$line['qty'].", ".((int) $fk_warehouse).", NULL, '".$this->db->escape('RMA '.$this->ref)."', 0)";
+			$sql = "INSERT INTO ".MAIN_DB_PREFIX."receptiondet_batch (fk_reception, fk_element, fk_elementdet, element_type, fk_product, qty, fk_entrepot, comment, status)";
+			$sql .= " VALUES (".$rec_id.", ".((int) $this->id).", NULL, 'warrantysvc_svcrequest', ".$line['fk_product'].", ".$line['qty'].", ".((int) $fk_warehouse).", '".$this->db->escape('RMA '.$this->ref)."', 0)";
 			if (!$this->db->query($sql)) {
 				$this->db->rollback();
 				$this->error = $this->db->lasterror();
