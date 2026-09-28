@@ -8,6 +8,8 @@
  */
 
 require_once DOL_DOCUMENT_ROOT.'/core/class/commonobjectline.class.php';
+require_once DOL_DOCUMENT_ROOT.'/product/class/product.class.php';
+require_once DOL_DOCUMENT_ROOT.'/custom/warrantysvc/class/warrantysvcstockservice.class.php';
 
 class SvcSupplierReturnLine extends CommonObjectLine
 {
@@ -111,6 +113,66 @@ class SvcSupplierReturnLine extends CommonObjectLine
 		return 1;
 	}
 
+	/**
+	 * Apply Supplier Return business rules after the parent row has been locked.
+	 *
+	 * @return int 1 when valid, -1 otherwise
+	 */
+	private function validateSupplierStockSource()
+	{
+		global $conf;
+
+		$sql = "SELECT fk_soc_supplier, fk_warehouse_source, entity";
+		$sql .= " FROM ".MAIN_DB_PREFIX."svc_supplier_return";
+		$sql .= " WHERE rowid = ".((int) $this->fk_supplier_return);
+		$sql .= " AND entity = ".((int) $conf->entity);
+		$resql = $this->db->query($sql);
+		if (!$resql || !($parent = $this->db->fetch_object($resql))) {
+			if ($resql) {
+				$this->db->free($resql);
+			}
+			$this->error = $resql ? 'ErrorSupplierReturnRequired' : $this->db->lasterror();
+			return -1;
+		}
+		$this->db->free($resql);
+
+		if ((int) $parent->fk_warehouse_source <= 0) {
+			$this->error = 'ErrorSupplierReturnWarehouseRequired';
+			return -1;
+		}
+
+		$product = new Product($this->db);
+		if ($product->fetch((int) $this->fk_product) <= 0) {
+			$this->error = 'ErrorProductNotFound';
+			return -1;
+		}
+		$hasBatch = method_exists($product, 'hasbatch') ? (bool) $product->hasbatch() : !empty($product->status_batch);
+		if (!$hasBatch) {
+			$this->batch = '';
+		}
+
+		$stock = new WarrantySvcStockService($this->db);
+		$source = $stock->validateSupplierReturnLine(
+			(int) $parent->fk_soc_supplier,
+			(int) $parent->fk_warehouse_source,
+			(int) $this->fk_supplier_return,
+			(int) $this->id,
+			(int) $this->fk_product,
+			(float) $this->qty,
+			(string) $this->batch
+		);
+		if ($source === false) {
+			$this->error = $stock->error;
+			$this->errors = $stock->errors;
+			return -1;
+		}
+
+		$this->fk_supplier_order_line = (int) $source['fk_supplier_order_line'];
+		$this->fk_reception_line = (int) $source['fk_reception_line'];
+
+		return 1;
+	}
+
 	public function validateData()
 	{
 		if ((int) $this->fk_supplier_return <= 0) {
@@ -136,6 +198,10 @@ class SvcSupplierReturnLine extends CommonObjectLine
 
 		$this->db->begin();
 		if ($this->validateEditableParent() < 0) {
+			$this->db->rollback();
+			return -1;
+		}
+		if ($this->validateSupplierStockSource() < 0) {
 			$this->db->rollback();
 			return -1;
 		}
@@ -198,6 +264,10 @@ class SvcSupplierReturnLine extends CommonObjectLine
 
 		$this->db->begin();
 		if ($this->validateEditableParent() < 0) {
+			$this->db->rollback();
+			return -1;
+		}
+		if ($this->validateSupplierStockSource() < 0) {
 			$this->db->rollback();
 			return -1;
 		}

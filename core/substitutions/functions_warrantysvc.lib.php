@@ -186,8 +186,12 @@ function warrantysvc_completesubstitutionarray(&$substitutionarray, $outputlangs
 				if (!empty($line->batch)) {
 					$parts[] = $outputlangs->transnoentitiesnoconv('SerialOrLot').': '.(string) $line->batch;
 				}
-				if (!empty($line->reason)) {
-					$parts[] = $outputlangs->transnoentitiesnoconv('Reason').': '.trim(strip_tags((string) $line->reason));
+				$effectiveReason = trim(strip_tags((string) $line->reason));
+				if ($effectiveReason === '') {
+					$effectiveReason = $supplierReturnReason;
+				}
+				if ($effectiveReason !== '') {
+					$parts[] = $outputlangs->transnoentitiesnoconv('Reason').': '.$effectiveReason;
 				}
 				$lineTexts[] = implode(' | ', $parts);
 			}

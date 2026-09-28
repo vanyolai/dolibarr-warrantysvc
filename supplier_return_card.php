@@ -29,6 +29,13 @@ $action = GETPOST('action', 'aZ09');
 $lineid = GETPOSTINT('lineid');
 $confirm = GETPOST('confirm', 'alpha');
 
+if ($action === 'selectlineproduct' && GETPOSTINT('do_addline')) {
+	$action = 'addline';
+}
+if ($action === 'editline' && GETPOSTINT('do_updateline')) {
+	$action = 'updateline';
+}
+
 $permread = $user->hasRight('warrantysvc', 'supplierreturn', 'read');
 $permwrite = $user->hasRight('warrantysvc', 'supplierreturn', 'write');
 $permdelete = $user->hasRight('warrantysvc', 'supplierreturn', 'delete');
@@ -100,6 +107,9 @@ if ($object->id > 0 && $action === 'addline' && $permwrite) {
 		$line->fk_product = GETPOSTINT('line_fk_product');
 		$line->qty = price2num(GETPOST('line_qty', 'alphanohtml'));
 		$line->batch = trim(GETPOST('line_batch', 'alphanohtml'));
+		if ($line->batch === '-1') {
+			$line->batch = '';
+		}
 		$line->reason = GETPOST('line_reason', 'restricthtml');
 		$line->rang = count($object->lines) + 1;
 		if ($line->create($user) > 0) {
@@ -116,6 +126,9 @@ if ($object->id > 0 && $action === 'updateline' && $permwrite) {
 		$line->fk_product = GETPOSTINT('line_fk_product');
 		$line->qty = price2num(GETPOST('line_qty', 'alphanohtml'));
 		$line->batch = trim(GETPOST('line_batch', 'alphanohtml'));
+		if ($line->batch === '-1') {
+			$line->batch = '';
+		}
 		$line->reason = GETPOST('line_reason', 'restricthtml');
 		if ($line->update($user) > 0) {
 			header('Location: '.$_SERVER['PHP_SELF'].'?id='.$object->id.'#lines');
@@ -203,7 +216,7 @@ if ($action === 'create' || empty($object->id)) {
 	print '<tr><td class="fieldrequired tdtop">'.$langs->trans('SupplierReturnReason').'</td><td><textarea name="reason" class="quatrevingtpercent" rows="4">'.dol_escape_htmltag($object->reason).'</textarea></td></tr>';
 	print '<tr><td>'.$langs->trans('OutboundCarrier').'</td><td><input type="text" name="outbound_carrier" class="minwidth200"></td></tr>';
 	print '<tr><td>'.$langs->trans('OutboundTracking').'</td><td><input type="text" name="outbound_tracking" class="minwidth300"></td></tr>';
-	print '<tr><td>'.$langs->trans('TrackingUrl').'</td><td><input type="url" name="outbound_tracking_url" class="minwidth500"></td></tr>';
+	print '<tr><td>'.$langs->trans('OutboundTrackingUrl').'</td><td><input type="url" name="outbound_tracking_url" class="minwidth500"></td></tr>';
 	print '<tr><td class="tdtop">'.$langs->trans('NotePrivate').'</td><td><textarea name="note_private" class="quatrevingtpercent" rows="3"></textarea></td></tr>';
 	print '</table>';
 	print dol_get_fiche_end();
@@ -280,7 +293,7 @@ if ($isEdit) print '<input type="text" name="outbound_tracking" class="minwidth3
 else if ($object->outbound_tracking && $object->outbound_tracking_url) print '<a target="_blank" rel="noopener" href="'.dol_escape_htmltag($object->outbound_tracking_url).'">'.dol_escape_htmltag($object->outbound_tracking).'</a>';
 else print dol_escape_htmltag($object->outbound_tracking ?: '—');
 print '</td></tr>';
-if ($isEdit) print '<tr><td>'.$langs->trans('TrackingUrl').'</td><td><input type="url" name="outbound_tracking_url" class="minwidth500" value="'.dol_escape_htmltag($object->outbound_tracking_url).'"></td></tr>';
+if ($isEdit) print '<tr><td>'.$langs->trans('OutboundTrackingUrl').'</td><td><input type="url" name="outbound_tracking_url" class="minwidth500" value="'.dol_escape_htmltag($object->outbound_tracking_url).'"></td></tr>';
 print '<tr><td class="tdtop">'.$langs->trans('NotePrivate').'</td><td>';
 if ($isEdit) print '<textarea name="note_private" class="quatrevingtpercent" rows="3">'.dol_escape_htmltag($object->note_private).'</textarea>';
 else print $object->note_private ? dol_string_onlythesehtmltags(dol_htmlentitiesbr($object->note_private)) : '—';
@@ -314,24 +327,125 @@ if ($isEdit) {
 
 // Lines
 $object->fetchLines();
+$stockSelector = new WarrantySvcStockService($db);
+
+$buildProductOptions = function ($choices, $selectedProductId = 0) use ($db, $langs) {
+	$options = array();
+	foreach ($choices as $productId => $info) {
+		$label = $info['ref'];
+		if ($info['label'] !== '') {
+			$label .= ' - '.$info['label'];
+		}
+		$label .= ' ('.$langs->transnoentitiesnoconv('Stock').': '.price($info['available'], 0, $langs, 0, 0, -1).')';
+		$options[(int) $productId] = $label;
+	}
+
+	// Keep the currently edited/posted product visible even if stock changed
+	// since the page was opened. Backend validation remains authoritative.
+	if ($selectedProductId > 0 && !isset($options[$selectedProductId])) {
+		$tmpProduct = new Product($db);
+		if ($tmpProduct->fetch($selectedProductId) > 0) {
+			$options[$selectedProductId] = $tmpProduct->ref.' - '.$tmpProduct->label;
+		}
+	}
+
+	return $options;
+};
+
+$buildBatchOptions = function ($choices) use ($langs) {
+	$options = array();
+	foreach ($choices as $batch => $available) {
+		$options[(string) $batch] = (string) $batch.' ('.$langs->transnoentitiesnoconv('Stock').': '.price($available, 0, $langs, 0, 0, -1).')';
+	}
+	return $options;
+};
+
 print '<a name="lines"></a><br>';
 print load_fiche_titre($langs->trans('SupplierReturnLines'), '', 'product');
+print '<div class="opacitymedium small">'.dol_escape_htmltag($langs->trans('SupplierReturnEligibleStockHelp')).'</div><br>';
 print '<div class="div-table-responsive"><table class="noborder centpercent">';
-print '<tr class="liste_titre"><td>'.$langs->trans('Product').'</td><td>'.$langs->trans('SerialOrLot').'</td><td class="right">'.$langs->trans('Qty').'</td><td>'.$langs->trans('Reason').'</td><td>'.$langs->trans('StockMovement').'</td><td></td></tr>';
-if (empty($object->lines)) print '<tr class="oddeven"><td colspan="6"><span class="opacitymedium">'.$langs->trans('NoSupplierReturnLines').'</span></td></tr>';
+print '<tr class="liste_titre"><td>'.$langs->trans('Product').'</td><td>'.$langs->trans('SerialOrLot').'</td><td class="right">'.$langs->trans('Qty').'</td><td>'.$langs->trans('SupplierReturnLineReasonOverride').'</td><td>'.$langs->trans('StockMovement').'</td><td></td></tr>';
+if (empty($object->lines)) {
+	print '<tr class="oddeven"><td colspan="6"><span class="opacitymedium">'.$langs->trans('NoSupplierReturnLines').'</span></td></tr>';
+}
+
 foreach ($object->lines as $line) {
-	$p = new Product($db); $plabel = '#'.((int) $line->fk_product);
-	if ($p->fetch($line->fk_product) > 0) $plabel = $p->getNomUrl(1).' - '.dol_escape_htmltag($p->label);
+	$p = new Product($db);
+	$plabel = '#'.((int) $line->fk_product);
+	if ($p->fetch($line->fk_product) > 0) {
+		$plabel = $p->getNomUrl(1).' - '.dol_escape_htmltag($p->label);
+	}
+
 	if ($action === 'editline' && !$supplierReturnStockLocked && $lineid === $line->id && empty($line->fk_stock_movement_out)) {
+		$postedProductId = GETPOSTINT('line_fk_product');
+		$editProductId = $postedProductId > 0 ? $postedProductId : (int) $line->fk_product;
+		$editQtyPost = GETPOST('line_qty', 'alphanohtml');
+		$editQty = ($editQtyPost !== '') ? $editQtyPost : (string) $line->qty;
+		$editReasonPost = GETPOST('line_reason', 'restricthtml');
+		$editReason = ($editReasonPost !== '') ? $editReasonPost : (string) $line->reason;
+		$editBatchPost = trim(GETPOST('line_batch', 'alphanohtml'));
+		$editBatch = ($postedProductId > 0 && $postedProductId !== (int) $line->fk_product) ? $editBatchPost : ($editBatchPost !== '' ? $editBatchPost : (string) $line->batch);
+
+		$productChoices = $stockSelector->getSupplierReturnProductChoices(
+			(int) $object->fk_soc_supplier,
+			(int) $object->fk_warehouse_source,
+			(int) $object->id,
+			(int) $line->id
+		);
+		$productOptions = $buildProductOptions($productChoices, $editProductId);
+
+		$selectedProduct = new Product($db);
+		$selectedProduct->fetch($editProductId);
+		$hasBatch = method_exists($selectedProduct, 'hasbatch') ? (bool) $selectedProduct->hasbatch() : !empty($selectedProduct->status_batch);
+
 		print '<form method="POST" action="'.$_SERVER['PHP_SELF'].'?id='.$object->id.'#lines"><tr class="oddeven">';
-		print '<input type="hidden" name="token" value="'.newToken().'"><input type="hidden" name="action" value="updateline"><input type="hidden" name="lineid" value="'.$line->id.'">';
-		print '<td>'; $form->select_produits($line->fk_product, 'line_fk_product', 0, 0, 0, -1, 2, '', 0, array(), 0, 0, 0, 'minwidth250'); print '</td>';
-		print '<td><input name="line_batch" class="minwidth150" value="'.dol_escape_htmltag($line->batch).'"></td>';
-		print '<td class="right"><input type="number" min="0.00000001" step="any" name="line_qty" class="width75" value="'.dol_escape_htmltag((string)$line->qty).'"></td>';
-		print '<td><input name="line_reason" class="minwidth200" value="'.dol_escape_htmltag($line->reason).'"></td>';
-		print '<td>—</td><td><input class="button small" type="submit" value="'.$langs->trans('Save').'"> <a href="'.$_SERVER['PHP_SELF'].'?id='.$object->id.'#lines">'.$langs->trans('Cancel').'</a></td></tr></form>';
+		print '<input type="hidden" name="token" value="'.newToken().'">';
+		print '<input type="hidden" name="action" value="editline">';
+		print '<input type="hidden" name="lineid" value="'.$line->id.'">';
+		print '<td>';
+		print Form::selectarray('line_fk_product', $productOptions, $editProductId, 0, 0, 0, 'onchange="this.form.submit();"', 0, 0, 0, '', 'minwidth300');
+		print '</td>';
+
+		print '<td>';
+		if ($hasBatch) {
+			$batchChoices = $stockSelector->getSupplierReturnBatchChoices(
+				(int) $object->fk_soc_supplier,
+				(int) $object->fk_warehouse_source,
+				$editProductId,
+				(int) $object->id,
+				(int) $line->id
+			);
+			$batchOptions = $buildBatchOptions($batchChoices);
+			if ($editBatch !== '' && !isset($batchOptions[$editBatch])) {
+				$batchOptions[$editBatch] = $editBatch;
+			}
+			print Form::selectarray('line_batch', $batchOptions, $editBatch, $langs->transnoentitiesnoconv('SelectSerialOrLot'), 0, 0, '', 0, 0, 0, '', 'minwidth200');
+		} else {
+			print '—<input type="hidden" name="line_batch" value="">';
+		}
+		print '</td>';
+
+		print '<td class="right">';
+		if ((int) $selectedProduct->status_batch === 2) {
+			print '1<input type="hidden" name="line_qty" value="1">';
+		} else {
+			print '<input type="number" min="0.00000001" step="any" name="line_qty" class="width75" value="'.dol_escape_htmltag((string) $editQty).'">';
+		}
+		print '</td>';
+		print '<td><input name="line_reason" class="minwidth250" value="'.dol_escape_htmltag($editReason).'" placeholder="'.dol_escape_htmltag($langs->trans('SupplierReturnLineReasonOptional')).'"></td>';
+		print '<td>—</td>';
+		print '<td><button class="button small" type="submit" name="do_updateline" value="1">'.$langs->trans('Save').'</button> ';
+		print '<a href="'.$_SERVER['PHP_SELF'].'?id='.$object->id.'#lines">'.$langs->trans('Cancel').'</a></td>';
+		print '</tr></form>';
 	} else {
-		print '<tr class="oddeven"><td>'.$plabel.'</td><td>'.dol_escape_htmltag($line->batch ?: '—').'</td><td class="right">'.price($line->qty,0,$langs,0,0,-1).'</td><td>'.dol_escape_htmltag($line->reason ?: '—').'</td>';
+		$lineReason = trim((string) $line->reason);
+		if ($lineReason !== '') {
+			$reasonHtml = dol_escape_htmltag($lineReason);
+		} else {
+			$reasonHtml = '<span class="opacitymedium">'.dol_escape_htmltag($langs->trans('SupplierReturnHeaderReasonInherited', trim(strip_tags((string) $object->reason)))).'</span>';
+		}
+
+		print '<tr class="oddeven"><td>'.$plabel.'</td><td>'.dol_escape_htmltag($line->batch ?: '—').'</td><td class="right">'.price($line->qty,0,$langs,0,0,-1).'</td><td>'.$reasonHtml.'</td>';
 		print '<td>'.($line->fk_stock_movement_out ? '<a href="'.DOL_URL_ROOT.'/product/stock/movement.php?id='.$line->fk_stock_movement_out.'">#'.$line->fk_stock_movement_out.'</a>' : '—').'</td><td class="right">';
 		if ($permwrite && !$supplierReturnStockLocked && in_array($object->status,array(SvcSupplierReturn::STATUS_DRAFT,SvcSupplierReturn::STATUS_AUTHORIZED),true) && empty($line->fk_stock_movement_out)) {
 			print '<a href="'.$_SERVER['PHP_SELF'].'?id='.$object->id.'&action=editline&lineid='.$line->id.'#lines">'.img_edit().'</a> ';
@@ -340,14 +454,71 @@ foreach ($object->lines as $line) {
 		print '</td></tr>';
 	}
 }
+
 if ($permwrite && !$supplierReturnStockLocked && in_array($object->status,array(SvcSupplierReturn::STATUS_DRAFT,SvcSupplierReturn::STATUS_AUTHORIZED),true) && $action !== 'editline') {
+	$addProductId = GETPOSTINT('line_fk_product');
+	$productChoices = $stockSelector->getSupplierReturnProductChoices(
+		(int) $object->fk_soc_supplier,
+		(int) $object->fk_warehouse_source,
+		(int) $object->id,
+		0
+	);
+	$productOptions = $buildProductOptions($productChoices, $addProductId);
+
+	$addQtyPost = GETPOST('line_qty', 'alphanohtml');
+	$addQty = $addQtyPost !== '' ? $addQtyPost : '1';
+	$addReason = GETPOST('line_reason', 'restricthtml');
+	$addBatch = trim(GETPOST('line_batch', 'alphanohtml'));
+
 	print '<form method="POST" action="'.$_SERVER['PHP_SELF'].'?id='.$object->id.'#lines"><tr class="liste_titre_create">';
-	print '<input type="hidden" name="token" value="'.newToken().'"><input type="hidden" name="action" value="addline">';
-	print '<td>'; $form->select_produits(0, 'line_fk_product', 0, 0, 0, -1, 2, '', 0, array(), 0, 0, 0, 'minwidth250'); print '</td>';
-	print '<td><input name="line_batch" class="minwidth150" placeholder="'.$langs->trans('SerialOrLot').'"></td>';
-	print '<td class="right"><input type="number" min="0.00000001" step="any" name="line_qty" class="width75" value="1"></td>';
-	print '<td><input name="line_reason" class="minwidth200" placeholder="'.$langs->trans('Reason').'"></td>';
-	print '<td></td><td class="right"><input class="button" type="submit" value="'.$langs->trans('Add').'"></td></tr></form>';
+	print '<input type="hidden" name="token" value="'.newToken().'">';
+	print '<input type="hidden" name="action" value="selectlineproduct">';
+
+	print '<td>';
+	if (!empty($productOptions)) {
+		print Form::selectarray('line_fk_product', $productOptions, $addProductId, $langs->transnoentitiesnoconv('SelectProduct'), 0, 0, 'onchange="this.form.submit();"', 0, 0, 0, '', 'minwidth300');
+	} else {
+		print '<span class="opacitymedium">'.$langs->trans('NoSupplierReturnEligibleProducts').'</span>';
+	}
+	print '</td>';
+
+	print '<td>';
+	$addProduct = new Product($db);
+	$addProductLoaded = ($addProductId > 0 && $addProduct->fetch($addProductId) > 0);
+	$addHasBatch = $addProductLoaded && (method_exists($addProduct, 'hasbatch') ? (bool) $addProduct->hasbatch() : !empty($addProduct->status_batch));
+	$batchOptions = array();
+	if ($addHasBatch) {
+		$batchChoices = $stockSelector->getSupplierReturnBatchChoices(
+			(int) $object->fk_soc_supplier,
+			(int) $object->fk_warehouse_source,
+			$addProductId,
+			(int) $object->id,
+			0
+		);
+		$batchOptions = $buildBatchOptions($batchChoices);
+		print Form::selectarray('line_batch', $batchOptions, $addBatch, $langs->transnoentitiesnoconv('SelectSerialOrLot'), 0, 0, '', 0, 0, 0, '', 'minwidth200');
+	} elseif ($addProductLoaded) {
+		print '—<input type="hidden" name="line_batch" value="">';
+	} else {
+		print '<span class="opacitymedium">'.$langs->trans('SelectProductFirst').'</span>';
+	}
+	print '</td>';
+
+	print '<td class="right">';
+	if ($addProductLoaded && (int) $addProduct->status_batch === 2) {
+		print '1<input type="hidden" name="line_qty" value="1">';
+	} else {
+		print '<input type="number" min="0.00000001" step="any" name="line_qty" class="width75" value="'.dol_escape_htmltag((string) $addQty).'">';
+	}
+	print '</td>';
+	print '<td><input name="line_reason" class="minwidth250" value="'.dol_escape_htmltag($addReason).'" placeholder="'.dol_escape_htmltag($langs->trans('SupplierReturnLineReasonOptional')).'"></td>';
+	print '<td></td>';
+	$canAddLine = ($addProductId > 0);
+	if ($addHasBatch && empty($batchOptions)) {
+		$canAddLine = false;
+	}
+	print '<td class="right"><button class="button" type="submit" name="do_addline" value="1"'.(!$canAddLine ? ' disabled' : '').'>'.$langs->trans('Add').'</button></td>';
+	print '</tr></form>';
 }
 print '</table></div>';
 

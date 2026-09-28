@@ -393,19 +393,71 @@ class SvcSupplierReturn extends CommonObject
 		return 1;
 	}
 
+	/**
+	 * Revalidate every line against current stock and supplier provenance.
+	 * This also protects legacy draft rows created before line-level validation
+	 * was introduced.
+	 *
+	 * @return int 1 if all lines are valid, -1 otherwise
+	 */
+	private function validateReturnLines()
+	{
+		if ($this->fetchLines() < 0) {
+			return -1;
+		}
+		if (empty($this->lines)) {
+			$this->error = 'ErrorSupplierReturnNeedsLines';
+			return -1;
+		}
+
+		$stock = new WarrantySvcStockService($this->db);
+		foreach ($this->lines as $line) {
+			$source = $stock->validateSupplierReturnLine(
+				(int) $this->fk_soc_supplier,
+				(int) $this->fk_warehouse_source,
+				(int) $this->id,
+				(int) $line->id,
+				(int) $line->fk_product,
+				(float) $line->qty,
+				(string) $line->batch
+			);
+			if ($source === false) {
+				$this->error = $stock->error;
+				$this->errors = $stock->errors;
+				return -1;
+			}
+
+			if ((int) $line->fk_supplier_order_line !== (int) $source['fk_supplier_order_line']
+				|| (int) $line->fk_reception_line !== (int) $source['fk_reception_line']
+			) {
+				$sql = "UPDATE ".MAIN_DB_PREFIX."svc_supplier_return_line SET";
+				$sql .= " fk_supplier_order_line = ".((int) $source['fk_supplier_order_line']);
+				$sql .= ", fk_reception_line = ".((int) $source['fk_reception_line']);
+				$sql .= " WHERE rowid = ".((int) $line->id);
+				$sql .= " AND fk_supplier_return = ".((int) $this->id);
+				if (!$this->db->query($sql)) {
+					$this->error = $this->db->lasterror();
+					return -1;
+				}
+				$line->fk_supplier_order_line = (int) $source['fk_supplier_order_line'];
+				$line->fk_reception_line = (int) $source['fk_reception_line'];
+			}
+		}
+
+		return 1;
+	}
+
 	public function authorize($user, $note = '')
 	{
 		if ($this->status !== self::STATUS_DRAFT) {
 			$this->error = 'ErrorSupplierReturnInvalidTransition';
 			return -1;
 		}
-		$this->fetchLines();
-		if (empty($this->lines)) {
-			$this->error = 'ErrorSupplierReturnNeedsLines';
-			return -1;
-		}
 		if ((int) $this->fk_warehouse_source <= 0) {
 			$this->error = 'ErrorSupplierReturnWarehouseRequired';
+			return -1;
+		}
+		if ($this->validateReturnLines() < 0) {
 			return -1;
 		}
 		return $this->setSimpleStatus(self::STATUS_AUTHORIZED, $user, $note);
@@ -518,12 +570,7 @@ class SvcSupplierReturn extends CommonObject
 			return -1;
 		}
 
-		if ($this->fetchLines() < 0) {
-			$this->db->rollback();
-			return -1;
-		}
-		if (empty($this->lines)) {
-			$this->error = 'ErrorSupplierReturnNeedsLines';
+		if ($this->validateReturnLines() < 0) {
 			$this->db->rollback();
 			return -1;
 		}

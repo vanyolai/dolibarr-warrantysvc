@@ -150,7 +150,10 @@ class pdf_supplierreturn_standard extends ModelePDFWarrantySvc
 			$p = new Product($this->db);
 			$productLabel = '#'.$line->fk_product;
 			if ($p->fetch($line->fk_product) > 0) $productLabel = $p->ref.($p->label ? ' - '.$p->label : '');
-			$reason = strip_tags((string)$line->reason);
+			$reason = trim(strip_tags((string) $line->reason));
+			if ($reason === '') {
+				$reason = trim(strip_tags((string) $object->reason));
+			}
 			$rowh = 6 * max(
 				1,
 				$pdf->getNumLines($outputlangs->convToOutputCharset($productLabel), $colProduct),
