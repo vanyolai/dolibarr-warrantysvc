@@ -346,6 +346,32 @@ class SvcSupplierRma extends CommonObject
 		return 1;
 	}
 
+	/**
+	 * Return whether the commercial/product identity is frozen for this workflow state.
+	 *
+	 * Supplier, product, quantity and serial/LOT identify the physical unit(s)
+	 * shipped to the supplier. Once shipment happened these values must remain
+	 * immutable, while logistics/result fields may still evolve.
+	 *
+	 * @param string|null $status Status to test, current object status when null
+	 * @return bool
+	 */
+	public function isIdentityLocked($status = null)
+	{
+		$status = $status !== null ? (string) $status : (string) $this->status;
+
+		return in_array($status, array(
+			self::STATUS_SHIPPED,
+			self::STATUS_RECEIVED_BY_SUPPLIER,
+			self::STATUS_IN_SERVICE,
+			self::STATUS_REPAIRED,
+			self::STATUS_REPLACED,
+			self::STATUS_REJECTED,
+			self::STATUS_RETURNED,
+			self::STATUS_CLOSED,
+		), true);
+	}
+
 	public function update($user, $notrigger = 0)
 	{
 		if ((float) $this->qty <= 0) {
@@ -362,11 +388,7 @@ class SvcSupplierRma extends CommonObject
 				return -1;
 			}
 			$this->db->free($resCurrent);
-			if (in_array((string) $current->status, array(
-				self::STATUS_SHIPPED, self::STATUS_RECEIVED_BY_SUPPLIER, self::STATUS_IN_SERVICE,
-				self::STATUS_REPAIRED, self::STATUS_REPLACED, self::STATUS_REJECTED,
-				self::STATUS_RETURNED, self::STATUS_CLOSED
-			), true)) {
+			if ($this->isIdentityLocked((string) $current->status)) {
 				if ((int) $current->fk_soc_supplier !== (int) $this->fk_soc_supplier
 					|| (int) $current->fk_product !== (int) $this->fk_product
 					|| abs((float) $current->qty - (float) $this->qty) > 0.00000001
