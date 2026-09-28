@@ -3,6 +3,8 @@
 ## [Unreleased] - Dolibarr 23 fork
 
 ### Added
+- Added Supplier Return as a first-class WarrantySvc object for non-warranty goods returned to a supplier, with its own lifecycle, lines, permissions, contacts, PDF/document handling, email template type and Hungarian/English UI.
+- Added a shared idempotent WarrantySvc stock-movement service using deterministic inventory codes, explicit LOT/serial and warehouse validation, and origin-linked movement traceability.
 - WarrantySvc business events remain available internally, while email notifications are intentionally limited to two user-facing events: Service Request assigned and Warranty created. These use the same user, third-party-contact and fixed-address subscriptions as native Dolibarr events.
 - `svcrequest` and `svcwarranty` are now registered as standard Dolibarr Email Template types, so Notification events can use templates managed under Tools / Email templates instead of module-hardcoded mail bodies.
 - Added a module-neutral Intervention intake factory (`SvcRequest::createFromIntervention`) and REST endpoint (`POST /warrantysvc/requests/createfromintervention/{id}`) so Field Service or other modules can hand off a work sheet without writing WarrantySvc tables directly. The factory inherits stable Intervention context, validates Product/serial/warranty ownership, creates a Draft SR and links it through the existing `fk_intervention`/`element_element` mechanism.
@@ -17,6 +19,8 @@
 - PHP syntax-lint workflow for the fork branch.
 
 ### Changed
+- Supplier RMA now stores an explicit quantity and locks supplier/Product/quantity/serial identity once the unit has been shipped.
+- Supplier Return shipment is atomic across all lines: line stock movements, movement references, status transition and audit logging commit together or roll back together.
 - Notification and automatic fixed-email setup now show the same compact WarrantySvc event set (Service Request assigned, Warranty created). The generic net-amount threshold editor is hidden for these rows because WarrantySvc objects have no amount-based notification semantics.
 - WarrantySvc now uses Dolibarr's standard substitution plugin mechanism for email variables: `__PRODUCT_REF__`, `__PRODUCT_LABEL__`, `__SERIAL_NUMBER__`, `__WARRANTY_STATUS__`, `__WARRANTY_START_DATE__`, `__WARRANTY_EXPIRY_DATE__`, `__ISSUE_DATE__`, `__ISSUE_DESCRIPTION__`, and `__SERVICE_REQUEST_STATUS__`.
 - Removed the WarrantySvc-specific trigger email sender and the `WARRANTYSVC_NOTIFY_WARRANTY_CREATED` setup toggle. Lifecycle email recipients, sender and templates are now controlled by Dolibarr's Notification/Email Template configuration; notification deliveries are recorded in the native `llx_notify` log.
@@ -40,6 +44,9 @@
 - Existing upstream schemas are upgraded explicitly and idempotently before normal module table loading.
 
 ### Fixed
+- Hardened Supplier Return against duplicate or partial stock deduction: concurrent shipments are serialized, existing deterministic movements are verified before reuse, stale edits are rejected, and stock-bearing returns cannot be cancelled, deleted or rolled back before Shipped.
+- Supplier Return email substitutions are now populated for the actual `svcsupplierreturn` object, including reference, external reference, status, reason and line summary.
+- Completed the Hungarian Supplier Return and stock-workflow translations; the newly added UI no longer falls back to raw language keys.
 - Fresh Service Request and Warranty objects now synchronize Dolibarr's standard `socid` alias from `fk_soc` before business triggers fire, so third-party-contact Notification subscriptions also work on CREATE events.
 - Generic REST creation now synchronizes populated FK relationships into Dolibarr linked objects after creating a Service Request.
 - Service Request PDF now positions the TCPDF cursor at the calculated header bottom before `pdf_writeLinkedObjects()`. Without linked objects, Dolibarr 23's helper returns the current PDF Y, which previously reset the summary into the header despite the dynamic header calculation.
