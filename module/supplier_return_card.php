@@ -107,6 +107,9 @@ if ($object->id > 0 && $action === 'addline' && $permwrite) {
 		$line->fk_product = GETPOSTINT('line_fk_product');
 		$line->qty = price2num(GETPOST('line_qty', 'alphanohtml'));
 		$line->batch = trim(GETPOST('line_batch', 'alphanohtml'));
+		if ($line->batch === '-1') {
+			$line->batch = '';
+		}
 		$line->reason = GETPOST('line_reason', 'restricthtml');
 		$line->rang = count($object->lines) + 1;
 		if ($line->create($user) > 0) {
@@ -123,6 +126,9 @@ if ($object->id > 0 && $action === 'updateline' && $permwrite) {
 		$line->fk_product = GETPOSTINT('line_fk_product');
 		$line->qty = price2num(GETPOST('line_qty', 'alphanohtml'));
 		$line->batch = trim(GETPOST('line_batch', 'alphanohtml'));
+		if ($line->batch === '-1') {
+			$line->batch = '';
+		}
 		$line->reason = GETPOST('line_reason', 'restricthtml');
 		if ($line->update($user) > 0) {
 			header('Location: '.$_SERVER['PHP_SELF'].'?id='.$object->id.'#lines');
@@ -210,7 +216,7 @@ if ($action === 'create' || empty($object->id)) {
 	print '<tr><td class="fieldrequired tdtop">'.$langs->trans('SupplierReturnReason').'</td><td><textarea name="reason" class="quatrevingtpercent" rows="4">'.dol_escape_htmltag($object->reason).'</textarea></td></tr>';
 	print '<tr><td>'.$langs->trans('OutboundCarrier').'</td><td><input type="text" name="outbound_carrier" class="minwidth200"></td></tr>';
 	print '<tr><td>'.$langs->trans('OutboundTracking').'</td><td><input type="text" name="outbound_tracking" class="minwidth300"></td></tr>';
-	print '<tr><td>'.$langs->trans('TrackingUrl').'</td><td><input type="url" name="outbound_tracking_url" class="minwidth500"></td></tr>';
+	print '<tr><td>'.$langs->trans('OutboundTrackingUrl').'</td><td><input type="url" name="outbound_tracking_url" class="minwidth500"></td></tr>';
 	print '<tr><td class="tdtop">'.$langs->trans('NotePrivate').'</td><td><textarea name="note_private" class="quatrevingtpercent" rows="3"></textarea></td></tr>';
 	print '</table>';
 	print dol_get_fiche_end();
@@ -287,7 +293,7 @@ if ($isEdit) print '<input type="text" name="outbound_tracking" class="minwidth3
 else if ($object->outbound_tracking && $object->outbound_tracking_url) print '<a target="_blank" rel="noopener" href="'.dol_escape_htmltag($object->outbound_tracking_url).'">'.dol_escape_htmltag($object->outbound_tracking).'</a>';
 else print dol_escape_htmltag($object->outbound_tracking ?: '—');
 print '</td></tr>';
-if ($isEdit) print '<tr><td>'.$langs->trans('TrackingUrl').'</td><td><input type="url" name="outbound_tracking_url" class="minwidth500" value="'.dol_escape_htmltag($object->outbound_tracking_url).'"></td></tr>';
+if ($isEdit) print '<tr><td>'.$langs->trans('OutboundTrackingUrl').'</td><td><input type="url" name="outbound_tracking_url" class="minwidth500" value="'.dol_escape_htmltag($object->outbound_tracking_url).'"></td></tr>';
 print '<tr><td class="tdtop">'.$langs->trans('NotePrivate').'</td><td>';
 if ($isEdit) print '<textarea name="note_private" class="quatrevingtpercent" rows="3">'.dol_escape_htmltag($object->note_private).'</textarea>';
 else print $object->note_private ? dol_string_onlythesehtmltags(dol_htmlentitiesbr($object->note_private)) : '—';
@@ -419,7 +425,13 @@ foreach ($object->lines as $line) {
 		}
 		print '</td>';
 
-		print '<td class="right"><input type="number" min="0.00000001" step="any" name="line_qty" class="width75" value="'.dol_escape_htmltag((string) $editQty).'"></td>';
+		print '<td class="right">';
+		if ((int) $selectedProduct->status_batch === 2) {
+			print '1<input type="hidden" name="line_qty" value="1">';
+		} else {
+			print '<input type="number" min="0.00000001" step="any" name="line_qty" class="width75" value="'.dol_escape_htmltag((string) $editQty).'">';
+		}
+		print '</td>';
 		print '<td><input name="line_reason" class="minwidth250" value="'.dol_escape_htmltag($editReason).'" placeholder="'.dol_escape_htmltag($langs->trans('SupplierReturnLineReasonOptional')).'"></td>';
 		print '<td>—</td>';
 		print '<td><button class="button small" type="submit" name="do_updateline" value="1">'.$langs->trans('Save').'</button> ';
@@ -491,10 +503,20 @@ if ($permwrite && !$supplierReturnStockLocked && in_array($object->status,array(
 	}
 	print '</td>';
 
-	print '<td class="right"><input type="number" min="0.00000001" step="any" name="line_qty" class="width75" value="'.dol_escape_htmltag((string) $addQty).'"></td>';
+	print '<td class="right">';
+	if ($addProductLoaded && (int) $addProduct->status_batch === 2) {
+		print '1<input type="hidden" name="line_qty" value="1">';
+	} else {
+		print '<input type="number" min="0.00000001" step="any" name="line_qty" class="width75" value="'.dol_escape_htmltag((string) $addQty).'">';
+	}
+	print '</td>';
 	print '<td><input name="line_reason" class="minwidth250" value="'.dol_escape_htmltag($addReason).'" placeholder="'.dol_escape_htmltag($langs->trans('SupplierReturnLineReasonOptional')).'"></td>';
 	print '<td></td>';
-	print '<td class="right"><button class="button" type="submit" name="do_addline" value="1"'.(empty($productOptions) ? ' disabled' : '').'>'.$langs->trans('Add').'</button></td>';
+	$canAddLine = ($addProductId > 0);
+	if ($addHasBatch && ($addBatch === '' || $addBatch === '-1')) {
+		$canAddLine = false;
+	}
+	print '<td class="right"><button class="button" type="submit" name="do_addline" value="1"'.(!$canAddLine ? ' disabled' : '').'>'.$langs->trans('Add').'</button></td>';
 	print '</tr></form>';
 }
 print '</table></div>';
