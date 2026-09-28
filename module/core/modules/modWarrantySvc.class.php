@@ -44,7 +44,7 @@ class modWarrantySvc extends DolibarrModules
 		// Module name (no spaces), used if translation string 'ModuleXXXName' not found
 		$this->name = preg_replace('/^mod/i', '', get_class($this));
 		$this->description = 'ModuleWarrantySvcDesc';
-		$this->version = '1.43.0';
+		$this->version = '1.44.0';
 		$this->const_name = 'MAIN_MODULE_'.strtoupper($this->name);
 		$this->picto = 'technic';
 
@@ -180,6 +180,31 @@ class modWarrantySvc extends DolibarrModules
 		$this->rights[$r][2] = 'd';
 		$this->rights[$r][3] = 0;
 		$this->rights[$r][4] = 'supplierrma';
+		$this->rights[$r][5] = 'delete';
+
+		// Supplier Return permissions
+		$r++;
+		$this->rights[$r][0] = 510031;
+		$this->rights[$r][1] = 'PermissionReadSupplierReturn';
+		$this->rights[$r][2] = 'r';
+		$this->rights[$r][3] = 0;
+		$this->rights[$r][4] = 'supplierreturn';
+		$this->rights[$r][5] = 'read';
+
+		$r++;
+		$this->rights[$r][0] = 510032;
+		$this->rights[$r][1] = 'PermissionWriteSupplierReturn';
+		$this->rights[$r][2] = 'w';
+		$this->rights[$r][3] = 0;
+		$this->rights[$r][4] = 'supplierreturn';
+		$this->rights[$r][5] = 'write';
+
+		$r++;
+		$this->rights[$r][0] = 510033;
+		$this->rights[$r][1] = 'PermissionDeleteSupplierReturn';
+		$this->rights[$r][2] = 'd';
+		$this->rights[$r][3] = 0;
+		$this->rights[$r][4] = 'supplierreturn';
 		$this->rights[$r][5] = 'delete';
 
 		// Warranty permissions
@@ -332,6 +357,7 @@ class modWarrantySvc extends DolibarrModules
 	{
 		$warrantyTable = MAIN_DB_PREFIX.'svc_warranty';
 		$typeTable = MAIN_DB_PREFIX.'svc_warranty_type';
+		$supplierRmaTable = MAIN_DB_PREFIX.'svc_supplier_rma';
 
 		$warrantyDesc = $this->db->DDLDescTable($warrantyTable);
 		if ($warrantyDesc && $this->db->num_rows($warrantyDesc) > 0) {
@@ -391,6 +417,17 @@ class modWarrantySvc extends DolibarrModules
 			}
 		}
 
+		// 1.44: Supplier RMA gained quantity so LOT based RMAs can represent
+		// more than one unit while serial-numbered RMAs still use qty=1.
+		$rmaDesc = $this->db->DDLDescTable($supplierRmaTable);
+		if ($rmaDesc && $this->db->num_rows($rmaDesc) > 0) {
+			$resQty = $this->db->DDLDescTable($supplierRmaTable, 'qty');
+			$qtyExists = $resQty && $this->db->fetch_object($resQty);
+			if (!$qtyExists && $this->db->DDLAddField($supplierRmaTable, 'qty', array('type'=>'decimal', 'value'=>'24,8', 'default'=>'1', 'null'=>0)) < 0) {
+				return -1;
+			}
+		}
+
 		return 1;
 	}
 
@@ -409,6 +446,8 @@ class modWarrantySvc extends DolibarrModules
 			array('svcrequest', 'external', 'CUSTOMER_SERVICE', 'Customer service contact', 20),
 			array('svcsupplierrma', 'internal', 'SERVICE_MANAGER', 'Supplier RMA handler', 10),
 			array('svcsupplierrma', 'external', 'SUPPLIER_SERVICE', 'Supplier service contact', 20),
+			array('svcsupplierreturn', 'internal', 'SERVICE_MANAGER', 'Supplier Return handler', 10),
+			array('svcsupplierreturn', 'external', 'SUPPLIER_RETURN', 'Supplier return contact', 20),
 		);
 
 		foreach ($types as $type) {
