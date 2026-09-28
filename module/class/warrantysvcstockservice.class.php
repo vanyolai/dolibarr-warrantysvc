@@ -147,7 +147,7 @@ class WarrantySvcStockService
 		$sql .= " INNER JOIN ".MAIN_DB_PREFIX."reception r ON r.rowid = rd.fk_reception";
 		$sql .= " INNER JOIN ".MAIN_DB_PREFIX."commande_fournisseurdet cfd ON cfd.rowid = rd.fk_elementdet";
 		$sql .= " INNER JOIN ".MAIN_DB_PREFIX."commande_fournisseur cf ON cf.rowid = cfd.fk_commande";
-		$sql .= " WHERE rd.element_type = 'supplier_order'";
+		$sql .= " WHERE rd.element_type = 'order_supplier'";
 		$sql .= " AND rd.fk_product = ".$productId;
 		$sql .= " AND r.fk_soc = ".$supplierId;
 		$sql .= " AND cf.fk_soc = ".$supplierId;
@@ -223,7 +223,7 @@ class WarrantySvcStockService
 		$sql .= " INNER JOIN ".MAIN_DB_PREFIX."reception r ON r.rowid = rd.fk_reception";
 		$sql .= " INNER JOIN ".MAIN_DB_PREFIX."commande_fournisseurdet cfd ON cfd.rowid = rd.fk_elementdet";
 		$sql .= " INNER JOIN ".MAIN_DB_PREFIX."commande_fournisseur cf ON cf.rowid = cfd.fk_commande";
-		$sql .= " WHERE rd.element_type = 'supplier_order'";
+		$sql .= " WHERE rd.element_type = 'order_supplier'";
 		$sql .= " AND rd.fk_product = p.rowid";
 		$sql .= " AND r.fk_soc = ".$supplierId;
 		$sql .= " AND cf.fk_soc = ".$supplierId;
@@ -294,7 +294,7 @@ class WarrantySvcStockService
 		$sql .= " INNER JOIN ".MAIN_DB_PREFIX."reception r ON r.rowid = rd.fk_reception";
 		$sql .= " INNER JOIN ".MAIN_DB_PREFIX."commande_fournisseurdet cfd ON cfd.rowid = rd.fk_elementdet";
 		$sql .= " INNER JOIN ".MAIN_DB_PREFIX."commande_fournisseur cf ON cf.rowid = cfd.fk_commande";
-		$sql .= " WHERE rd.element_type = 'supplier_order'";
+		$sql .= " WHERE rd.element_type = 'order_supplier'";
 		$sql .= " AND rd.fk_product = ".$productId;
 		$sql .= " AND rd.batch = pb.batch";
 		$sql .= " AND r.fk_soc = ".$supplierId;
