@@ -250,7 +250,7 @@ class modWarrantySvc extends DolibarrModules
 			'langs'    => 'warrantysvc@warrantysvc',
 			'position' => 900,
 			'enabled'  => 'isModEnabled("warrantysvc")',
-			'perms'    => '$user->hasRight("warrantysvc", "svcrequest", "read") || $user->hasRight("warrantysvc", "svcwarranty", "read")',
+			'perms'    => '$user->hasRight("warrantysvc", "svcrequest", "read") || $user->hasRight("warrantysvc", "svcwarranty", "read") || $user->hasRight("warrantysvc", "supplierreturn", "read")',
 			'target'   => '',
 			'user'     => 0,
 		);
@@ -342,6 +342,41 @@ class modWarrantySvc extends DolibarrModules
 			'user'     => 0,
 		);
 		$r++;
+
+		// Supplier Returns
+		$this->menu[$r] = array(
+			'fk_menu'  => 'fk_mainmenu=products,fk_leftmenu=warrantysvc',
+			'type'     => 'left',
+			'titre'    => 'SupplierReturns',
+			'prefix'   => img_picto('', 'shipment', 'class="paddingright pictofixedwidth"'),
+			'mainmenu' => 'products',
+			'leftmenu' => 'warrantysvc_supplier_return_list',
+			'url'      => '/warrantysvc/supplier_return_list.php?mainmenu=products&leftmenu=warrantysvc_supplier_return_list',
+			'langs'    => 'warrantysvc@warrantysvc',
+			'position' => 960,
+			'enabled'  => 'isModEnabled("warrantysvc")',
+			'perms'    => '$user->hasRight("warrantysvc", "supplierreturn", "read")',
+			'target'   => '',
+			'user'     => 0,
+		);
+		$r++;
+
+		$this->menu[$r] = array(
+			'fk_menu'  => 'fk_mainmenu=products,fk_leftmenu=warrantysvc_supplier_return_list',
+			'type'     => 'left',
+			'titre'    => 'NewSupplierReturn',
+			'prefix'   => img_picto('', 'add', 'class="paddingright pictofixedwidth"'),
+			'mainmenu' => 'products',
+			'leftmenu' => 'warrantysvc_supplier_return_new',
+			'url'      => '/warrantysvc/supplier_return_card.php?action=create&mainmenu=products&leftmenu=warrantysvc_supplier_return_new',
+			'langs'    => 'warrantysvc@warrantysvc',
+			'position' => 970,
+			'enabled'  => 'isModEnabled("warrantysvc")',
+			'perms'    => '$user->hasRight("warrantysvc", "supplierreturn", "write")',
+			'target'   => '',
+			'user'     => 0,
+		);
+		$r++;
 	}
 
 	/**
@@ -423,7 +458,7 @@ class modWarrantySvc extends DolibarrModules
 		if ($rmaDesc && $this->db->num_rows($rmaDesc) > 0) {
 			$resQty = $this->db->DDLDescTable($supplierRmaTable, 'qty');
 			$qtyExists = $resQty && $this->db->fetch_object($resQty);
-			if (!$qtyExists && $this->db->DDLAddField($supplierRmaTable, 'qty', array('type'=>'decimal', 'value'=>'24,8', 'default'=>'1', 'null'=>0)) < 0) {
+			if (!$qtyExists && $this->db->DDLAddField($supplierRmaTable, 'qty', array('type'=>'decimal', 'value'=>'24,8', 'default'=>'1')) < 0) {
 				return -1;
 			}
 		}
