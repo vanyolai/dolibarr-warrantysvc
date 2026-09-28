@@ -310,6 +310,13 @@
 - [ ] Add an ordinary stock-managed product with quantity > 1
 - [ ] Add a LOT-tracked product with a valid LOT and quantity available in the selected warehouse
 - [ ] Add a serial-numbered product with quantity 1 and a valid serial
+- [ ] Verify the product selector only lists products that can be traced to a validated reception from the selected supplier and currently have stock in the selected warehouse
+- [ ] Verify a product purchased only from another supplier is not offered
+- [ ] Verify a product from this supplier with zero stock in the selected warehouse is not offered
+- [ ] For LOT/serial-tracked products, verify LOT/serial is selected from current warehouse stock rather than entered as free text
+- [ ] Verify the LOT/serial selector only offers identifiers whose reception provenance points to the selected supplier
+- [ ] Verify a serial-numbered product forces quantity 1
+- [ ] Leave the line-specific reason empty and verify the header return reason is inherited in the card, PDF and email substitutions
 - [ ] Edit and delete lines while the return is Draft
 - [ ] Verify Product, quantity, LOT/serial and line reason persist after reload
 - [ ] Verify the Hungarian UI shows translated Supplier Return labels instead of raw language keys
