@@ -488,8 +488,27 @@ if ($object->id > 0 && $permwrite) {
 $form = new Form($db);
 $formcompany = new FormCompany($db);
 
-// Product list is now loaded dynamically via AJAX (ajax/sr_products.php) when the customer changes.
-// No server-side product list needed for the create form.
+// Create uses AJAX. Edit needs a deterministic server-side selector so the
+// serialized/LOT-only policy cannot be bypassed by a stale or hand-crafted UI.
+// Historical requests on a formerly allowed non-batch product keep their
+// current product in the list, but may only be changed to another eligible one.
+$filtered_product_list = null;
+if ($object->id > 0 && getDolGlobalString('WARRANTYSVC_WARRANTY_REQUIRES_LOTS')) {
+	$filtered_product_list = array();
+	$sqlProducts = "SELECT p.rowid, p.ref, p.label FROM ".MAIN_DB_PREFIX."product p";
+	$sqlProducts .= " WHERE p.entity IN (".getEntity('product').")";
+	$sqlProducts .= " AND (p.tobatch > 0 OR p.rowid = ".((int) $object->fk_product).")";
+	$sqlProducts .= " ORDER BY p.ref ASC";
+	$resProducts = $db->query($sqlProducts);
+	if ($resProducts) {
+		while ($productRow = $db->fetch_object($resProducts)) {
+			$filtered_product_list[(int) $productRow->rowid] = trim((string) $productRow->ref.' - '.(string) $productRow->label);
+		}
+		$db->free($resProducts);
+	}
+}
+
+// Product list is loaded dynamically via AJAX on create.
 
 llxHeader('', ($id ? $object->ref : $langs->trans('NewSvcRequest')), '');
 
