@@ -237,6 +237,96 @@ function warrantysvc_service_request_product_allowed($db, $productId)
 
 
 /**
+ * Return tabs for a Supplier Return card.
+ *
+ * @param SvcSupplierReturn $object Supplier Return
+ * @return array
+ */
+function svcsupplierreturn_prepare_head($object)
+{
+	global $langs, $conf;
+
+	$langs->load('warrantysvc@warrantysvc');
+	$head = array();
+	$h = 0;
+
+	$head[$h][0] = DOL_URL_ROOT.'/custom/warrantysvc/supplier_return_card.php?id='.$object->id;
+	$head[$h][1] = $langs->trans('SupplierReturnDetails');
+	$head[$h][2] = 'card';
+	$h++;
+
+	$internalContacts = $object->liste_contact(-1, 'internal');
+	$externalContacts = $object->liste_contact(-1, 'external');
+	$nbContacts = (is_array($internalContacts) ? count($internalContacts) : 0)
+		+ (is_array($externalContacts) ? count($externalContacts) : 0);
+	$head[$h][0] = DOL_URL_ROOT.'/custom/warrantysvc/supplier_return_contact.php?id='.$object->id;
+	$head[$h][1] = $langs->trans('ContactsAddresses');
+	if ($nbContacts > 0) {
+		$head[$h][1] .= '<span class="badge marginleftonlyshort">'.$nbContacts.'</span>';
+	}
+	$head[$h][2] = 'contact';
+	$h++;
+
+	$head[$h][0] = DOL_URL_ROOT.'/custom/warrantysvc/supplier_return_document.php?id='.$object->id;
+	$head[$h][1] = $langs->trans('Documents');
+	$head[$h][2] = 'document';
+	$h++;
+
+	complete_head_from_modules($conf, $langs, $object, $head, $h, 'svcsupplierreturn@warrantysvc');
+	return $head;
+}
+
+
+/**
+ * Default recipient for a supplier-return email.
+ *
+ * @param SvcSupplierReturn $object Supplier Return
+ * @return array<int,string|int>
+ */
+function warrantysvc_default_supplier_return_email_receivers($object)
+{
+	$receivers = array();
+	$contacts = $object->liste_contact(-1, 'external', 0, 'SUPPLIER_RETURN', 1);
+	if (is_array($contacts)) {
+		foreach ($contacts as $contact) {
+			if ((int) $contact['socid'] === (int) $object->fk_soc_supplier && !empty($contact['email'])) {
+				$receivers[(int) $contact['id']] = (int) $contact['id'];
+			}
+		}
+	}
+	if (!empty($receivers)) {
+		return array_values($receivers);
+	}
+
+	$object->socid = (int) $object->fk_soc_supplier;
+	if (!is_object($object->thirdparty)) {
+		$object->fetch_thirdparty();
+	}
+	if (is_object($object->thirdparty) && !empty($object->thirdparty->email)) {
+		return array('thirdparty');
+	}
+
+	return array();
+}
+
+
+/**
+ * Return Supplier Return output directory.
+ *
+ * @param SvcSupplierReturn $object Supplier Return
+ * @return string
+ */
+function warrantysvc_supplier_return_output_dir($object)
+{
+	global $conf;
+	$base = !empty($conf->warrantysvc->multidir_output[$object->entity])
+		? $conf->warrantysvc->multidir_output[$object->entity]
+		: (!empty($conf->warrantysvc->dir_output) ? $conf->warrantysvc->dir_output : DOL_DATA_ROOT.'/warrantysvc');
+	return $base.'/supplier-return/'.dol_sanitizeFileName($object->ref);
+}
+
+
+/**
  * Return array of tabs for a SvcWarranty card
  *
  * @param  SvcWarranty $object SvcWarranty object
