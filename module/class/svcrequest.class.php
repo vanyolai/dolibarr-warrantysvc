@@ -237,8 +237,25 @@ class SvcRequest extends CommonObject
 			return -1;
 		}
 		if (!self::isProductAllowedByPolicy($this->db, (int) $this->fk_product)) {
-			$this->error = 'ErrorWarrantyRequiresLotProduct';
-			return -1;
+			// Existing historical requests created before this policy was enforced
+			// remain editable as long as their product is not being changed.
+			$legacySameProduct = false;
+			if (!empty($this->id)) {
+				$sqlCurrent = "SELECT fk_product FROM ".MAIN_DB_PREFIX."svc_request";
+				$sqlCurrent .= " WHERE rowid = ".((int) $this->id);
+				$sqlCurrent .= " AND entity = ".((int) $conf->entity);
+				$resCurrent = $this->db->query($sqlCurrent);
+				if ($resCurrent && ($objCurrent = $this->db->fetch_object($resCurrent))) {
+					$legacySameProduct = ((int) $objCurrent->fk_product === (int) $this->fk_product);
+				}
+				if ($resCurrent) {
+					$this->db->free($resCurrent);
+				}
+			}
+			if (!$legacySameProduct) {
+				$this->error = 'ErrorWarrantyRequiresLotProduct';
+				return -1;
+			}
 		}
 
 		if (!empty($this->fk_warranty)) {
