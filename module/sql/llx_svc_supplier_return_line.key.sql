@@ -1,0 +1,3 @@
+ALTER TABLE llx_svc_supplier_return_line ADD INDEX idx_svc_supplier_return_line_parent (fk_supplier_return);
+ALTER TABLE llx_svc_supplier_return_line ADD INDEX idx_svc_supplier_return_line_product (fk_product);
+ALTER TABLE llx_svc_supplier_return_line ADD INDEX idx_svc_supplier_return_line_batch (batch);
