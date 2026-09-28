@@ -73,13 +73,15 @@ if ($cancel) {
 	exit;
 }
 
-function warrantysvc_supplier_rma_fill_from_post($object)
+function warrantysvc_supplier_rma_fill_from_post($object, $identityEditable = true)
 {
 	$object->fk_svc_request = GETPOSTINT('fk_svc_request');
-	$object->fk_soc_supplier = GETPOSTINT('fk_soc_supplier');
-	$object->fk_product = GETPOSTINT('fk_product');
-	$object->qty = price2num(GETPOST('qty', 'alphanohtml'));
-	$object->serial_number = GETPOST('serial_number', 'alphanohtml');
+	if ($identityEditable) {
+		$object->fk_soc_supplier = GETPOSTINT('fk_soc_supplier');
+		$object->fk_product = GETPOSTINT('fk_product');
+		$object->qty = price2num(GETPOST('qty', 'alphanohtml'));
+		$object->serial_number = GETPOST('serial_number', 'alphanohtml');
+	}
 	$object->supplier_rma_ref = GETPOST('supplier_rma_ref', 'alphanohtml');
 	$object->outbound_carrier = GETPOST('outbound_carrier', 'alphanohtml');
 	$object->outbound_tracking = GETPOST('outbound_tracking', 'alphanohtml');
@@ -101,7 +103,7 @@ function warrantysvc_supplier_rma_fill_from_post($object)
  * Actions
  */
 if ($action === 'add' && $permwrite) {
-	warrantysvc_supplier_rma_fill_from_post($object);
+	warrantysvc_supplier_rma_fill_from_post($object, true);
 
 	if ($sr->fetch($object->fk_svc_request) <= 0) {
 		$object->error = 'ErrorSupplierRmaServiceRequestNotFound';
@@ -121,9 +123,14 @@ if ($action === 'add' && $permwrite) {
 
 if ($action === 'update' && $permwrite && $object->id > 0) {
 	$previousRequestId = (int) $object->fk_svc_request;
-	warrantysvc_supplier_rma_fill_from_post($object);
-	// The parent Service Request is immutable after creation.
+	$previousWarehouseSource = (int) $object->fk_warehouse_source;
+	$previousWarehouseReturn = (int) $object->fk_warehouse_return;
+	warrantysvc_supplier_rma_fill_from_post($object, !$object->isIdentityLocked());
+	// Parent request and internal stock-routing fields are not edited on this
+	// form, so keep their persisted values instead of clearing them on save.
 	$object->fk_svc_request = $previousRequestId;
+	$object->fk_warehouse_source = $previousWarehouseSource;
+	$object->fk_warehouse_return = $previousWarehouseReturn;
 	$result = $object->update($user);
 	if ($result > 0) {
 		setEventMessages($langs->trans('SupplierRmaUpdated'), null, 'mesgs');
@@ -241,7 +248,7 @@ if ($action === 'create') {
 
 	print '<tr><td>'.$langs->trans('OutboundCarrier').'</td><td><input type="text" name="outbound_carrier" class="minwidth200"></td></tr>';
 	print '<tr><td>'.$langs->trans('OutboundTracking').'</td><td><input type="text" name="outbound_tracking" class="minwidth300"></td></tr>';
-	print '<tr><td>'.$langs->trans('TrackingUrl').'</td><td><input type="url" name="outbound_tracking_url" class="minwidth500"></td></tr>';
+	print '<tr><td>'.$langs->trans('OutboundTrackingUrl').'</td><td><input type="url" name="outbound_tracking_url" class="quatrevingtpercent"></td></tr>';
 
 	print '<tr><td class="tdtop">'.$langs->trans('NotePrivate').'</td><td>';
 	print '<textarea name="note_private" class="quatrevingtpercent" rows="4"></textarea>';
@@ -301,6 +308,8 @@ $morehtmlref .= '</div>';
 dol_banner_tab($object, 'ref', $linkback, 1, 'ref', 'ref', $morehtmlref);
 
 $isEdit = ($action === 'edit' && $permwrite);
+$identityEditable = ($isEdit && !$object->isIdentityLocked());
+
 if ($isEdit) {
 	print '<form action="'.$_SERVER['PHP_SELF'].'?id='.$object->id.'" method="POST">';
 	print '<input type="hidden" name="token" value="'.newToken().'">';
@@ -308,8 +317,28 @@ if ($isEdit) {
 	print '<input type="hidden" name="fk_svc_request" value="'.((int) $object->fk_svc_request).'">';
 }
 
+$trackingRender = function ($tracking, $url) {
+	if (empty($tracking)) return '—';
+	$label = dol_escape_htmltag($tracking);
+	if (!empty($url)) {
+		return '<a href="'.dol_escape_htmltag($url).'" target="_blank" rel="noopener">'.$label.' '.img_picto('', 'globe').'</a>';
+	}
+	return $label;
+};
+
+$supplier = new Societe($db);
+$supplierLoaded = ($supplier->fetch($object->fk_soc_supplier) > 0);
+$product = new Product($db);
+$productLoaded = ($product->fetch($object->fk_product) > 0);
+
+/*
+ * Identity and workflow information.
+ *
+ * Keep this table full-width: Dolibarr product selectors can contain long
+ * references/labels, so placing them in a fichehalf column makes the native
+ * combo overflow into the logistics column.
+ */
 print '<div class="fichecenter">';
-print '<div class="fichehalfleft">';
 print '<table class="border centpercent tableforfield">';
 
 print '<tr><td class="titlefield">'.$langs->trans('SvcRequest').'</td><td>';
@@ -317,29 +346,23 @@ print '<a href="'.DOL_URL_ROOT.'/custom/warrantysvc/card.php?id='.$sr->id.'">'.d
 print '</td></tr>';
 
 print '<tr><td>'.$langs->trans('Supplier').'</td><td>';
-if ($isEdit) {
-	print $form->select_company($object->fk_soc_supplier, 'fk_soc_supplier', '(s.fournisseur:=:1)', 1, 0, 0, array(), 0, 'minwidth250');
-} else {
-	$supplier = new Societe($db);
-	if ($supplier->fetch($object->fk_soc_supplier) > 0) {
-		print $supplier->getNomUrl(1, 'supplier');
-	}
+if ($identityEditable) {
+	print $form->select_company($object->fk_soc_supplier, 'fk_soc_supplier', '(s.fournisseur:=:1)', 1, 0, 0, array(), 0, 'minwidth300');
+} elseif ($supplierLoaded) {
+	print $supplier->getNomUrl(1, 'supplier');
 }
 print '</td></tr>';
 
 print '<tr><td>'.$langs->trans('Product').'</td><td>';
-if ($isEdit) {
-	print $form->select_produits($object->fk_product, 'fk_product', '', 0, 0, -1, 2, '', 0, array(), 0, 0, 0, 'minwidth250');
-} else {
-	$product = new Product($db);
-	if ($product->fetch($object->fk_product) > 0) {
-		print $product->getNomUrl(1).' - '.dol_escape_htmltag($product->label);
-	}
+if ($identityEditable) {
+	print $form->select_produits($object->fk_product, 'fk_product', '', 0, 0, -1, 2, '', 0, array(), 0, 0, 0, 'minwidth300');
+} elseif ($productLoaded) {
+	print $product->getNomUrl(1).' - '.dol_escape_htmltag($product->label);
 }
 print '</td></tr>';
 
 print '<tr><td>'.$langs->trans('Qty').'</td><td>';
-if ($isEdit) {
+if ($identityEditable) {
 	print '<input type="number" name="qty" min="0.00000001" step="any" class="width100" value="'.dol_escape_htmltag((string) $object->qty).'">';
 } else {
 	print price($object->qty, 0, $langs, 0, 0, -1);
@@ -347,8 +370,8 @@ if ($isEdit) {
 print '</td></tr>';
 
 print '<tr><td>'.$langs->trans('SerialNumber').'</td><td>';
-if ($isEdit) {
-	print '<input type="text" name="serial_number" class="minwidth250" value="'.dol_escape_htmltag($object->serial_number).'">';
+if ($identityEditable) {
+	print '<input type="text" name="serial_number" class="minwidth300" value="'.dol_escape_htmltag($object->serial_number).'">';
 } else {
 	print dol_escape_htmltag($object->serial_number ?: '—');
 }
@@ -356,7 +379,7 @@ print '</td></tr>';
 
 print '<tr><td>'.$langs->trans('SupplierRmaExternalRef').'</td><td>';
 if ($isEdit) {
-	print '<input type="text" name="supplier_rma_ref" class="minwidth250" value="'.dol_escape_htmltag($object->supplier_rma_ref).'">';
+	print '<input type="text" name="supplier_rma_ref" class="minwidth300" value="'.dol_escape_htmltag($object->supplier_rma_ref).'">';
 } else {
 	print dol_escape_htmltag($object->supplier_rma_ref ?: '—');
 }
@@ -373,21 +396,13 @@ print '<tr><td>'.$langs->trans('SupplierRmaDateReturned').'</td><td>'.($object->
 print '</table>';
 print '</div>';
 
-print '<div class="fichehalfright">';
+print '<div class="clearboth"></div><br>';
+print load_fiche_titre($langs->trans('SupplierRmaLogistics'), '', 'shipment');
 print '<table class="border centpercent tableforfield">';
-
-$trackingRender = function ($tracking, $url) {
-	if (empty($tracking)) return '—';
-	$label = dol_escape_htmltag($tracking);
-	if (!empty($url)) {
-		return '<a href="'.dol_escape_htmltag($url).'" target="_blank" rel="noopener">'.$label.' '.img_picto('', 'globe').'</a>';
-	}
-	return $label;
-};
 
 print '<tr><td class="titlefield">'.$langs->trans('OutboundCarrier').'</td><td>';
 if ($isEdit) {
-	print '<input type="text" name="outbound_carrier" class="minwidth200" value="'.dol_escape_htmltag($object->outbound_carrier).'">';
+	print '<input type="text" name="outbound_carrier" class="minwidth300" value="'.dol_escape_htmltag($object->outbound_carrier).'">';
 } else {
 	print dol_escape_htmltag($object->outbound_carrier ?: '—');
 }
@@ -395,15 +410,15 @@ print '</td></tr>';
 
 print '<tr><td>'.$langs->trans('OutboundTracking').'</td><td>';
 if ($isEdit) {
-	print '<input type="text" name="outbound_tracking" class="minwidth250" value="'.dol_escape_htmltag($object->outbound_tracking).'">';
+	print '<input type="text" name="outbound_tracking" class="minwidth300" value="'.dol_escape_htmltag($object->outbound_tracking).'">';
 } else {
 	print $trackingRender($object->outbound_tracking, $object->outbound_tracking_url);
 }
 print '</td></tr>';
 
-print '<tr><td>'.$langs->trans('TrackingUrl').'</td><td>';
+print '<tr><td>'.$langs->trans('OutboundTrackingUrl').'</td><td>';
 if ($isEdit) {
-	print '<input type="url" name="outbound_tracking_url" class="minwidth300" value="'.dol_escape_htmltag($object->outbound_tracking_url).'">';
+	print '<input type="url" name="outbound_tracking_url" class="quatrevingtpercent" value="'.dol_escape_htmltag($object->outbound_tracking_url).'">';
 } else {
 	print !empty($object->outbound_tracking_url) ? '<a href="'.dol_escape_htmltag($object->outbound_tracking_url).'" target="_blank" rel="noopener">'.$langs->trans('OpenTracking').'</a>' : '—';
 }
@@ -411,7 +426,7 @@ print '</td></tr>';
 
 print '<tr><td>'.$langs->trans('ReturnCarrier').'</td><td>';
 if ($isEdit) {
-	print '<input type="text" name="return_carrier" class="minwidth200" value="'.dol_escape_htmltag($object->return_carrier).'">';
+	print '<input type="text" name="return_carrier" class="minwidth300" value="'.dol_escape_htmltag($object->return_carrier).'">';
 } else {
 	print dol_escape_htmltag($object->return_carrier ?: '—');
 }
@@ -419,15 +434,15 @@ print '</td></tr>';
 
 print '<tr><td>'.$langs->trans('ReturnTracking').'</td><td>';
 if ($isEdit) {
-	print '<input type="text" name="return_tracking" class="minwidth250" value="'.dol_escape_htmltag($object->return_tracking).'">';
+	print '<input type="text" name="return_tracking" class="minwidth300" value="'.dol_escape_htmltag($object->return_tracking).'">';
 } else {
 	print $trackingRender($object->return_tracking, $object->return_tracking_url);
 }
 print '</td></tr>';
 
-print '<tr><td>'.$langs->trans('TrackingUrl').'</td><td>';
+print '<tr><td>'.$langs->trans('ReturnTrackingUrl').'</td><td>';
 if ($isEdit) {
-	print '<input type="url" name="return_tracking_url" class="minwidth300" value="'.dol_escape_htmltag($object->return_tracking_url).'">';
+	print '<input type="url" name="return_tracking_url" class="quatrevingtpercent" value="'.dol_escape_htmltag($object->return_tracking_url).'">';
 } else {
 	print !empty($object->return_tracking_url) ? '<a href="'.dol_escape_htmltag($object->return_tracking_url).'" target="_blank" rel="noopener">'.$langs->trans('OpenTracking').'</a>' : '—';
 }
@@ -444,18 +459,16 @@ print '</td></tr>';
 
 print '<tr><td>'.$langs->trans('ReplacementSerial').'</td><td>';
 if ($isEdit) {
-	print '<input type="text" name="replacement_serial_number" class="minwidth250" value="'.dol_escape_htmltag($object->replacement_serial_number).'">';
+	print '<input type="text" name="replacement_serial_number" class="minwidth300" value="'.dol_escape_htmltag($object->replacement_serial_number).'">';
 } else {
 	print dol_escape_htmltag($object->replacement_serial_number ?: '—');
 }
 print '</td></tr>';
 
 print '</table>';
-print '</div>';
-print '</div>';
 
-print '<div class="clearboth"></div>';
 print '<br>';
+print load_fiche_titre($langs->trans('SupplierRmaServiceDetails'), '', 'note');
 print '<table class="border centpercent tableforfield">';
 
 print '<tr><td class="titlefield tdtop">'.$langs->trans('SupplierRmaProblemDescription').'</td><td>';
