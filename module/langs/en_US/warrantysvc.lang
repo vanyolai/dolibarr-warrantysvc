@@ -835,3 +835,8 @@ SubstSupplierReturnExternalRef=Supplier return authorization/reference
 SubstSupplierReturnStatus=Supplier Return status
 SubstSupplierReturnReason=Supplier Return reason
 SubstSupplierReturnLines=Returned item list
+
+SupplierRmaLogistics=Logistics and result
+SupplierRmaServiceDetails=Service details
+OutboundTrackingUrl=Outbound tracking URL
+ReturnTrackingUrl=Return tracking URL
