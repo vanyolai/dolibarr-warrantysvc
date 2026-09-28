@@ -117,6 +117,290 @@ class WarrantySvcStockService
 	}
 
 	/**
+	 * Find a real, validated Dolibarr reception proving that a product (and,
+	 * when supplied, a specific LOT/serial) came from the selected supplier.
+	 *
+	 * We deliberately follow receptiondet_batch -> supplier order line ->
+	 * supplier order instead of the supplier price list. A price-list relation
+	 * only says the supplier can sell the product; it does not prove that the
+	 * physical stock being returned was purchased from them.
+	 *
+	 * @param int    $supplierId Supplier thirdparty id
+	 * @param int    $productId  Product id
+	 * @param string $batch      Optional LOT/serial
+	 * @return array|false Source ids on success, false when no proven source exists
+	 */
+	public function findSupplierReceiptSource($supplierId, $productId, $batch = '')
+	{
+		global $conf;
+
+		$supplierId = (int) $supplierId;
+		$productId = (int) $productId;
+		$batch = trim((string) $batch);
+		if ($supplierId <= 0 || $productId <= 0) {
+			return false;
+		}
+
+		$sql = "SELECT rd.rowid AS reception_line_id, rd.fk_elementdet AS supplier_order_line_id,";
+		$sql .= " r.rowid AS reception_id, cf.rowid AS supplier_order_id";
+		$sql .= " FROM ".MAIN_DB_PREFIX."receptiondet_batch rd";
+		$sql .= " INNER JOIN ".MAIN_DB_PREFIX."reception r ON r.rowid = rd.fk_reception";
+		$sql .= " INNER JOIN ".MAIN_DB_PREFIX."commande_fournisseurdet cfd ON cfd.rowid = rd.fk_elementdet";
+		$sql .= " INNER JOIN ".MAIN_DB_PREFIX."commande_fournisseur cf ON cf.rowid = cfd.fk_commande";
+		$sql .= " WHERE rd.element_type = 'supplier_order'";
+		$sql .= " AND rd.fk_product = ".$productId;
+		$sql .= " AND r.fk_soc = ".$supplierId;
+		$sql .= " AND cf.fk_soc = ".$supplierId;
+		$sql .= " AND r.entity = ".((int) $conf->entity);
+		$sql .= " AND r.fk_statut > 0";
+		if ($batch !== '') {
+			$sql .= " AND rd.batch = '".$this->db->escape($batch)."'";
+		}
+		$sql .= " ORDER BY r.date_valid DESC, rd.rowid DESC";
+		$sql .= $this->db->plimit(1);
+
+		$resql = $this->db->query($sql);
+		if (!$resql) {
+			$this->error = $this->db->lasterror();
+			return false;
+		}
+		$obj = $this->db->fetch_object($resql);
+		$this->db->free($resql);
+		if (!$obj) {
+			return false;
+		}
+
+		return array(
+			'fk_reception_line' => (int) $obj->reception_line_id,
+			'fk_supplier_order_line' => (int) $obj->supplier_order_line_id,
+			'fk_reception' => (int) $obj->reception_id,
+			'fk_supplier_order' => (int) $obj->supplier_order_id,
+		);
+	}
+
+	/**
+	 * Products eligible for a Supplier Return.
+	 *
+	 * Conditions:
+	 * - physically on hand in the selected source warehouse;
+	 * - previously received through a validated reception sourced from a
+	 *   supplier order belonging to the selected supplier;
+	 * - not fully consumed by other lines of this same draft return.
+	 *
+	 * @return array<int,array<string,mixed>>
+	 */
+	public function getSupplierReturnProductChoices($supplierId, $warehouseId, $returnId = 0, $excludeLineId = 0)
+	{
+		global $conf;
+
+		$supplierId = (int) $supplierId;
+		$warehouseId = (int) $warehouseId;
+		$returnId = (int) $returnId;
+		$excludeLineId = (int) $excludeLineId;
+		$out = array();
+		if ($supplierId <= 0 || $warehouseId <= 0) {
+			return $out;
+		}
+
+		$reservedSql = "SELECT l.fk_product, SUM(l.qty) AS qty_reserved";
+		$reservedSql .= " FROM ".MAIN_DB_PREFIX."svc_supplier_return_line l";
+		$reservedSql .= " WHERE l.fk_supplier_return = ".$returnId;
+		if ($excludeLineId > 0) {
+			$reservedSql .= " AND l.rowid <> ".$excludeLineId;
+		}
+		$reservedSql .= " GROUP BY l.fk_product";
+
+		$sql = "SELECT p.rowid, p.ref, p.label, p.tobatch, ps.reel,";
+		$sql .= " COALESCE(res.qty_reserved, 0) AS qty_reserved";
+		$sql .= " FROM ".MAIN_DB_PREFIX."product p";
+		$sql .= " INNER JOIN ".MAIN_DB_PREFIX."product_stock ps";
+		$sql .= " ON ps.fk_product = p.rowid AND ps.fk_entrepot = ".$warehouseId;
+		$sql .= " LEFT JOIN (".$reservedSql.") res ON res.fk_product = p.rowid";
+		$sql .= " WHERE ps.reel > 0";
+		$sql .= " AND (ps.reel - COALESCE(res.qty_reserved, 0)) > 0";
+		$sql .= " AND EXISTS (";
+		$sql .= " SELECT 1 FROM ".MAIN_DB_PREFIX."receptiondet_batch rd";
+		$sql .= " INNER JOIN ".MAIN_DB_PREFIX."reception r ON r.rowid = rd.fk_reception";
+		$sql .= " INNER JOIN ".MAIN_DB_PREFIX."commande_fournisseurdet cfd ON cfd.rowid = rd.fk_elementdet";
+		$sql .= " INNER JOIN ".MAIN_DB_PREFIX."commande_fournisseur cf ON cf.rowid = cfd.fk_commande";
+		$sql .= " WHERE rd.element_type = 'supplier_order'";
+		$sql .= " AND rd.fk_product = p.rowid";
+		$sql .= " AND r.fk_soc = ".$supplierId;
+		$sql .= " AND cf.fk_soc = ".$supplierId;
+		$sql .= " AND r.entity = ".((int) $conf->entity);
+		$sql .= " AND r.fk_statut > 0";
+		$sql .= ")";
+		$sql .= " ORDER BY p.ref";
+
+		$resql = $this->db->query($sql);
+		if (!$resql) {
+			$this->error = $this->db->lasterror();
+			return $out;
+		}
+		while ($obj = $this->db->fetch_object($resql)) {
+			$available = (float) $obj->reel - (float) $obj->qty_reserved;
+			$out[(int) $obj->rowid] = array(
+				'ref' => (string) $obj->ref,
+				'label' => (string) $obj->label,
+				'status_batch' => (int) $obj->tobatch,
+				'stock' => (float) $obj->reel,
+				'available' => $available,
+			);
+		}
+		$this->db->free($resql);
+
+		return $out;
+	}
+
+	/**
+	 * Current LOT/serial choices for a Supplier Return product, restricted to
+	 * identifiers whose provenance can be traced to the selected supplier.
+	 *
+	 * @return array<string,float> batch => available qty
+	 */
+	public function getSupplierReturnBatchChoices($supplierId, $warehouseId, $productId, $returnId = 0, $excludeLineId = 0)
+	{
+		global $conf;
+
+		$supplierId = (int) $supplierId;
+		$warehouseId = (int) $warehouseId;
+		$productId = (int) $productId;
+		$returnId = (int) $returnId;
+		$excludeLineId = (int) $excludeLineId;
+		$out = array();
+		if ($supplierId <= 0 || $warehouseId <= 0 || $productId <= 0) {
+			return $out;
+		}
+
+		$reservedSql = "SELECT l.batch, SUM(l.qty) AS qty_reserved";
+		$reservedSql .= " FROM ".MAIN_DB_PREFIX."svc_supplier_return_line l";
+		$reservedSql .= " WHERE l.fk_supplier_return = ".$returnId;
+		$reservedSql .= " AND l.fk_product = ".$productId;
+		if ($excludeLineId > 0) {
+			$reservedSql .= " AND l.rowid <> ".$excludeLineId;
+		}
+		$reservedSql .= " GROUP BY l.batch";
+
+		$sql = "SELECT pb.batch, pb.qty, COALESCE(res.qty_reserved, 0) AS qty_reserved";
+		$sql .= " FROM ".MAIN_DB_PREFIX."product_stock ps";
+		$sql .= " INNER JOIN ".MAIN_DB_PREFIX."product_batch pb ON pb.fk_product_stock = ps.rowid";
+		$sql .= " LEFT JOIN (".$reservedSql.") res ON res.batch = pb.batch";
+		$sql .= " WHERE ps.fk_product = ".$productId;
+		$sql .= " AND ps.fk_entrepot = ".$warehouseId;
+		$sql .= " AND pb.qty > 0";
+		$sql .= " AND (pb.qty - COALESCE(res.qty_reserved, 0)) > 0";
+		$sql .= " AND EXISTS (";
+		$sql .= " SELECT 1 FROM ".MAIN_DB_PREFIX."receptiondet_batch rd";
+		$sql .= " INNER JOIN ".MAIN_DB_PREFIX."reception r ON r.rowid = rd.fk_reception";
+		$sql .= " INNER JOIN ".MAIN_DB_PREFIX."commande_fournisseurdet cfd ON cfd.rowid = rd.fk_elementdet";
+		$sql .= " INNER JOIN ".MAIN_DB_PREFIX."commande_fournisseur cf ON cf.rowid = cfd.fk_commande";
+		$sql .= " WHERE rd.element_type = 'supplier_order'";
+		$sql .= " AND rd.fk_product = ".$productId;
+		$sql .= " AND rd.batch = pb.batch";
+		$sql .= " AND r.fk_soc = ".$supplierId;
+		$sql .= " AND cf.fk_soc = ".$supplierId;
+		$sql .= " AND r.entity = ".((int) $conf->entity);
+		$sql .= " AND r.fk_statut > 0";
+		$sql .= ")";
+		$sql .= " ORDER BY pb.batch";
+
+		$resql = $this->db->query($sql);
+		if (!$resql) {
+			$this->error = $this->db->lasterror();
+			return $out;
+		}
+		while ($obj = $this->db->fetch_object($resql)) {
+			$out[(string) $obj->batch] = (float) $obj->qty - (float) $obj->qty_reserved;
+		}
+		$this->db->free($resql);
+
+		return $out;
+	}
+
+	/**
+	 * Validate one Supplier Return line and resolve its source reception/order.
+	 *
+	 * @return array|false Provenance ids on success, false on failure
+	 */
+	public function validateSupplierReturnLine($supplierId, $warehouseId, $returnId, $lineId, $productId, $qty, $batch = '')
+	{
+		$supplierId = (int) $supplierId;
+		$warehouseId = (int) $warehouseId;
+		$returnId = (int) $returnId;
+		$lineId = (int) $lineId;
+		$productId = (int) $productId;
+		$qty = (float) $qty;
+		$batch = trim((string) $batch);
+
+		if ($this->validateOutbound($productId, $warehouseId, $qty, $batch) < 0) {
+			return false;
+		}
+
+		$product = new Product($this->db);
+		if ($product->fetch($productId) <= 0) {
+			$this->error = 'ErrorProductNotFound';
+			return false;
+		}
+		$hasBatch = method_exists($product, 'hasbatch') ? (bool) $product->hasbatch() : !empty($product->status_batch);
+
+		$source = $this->findSupplierReceiptSource($supplierId, $productId, $hasBatch ? $batch : '');
+		if ($source === false) {
+			$this->error = $hasBatch ? 'ErrorSupplierReturnBatchNotFromSupplier' : 'ErrorSupplierReturnProductNotFromSupplier';
+			return false;
+		}
+
+		// Prevent the same draft Supplier Return from reserving more than the
+		// currently available physical quantity across several lines.
+		$sql = "SELECT COALESCE(SUM(qty),0) AS qty_reserved";
+		$sql .= " FROM ".MAIN_DB_PREFIX."svc_supplier_return_line";
+		$sql .= " WHERE fk_supplier_return = ".$returnId;
+		$sql .= " AND fk_product = ".$productId;
+		if ($hasBatch) {
+			$sql .= " AND batch = '".$this->db->escape($batch)."'";
+		}
+		if ($lineId > 0) {
+			$sql .= " AND rowid <> ".$lineId;
+		}
+		$resql = $this->db->query($sql);
+		if (!$resql) {
+			$this->error = $this->db->lasterror();
+			return false;
+		}
+		$obj = $this->db->fetch_object($resql);
+		$this->db->free($resql);
+		$reserved = $obj ? (float) $obj->qty_reserved : 0.0;
+
+		if ($hasBatch) {
+			$sql = "SELECT COALESCE(SUM(pb.qty),0) AS qty";
+			$sql .= " FROM ".MAIN_DB_PREFIX."product_stock ps";
+			$sql .= " INNER JOIN ".MAIN_DB_PREFIX."product_batch pb ON pb.fk_product_stock = ps.rowid";
+			$sql .= " WHERE ps.fk_product = ".$productId;
+			$sql .= " AND ps.fk_entrepot = ".$warehouseId;
+			$sql .= " AND pb.batch = '".$this->db->escape($batch)."'";
+		} else {
+			$sql = "SELECT COALESCE(ps.reel,0) AS qty";
+			$sql .= " FROM ".MAIN_DB_PREFIX."product_stock ps";
+			$sql .= " WHERE ps.fk_product = ".$productId;
+			$sql .= " AND ps.fk_entrepot = ".$warehouseId;
+		}
+		$resql = $this->db->query($sql);
+		if (!$resql) {
+			$this->error = $this->db->lasterror();
+			return false;
+		}
+		$obj = $this->db->fetch_object($resql);
+		$this->db->free($resql);
+		$physical = $obj ? (float) $obj->qty : 0.0;
+		if (($physical - $reserved) + 0.00000001 < $qty) {
+			$this->error = 'ErrorSupplierReturnInsufficientUnreservedStock';
+			$this->errors[] = 'available='.($physical - $reserved).' requested='.$qty;
+			return false;
+		}
+
+		return $source;
+	}
+
+	/**
 	 * Create an idempotent outbound movement.
 	 *
 	 * The deterministic inventory code survives a crash between stock creation
