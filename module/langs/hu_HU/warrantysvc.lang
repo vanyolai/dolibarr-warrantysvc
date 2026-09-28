@@ -753,3 +753,46 @@ ErrorSupplierRmaRollbackOutboundStock=Nem lehet az Elküldve állapot elé vissz
 ErrorSupplierRmaRollbackInboundStock=Nem lehet a Visszaérkezett állapot elé visszalépni, mert már létezik bejövő készletmozgás.
 ErrorSupplierRmaDeleteStockMovements=Ehhez a beszállítói RMA-hoz készletmozgás tartozik, ezért véglegesen nem törölhető.
 ErrorWarrantyRequiresLotProduct=Ehhez a termékhez nem hozható létre garanciális igény, mert a modul csak sorozatszám-/LOT-kezelésű termékeket engedélyez.
+
+#
+# Beszállítói visszáru
+#
+SupplierReturn=Beszállítói visszáru
+SupplierReturns=Beszállítói visszáruk
+NewSupplierReturn=Új beszállítói visszáru
+SupplierReturnDetails=Beszállítói visszáru adatai
+SupplierReturnLines=Visszaküldött tételek
+SupplierReturnExternalRef=Beszállítói visszáru engedély / hivatkozás
+SupplierReturnReason=Visszaküldés oka
+SupplierReturnLifecycle=Beszállítói visszáru életút
+SupplierReturnDocument=Beszállítói visszáru bizonylat
+SupplierReturnPdfStandardDesc=Szabványos beszállítói visszáru bizonylat termék-, mennyiség- és LOT/sorozatszám-adatokkal
+SupplierReturnCreated=A(z) %s beszállítói visszáru létrejött.
+SupplierReturnUpdated=Beszállítói visszáru frissítve.
+SupplierReturnDeleted=Beszállítói visszáru törölve.
+SupplierReturnStockMovedOut=A visszaküldött áru kivezetésre került a raktárkészletből.
+SupplierReturnAuthorize=Visszáru engedélyezése
+SupplierReturnShip=Elküldés a beszállítónak
+SupplierReturnClose=Visszáru lezárása
+SupplierReturnRollback=Vissza egy állapotot
+SupplierReturnRollbackAuditNote=A beszállítói visszáru állapota egy lépéssel vissza lett korrigálva.
+DeleteSupplierReturn=Beszállítói visszáru törlése
+ConfirmDeleteSupplierReturn=Biztosan véglegesen törölni szeretnéd a(z) %s beszállítói visszárut?
+ConfirmSupplierReturnAuthorize=Engedélyezed ezt a beszállítói visszárut? A tételek még nem kerülnek ki a készletből.
+ConfirmSupplierReturnShip=Elküldöttnek jelölöd ezt a beszállítói visszárut? A felsorolt tételek azonnal kivezetésre kerülnek a kiválasztott raktár készletéből, és ez automatikusan nem vonható vissza.
+ConfirmSupplierReturnClose=Lezárod ezt a beszállítói visszárut?
+ConfirmSupplierReturnCancel=Érvényteleníted ezt a beszállítói visszárut? Amíg nincs készletmozgás, újranyitható.
+ConfirmSupplierReturnReopen=Újranyitod ezt a beszállítói visszárut piszkozatként?
+ConfirmSupplierReturnRollback=Visszalépsz egy állapotot? Az elküldött visszáru nem léptethető vissza, mert a készlet már elhagyta a raktárt.
+SupplierReturnStatusDraft=Piszkozat
+SupplierReturnStatusAuthorized=Engedélyezve
+SupplierReturnStatusShipped=Elküldve a beszállítónak
+SupplierReturnStatusClosed=Lezárva
+SupplierReturnStatusCancelled=Érvénytelenítve
+SupplierReturnEventCREATE=Létrehozás
+SupplierReturnEventSTATUS=Állapotváltozás
+SupplierReturnEventROLLBACK=Állapotkorrekció
+NoSupplierReturnLines=Nincs tétel hozzáadva ehhez a beszállítói visszáruhoz.
+SupplierReturnDateAuthorized=Engedélyezés dátuma
+SupplierReturnExternalReference=Beszállítói visszáru hivatkozás
+
