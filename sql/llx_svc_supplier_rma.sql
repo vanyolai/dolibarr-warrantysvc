@@ -9,6 +9,7 @@ CREATE TABLE llx_svc_supplier_rma(
 	fk_svc_request              INTEGER      NOT NULL,
 	fk_soc_supplier             INTEGER      NOT NULL,
 	fk_product                  INTEGER      NOT NULL,
+	qty                         DECIMAL(24,8) NOT NULL DEFAULT 1,
 	serial_number               VARCHAR(128),
 	supplier_rma_ref            VARCHAR(128),
 	status                      VARCHAR(32)  NOT NULL DEFAULT 'draft',

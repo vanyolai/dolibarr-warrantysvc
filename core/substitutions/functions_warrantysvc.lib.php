@@ -46,9 +46,14 @@ function warrantysvc_completesubstitutionarray(&$substitutionarray, $outputlangs
 		'__RETURN_TRACKING__' => $outputlangs->transnoentitiesnoconv('SubstReturnTracking'),
 		'__RETURN_TRACKING_URL__' => $outputlangs->transnoentitiesnoconv('SubstReturnTrackingUrl'),
 		'__REPLACEMENT_SERIAL_NUMBER__' => $outputlangs->transnoentitiesnoconv('SubstReplacementSerialNumber'),
+		'__SUPPLIER_RETURN_REF__' => $outputlangs->transnoentitiesnoconv('SubstSupplierReturnRef'),
+		'__SUPPLIER_RETURN_EXTERNAL_REF__' => $outputlangs->transnoentitiesnoconv('SubstSupplierReturnExternalRef'),
+		'__SUPPLIER_RETURN_STATUS__' => $outputlangs->transnoentitiesnoconv('SubstSupplierReturnStatus'),
+		'__SUPPLIER_RETURN_REASON__' => $outputlangs->transnoentitiesnoconv('SubstSupplierReturnReason'),
+		'__SUPPLIER_RETURN_LINES__' => $outputlangs->transnoentitiesnoconv('SubstSupplierReturnLines'),
 	);
 
-	if (!is_object($object) || empty($object->element) || !in_array($object->element, array('svcrequest', 'svcwarranty', 'svcsupplierrma'), true)) {
+	if (!is_object($object) || empty($object->element) || !in_array($object->element, array('svcrequest', 'svcwarranty', 'svcsupplierrma', 'svcsupplierreturn'), true)) {
 		foreach ($descriptions as $key => $description) {
 			if (!array_key_exists($key, $substitutionarray)) {
 				$substitutionarray[$key] = $description;
@@ -82,6 +87,11 @@ function warrantysvc_completesubstitutionarray(&$substitutionarray, $outputlangs
 	$returnTracking = '';
 	$returnTrackingUrl = '';
 	$replacementSerial = '';
+	$supplierReturnRef = '';
+	$supplierReturnExternalRef = '';
+	$supplierReturnStatus = '';
+	$supplierReturnReason = '';
+	$supplierReturnLines = '';
 
 	$productId = !empty($object->fk_product) ? (int) $object->fk_product : 0;
 	if ($productId > 0) {
@@ -140,6 +150,49 @@ function warrantysvc_completesubstitutionarray(&$substitutionarray, $outputlangs
 
 		// Generic issue placeholder is useful in supplier-facing templates too.
 		$issueDescription = $supplierRmaProblem;
+	} elseif ($object->element === 'svcsupplierreturn') {
+		$supplierReturnRef = isset($object->ref) ? (string) $object->ref : '';
+		$supplierReturnExternalRef = isset($object->supplier_return_ref) ? (string) $object->supplier_return_ref : '';
+		$supplierReturnStatus = method_exists($object, 'getLibStatut') ? (string) $object->getLibStatut(1) : (string) $object->status;
+		$supplierReturnReason = isset($object->reason) ? trim(strip_tags((string) $object->reason)) : '';
+		$outboundCarrier = isset($object->outbound_carrier) ? (string) $object->outbound_carrier : '';
+		$outboundTracking = isset($object->outbound_tracking) ? (string) $object->outbound_tracking : '';
+		$outboundTrackingUrl = isset($object->outbound_tracking_url) ? (string) $object->outbound_tracking_url : '';
+
+		$object->socid = (int) $object->fk_soc_supplier;
+		if (!is_object($object->thirdparty)) {
+			$object->fetch_thirdparty();
+		}
+		if (is_object($object->thirdparty)) {
+			$supplierName = (string) $object->thirdparty->name;
+		}
+
+		if (empty($object->lines) && method_exists($object, 'fetchLines')) {
+			$object->fetchLines();
+		}
+		$lineTexts = array();
+		if (!empty($object->lines) && is_array($object->lines)) {
+			require_once DOL_DOCUMENT_ROOT.'/product/class/product.class.php';
+			foreach ($object->lines as $line) {
+				$productText = '#'.((int) $line->fk_product);
+				$product = new Product($object->db);
+				if ($product->fetch((int) $line->fk_product) > 0) {
+					$productText = (string) $product->ref;
+					if (!empty($product->label)) {
+						$productText .= ' - '.(string) $product->label;
+					}
+				}
+				$parts = array($productText, $outputlangs->transnoentitiesnoconv('Qty').': '.price($line->qty, 0, $outputlangs, 0, 0, -1));
+				if (!empty($line->batch)) {
+					$parts[] = $outputlangs->transnoentitiesnoconv('SerialOrLot').': '.(string) $line->batch;
+				}
+				if (!empty($line->reason)) {
+					$parts[] = $outputlangs->transnoentitiesnoconv('Reason').': '.trim(strip_tags((string) $line->reason));
+				}
+				$lineTexts[] = implode(' | ', $parts);
+			}
+		}
+		$supplierReturnLines = implode("\n", $lineTexts);
 	} else {
 		$warranty = $object;
 		$warrantyStatus = isset($object->status) ? (string) $object->status : 'none';
@@ -220,6 +273,11 @@ function warrantysvc_completesubstitutionarray(&$substitutionarray, $outputlangs
 		'__RETURN_TRACKING__' => $returnTracking,
 		'__RETURN_TRACKING_URL__' => $returnTrackingUrl,
 		'__REPLACEMENT_SERIAL_NUMBER__' => $replacementSerial,
+		'__SUPPLIER_RETURN_REF__' => $supplierReturnRef,
+		'__SUPPLIER_RETURN_EXTERNAL_REF__' => $supplierReturnExternalRef,
+		'__SUPPLIER_RETURN_STATUS__' => $supplierReturnStatus,
+		'__SUPPLIER_RETURN_REASON__' => $supplierReturnReason,
+		'__SUPPLIER_RETURN_LINES__' => $supplierReturnLines,
 	);
 
 	foreach ($values as $key => $value) {

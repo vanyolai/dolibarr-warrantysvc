@@ -44,6 +44,7 @@ class SvcSupplierRma extends CommonObject
 		'fk_svc_request' => array('type'=>'integer', 'label'=>'SvcRequest', 'enabled'=>1, 'visible'=>1, 'notnull'=>1),
 		'fk_soc_supplier' => array('type'=>'integer:Societe:societe/class/societe.class.php', 'label'=>'Supplier', 'enabled'=>1, 'visible'=>1, 'notnull'=>1),
 		'fk_product' => array('type'=>'integer:Product:product/class/product.class.php', 'label'=>'Product', 'enabled'=>1, 'visible'=>1, 'notnull'=>1),
+		'qty' => array('type'=>'double(24,8)', 'label'=>'Qty', 'enabled'=>1, 'visible'=>1, 'notnull'=>1),
 		'serial_number' => array('type'=>'varchar(128)', 'label'=>'SerialNumber', 'enabled'=>1, 'visible'=>1),
 		'supplier_rma_ref' => array('type'=>'varchar(128)', 'label'=>'SupplierRmaExternalRef', 'enabled'=>1, 'visible'=>1),
 		'status' => array('type'=>'varchar(32)', 'label'=>'Status', 'enabled'=>1, 'visible'=>1, 'notnull'=>1),
@@ -81,6 +82,7 @@ class SvcSupplierRma extends CommonObject
 	public $fk_soc_supplier;
 	public $socid;
 	public $fk_product;
+	public $qty = 1;
 	public $serial_number;
 	public $supplier_rma_ref;
 	public $status = self::STATUS_DRAFT;
@@ -196,6 +198,10 @@ class SvcSupplierRma extends CommonObject
 			$this->error = 'ErrorProductRequired';
 			return -1;
 		}
+		if ((float) $this->qty <= 0) {
+			$this->error = 'ErrorSupplierRmaQtyRequired';
+			return -1;
+		}
 		if (trim((string) $this->problem_description) === '') {
 			$this->error = 'ErrorSupplierRmaProblemRequired';
 			return -1;
@@ -215,7 +221,7 @@ class SvcSupplierRma extends CommonObject
 		$provisionalRef = substr(str_replace('.', '', uniqid('PROV-SRMA-', true)), 0, 50);
 
 		$sql = "INSERT INTO ".MAIN_DB_PREFIX."svc_supplier_rma (";
-		$sql .= "ref, entity, fk_svc_request, fk_soc_supplier, fk_product, serial_number, supplier_rma_ref, status,";
+		$sql .= "ref, entity, fk_svc_request, fk_soc_supplier, fk_product, qty, serial_number, supplier_rma_ref, status,";
 		$sql .= "date_request, outbound_carrier, outbound_tracking, outbound_tracking_url,";
 		$sql .= "return_carrier, return_tracking, return_tracking_url, result_type, replacement_serial_number,";
 		$sql .= "problem_description, diagnosis, accessories_sent, fk_warehouse_source, fk_warehouse_return,";
@@ -226,6 +232,7 @@ class SvcSupplierRma extends CommonObject
 		$sql .= ", ".((int) $this->fk_svc_request);
 		$sql .= ", ".((int) $this->fk_soc_supplier);
 		$sql .= ", ".((int) $this->fk_product);
+		$sql .= ", ".price2num((float) $this->qty, 'MU');
 		$sql .= ", ".$this->sqlStringOrNull($this->serial_number);
 		$sql .= ", ".$this->sqlStringOrNull($this->supplier_rma_ref);
 		$sql .= ", '".$this->db->escape($this->status)."'";
@@ -310,6 +317,7 @@ class SvcSupplierRma extends CommonObject
 		$this->fk_soc_supplier = (int) $obj->fk_soc_supplier;
 		$this->socid = (int) $obj->fk_soc_supplier;
 		$this->fk_product = (int) $obj->fk_product;
+		$this->qty = (float) $obj->qty;
 		$this->serial_number = (string) $obj->serial_number;
 		$this->supplier_rma_ref = (string) $obj->supplier_rma_ref;
 		$this->status = (string) $obj->status;
@@ -340,6 +348,35 @@ class SvcSupplierRma extends CommonObject
 
 	public function update($user, $notrigger = 0)
 	{
+		if ((float) $this->qty <= 0) {
+			$this->error = 'ErrorSupplierRmaQtyRequired';
+			return -1;
+		}
+		if ($this->id > 0) {
+			$sqlCurrent = "SELECT fk_soc_supplier, fk_product, qty, serial_number, status FROM ".MAIN_DB_PREFIX."svc_supplier_rma";
+			$sqlCurrent .= " WHERE rowid = ".((int) $this->id);
+			$resCurrent = $this->db->query($sqlCurrent);
+			if (!$resCurrent || !($current = $this->db->fetch_object($resCurrent))) {
+				$this->error = $resCurrent ? 'ErrorRecordNotFound' : $this->db->lasterror();
+				if ($resCurrent) $this->db->free($resCurrent);
+				return -1;
+			}
+			$this->db->free($resCurrent);
+			if (in_array((string) $current->status, array(
+				self::STATUS_SHIPPED, self::STATUS_RECEIVED_BY_SUPPLIER, self::STATUS_IN_SERVICE,
+				self::STATUS_REPAIRED, self::STATUS_REPLACED, self::STATUS_REJECTED,
+				self::STATUS_RETURNED, self::STATUS_CLOSED
+			), true)) {
+				if ((int) $current->fk_soc_supplier !== (int) $this->fk_soc_supplier
+					|| (int) $current->fk_product !== (int) $this->fk_product
+					|| abs((float) $current->qty - (float) $this->qty) > 0.00000001
+					|| (string) $current->serial_number !== (string) $this->serial_number
+				) {
+					$this->error = 'ErrorSupplierRmaIdentityLocked';
+					return -1;
+				}
+			}
+		}
 		if ($this->id <= 0) {
 			$this->error = 'ErrorRecordNotFound';
 			return -1;
@@ -361,6 +398,7 @@ class SvcSupplierRma extends CommonObject
 		$sql .= " fk_svc_request = ".((int) $this->fk_svc_request);
 		$sql .= ", fk_soc_supplier = ".((int) $this->fk_soc_supplier);
 		$sql .= ", fk_product = ".((int) $this->fk_product);
+		$sql .= ", qty = ".price2num((float) $this->qty, 'MU');
 		$sql .= ", serial_number = ".$this->sqlStringOrNull($this->serial_number);
 		$sql .= ", supplier_rma_ref = ".$this->sqlStringOrNull($this->supplier_rma_ref);
 		$sql .= ", outbound_carrier = ".$this->sqlStringOrNull($this->outbound_carrier);

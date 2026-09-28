@@ -1,0 +1,2 @@
+ALTER TABLE llx_svc_supplier_return_log ADD INDEX idx_svc_supplier_return_log_parent (fk_supplier_return);
+ALTER TABLE llx_svc_supplier_return_log ADD INDEX idx_svc_supplier_return_log_date (date_event);
