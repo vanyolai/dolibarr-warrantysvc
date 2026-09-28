@@ -1,0 +1,27 @@
+-- Copyright (C) 2026 DPG Supply
+CREATE TABLE llx_svc_supplier_return(
+	rowid                    INTEGER AUTO_INCREMENT PRIMARY KEY,
+	ref                      VARCHAR(50) NOT NULL,
+	entity                   INTEGER NOT NULL DEFAULT 1,
+	fk_soc_supplier          INTEGER NOT NULL,
+	fk_supplier_order        INTEGER,
+	fk_reception             INTEGER,
+	fk_supplier_invoice      INTEGER,
+	supplier_return_ref      VARCHAR(128),
+	reason                   TEXT,
+	status                   VARCHAR(32) NOT NULL DEFAULT 'draft',
+	fk_warehouse_source      INTEGER,
+	outbound_carrier         VARCHAR(100),
+	outbound_tracking        VARCHAR(255),
+	outbound_tracking_url    VARCHAR(512),
+	date_authorized          DATETIME,
+	date_shipped             DATETIME,
+	date_closed              DATETIME,
+	note_private             TEXT,
+	fk_user_creat            INTEGER,
+	fk_user_modif            INTEGER,
+	date_creation            DATETIME NOT NULL,
+	tms                      TIMESTAMP,
+	model_pdf                VARCHAR(255),
+	last_main_doc            VARCHAR(255)
+) ENGINE=innodb;
