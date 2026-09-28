@@ -10,7 +10,9 @@
 - [ ] Both modules installed and enabled
 - [ ] At least one warehouse configured
 - [ ] At least one customer (third party, type=customer)
+- [ ] At least one active supplier (third party, supplier=yes)
 - [ ] At least one serialized product and one ordinary non-serialized product
+- [ ] At least one LOT-tracked product with stock in the test warehouse
 - [ ] An integer Product extrafield containing customer warranty duration in calendar months
 - [ ] Stock module enabled
 - [ ] Shipments module enabled
@@ -59,6 +61,17 @@
 ---
 
 ## 2. SERVICE REQUEST LIFECYCLE
+
+### 2.0 New Claim Warranty Picker
+- [ ] Select a customer — only that customer's non-voided WarrantySvc records appear in the table
+- [ ] Verify Product, serial/LOT, warranty ref, start, expiry and effective status columns
+- [ ] Change Issue Date across a warranty expiry boundary — Active/Expired status changes immediately
+- [ ] Search by Product ref/label, serial/LOT and warranty ref
+- [ ] Select a warranty row — Create becomes enabled and the submitted claim derives Product/serial from the selected Warranty record
+- [ ] Open New Warranty Claim from a warranty card — the corresponding row is pre-selected
+- [ ] Switch to warranty-less / other service intake — Product + optional serial controls appear and the claim starts billable
+- [ ] Switch back — manual controls hide and a Warranty row is required again
+- [ ] Change customer after selecting a warranty — previous selection is cleared
 
 ### 2.1 Create Service Request
 - [ ] Navigate to Service Requests > New Service Request
@@ -288,6 +301,82 @@
 
 ---
 
+## 10. SUPPLIER RETURN
+
+### 10.1 Create and edit a Supplier Return
+- [ ] Navigate to Products > WarrantySvc > Supplier Returns > New Supplier Return
+- [ ] Verify Supplier, source Warehouse and Return reason are required as applicable
+- [ ] Create a Draft return and verify the reference follows `SRET-YYYY-NNNNNN`
+- [ ] Add an ordinary stock-managed product with quantity > 1
+- [ ] Add a LOT-tracked product with a valid LOT and quantity available in the selected warehouse
+- [ ] Add a serial-numbered product with quantity 1 and a valid serial
+- [ ] Edit and delete lines while the return is Draft
+- [ ] Verify Product, quantity, LOT/serial and line reason persist after reload
+- [ ] Verify the Hungarian UI shows translated Supplier Return labels instead of raw language keys
+
+### 10.2 Authorization — no physical stock movement yet
+- [ ] Record the real warehouse quantities before authorization
+- [ ] Draft → Authorized
+- [ ] Verify no `llx_stock_mouvement` row is created by authorization
+- [ ] Verify warehouse quantities are unchanged
+- [ ] Authorized → Draft rollback and verify exactly one ROLLBACK lifecycle event is recorded
+- [ ] Re-authorize and verify editing is still allowed before shipment
+- [ ] Cancel an unshipped return, then reopen it as Draft
+
+### 10.3 Shipment — atomic stock movement
+- [ ] Record stock quantities for every return line immediately before shipment
+- [ ] Authorized → Shipped
+- [ ] Verify each line creates exactly one outbound `llx_stock_mouvement` row
+- [ ] Verify movement `origintype = 'svcsupplierreturn'` and `fk_origin` equals the Supplier Return rowid
+- [ ] Verify each movement inventory code is `WSVC-OUT-svcsupplierreturn-<return-id>-<line-id>`
+- [ ] Verify each line stores the created movement rowid in `fk_stock_movement_out`
+- [ ] Verify ordinary and LOT stock are reduced by exactly the requested quantities
+- [ ] Verify the serial-numbered line reduces stock by exactly 1 for the selected serial
+- [ ] Verify the Supplier Return changes to Shipped only after all line movements succeed
+
+### 10.4 All-or-nothing failure handling
+- [ ] Create an Authorized return with at least two lines
+- [ ] Make the second line invalid at shipment time (for example insufficient stock or an invalid/missing LOT)
+- [ ] Attempt shipment
+- [ ] Verify the return remains Authorized
+- [ ] Verify the first line has no committed stock movement and its stock quantity is unchanged
+- [ ] Verify no line receives a committed `fk_stock_movement_out`
+- [ ] Correct the invalid line and ship again — verify all movements are created once
+
+### 10.5 Idempotency and stale/concurrent requests
+- [ ] After a successful shipment, reload and verify the Ship action is no longer available
+- [ ] Re-submit the previous shipment request / stale browser confirmation — verify no second stock movement is created
+- [ ] Verify the deterministic inventory code still resolves to the original movement
+- [ ] Verify an existing deterministic movement with mismatching Product, warehouse, quantity or LOT/serial is rejected as a conflict instead of being silently reused
+- [ ] Verify a stale edit submitted after another request ships the return is rejected and does not change the shipped document
+- [ ] Verify line add/edit/delete cannot race a shipment into modifying a return after stock has moved
+
+### 10.6 LOT/SN and stock validation
+- [ ] Try to ship a LOT-tracked product without a LOT — verify shipment is rejected
+- [ ] Try to ship a serial-numbered product with quantity other than 1 — verify shipment is rejected
+- [ ] Try to ship more than the available quantity in the selected warehouse/LOT — verify shipment is rejected even if Dolibarr negative stock is otherwise permitted
+- [ ] Try to return a non-stock-managed Product/Service — verify shipment is rejected
+- [ ] Verify a LOT/serial that exists only in another warehouse cannot be shipped from the selected source warehouse
+
+### 10.7 Post-shipment integrity and lifecycle
+- [ ] From Shipped, verify rollback to Authorized is blocked because physical stock has left the warehouse
+- [ ] Verify header and line identity/quantity cannot be edited after shipment
+- [ ] Verify a shipped return cannot be cancelled or permanently deleted
+- [ ] Shipped → Closed
+- [ ] Closed → Shipped rollback — verify stock remains out and no new/reverse movement is created
+- [ ] Close again and verify lifecycle timestamps and audit history are consistent
+
+### 10.8 Documents, contacts and email
+- [ ] Add an internal handler and a supplier contact to the Supplier Return
+- [ ] Generate the Supplier Return PDF and verify Supplier, reference, warehouse, reason, Product, quantity and LOT/serial are correct
+- [ ] Verify the PDF is stored under the Supplier Return object output directory
+- [ ] Open the email form and verify the supplier contact is selected by default; supplier company email is the fallback
+- [ ] Verify Email Templates offers the Supplier Return object type
+- [ ] Verify `__SUPPLIER_RETURN_REF__`, `__SUPPLIER_RETURN_EXTERNAL_REF__`, `__SUPPLIER_RETURN_STATUS__`, `__SUPPLIER_RETURN_REASON__` and `__SUPPLIER_RETURN_LINES__` are replaced with real values
+- [ ] Verify `__SUPPLIER_NAME__`, `__OUTBOUND_CARRIER__`, `__OUTBOUND_TRACKING__` and `__OUTBOUND_TRACKING_URL__` are populated for Supplier Return emails
+
+---
+
 ## Test Results
 
 | Section | Pass | Fail | Notes |
@@ -301,17 +390,4 @@
 | 7. Settings Verification | | | |
 | 8. Schema / Upgrade Safety | | | |
 | 9. Edge Cases | | | |
-
-## 2. SERVICE REQUEST / CLAIM WORKFLOW
-
-### 2.0 New Claim Warranty Picker
-- [ ] Select a customer — only that customer's non-voided WarrantySvc records appear in the table
-- [ ] Verify Product, serial/LOT, warranty ref, start, expiry and effective status columns
-- [ ] Change Issue Date across a warranty expiry boundary — Active/Expired status changes immediately
-- [ ] Search by Product ref/label, serial/LOT and warranty ref
-- [ ] Select a warranty row — Create becomes enabled and the submitted claim derives Product/serial from the selected Warranty record
-- [ ] Open New Warranty Claim from a warranty card — the corresponding row is pre-selected
-- [ ] Switch to warranty-less / other service intake — Product + optional serial controls appear and the claim starts billable
-- [ ] Switch back — manual controls hide and a Warranty row is required again
-- [ ] Change customer after selecting a warranty — previous selection is cleared
-
+| 10. Supplier Return | | | |
