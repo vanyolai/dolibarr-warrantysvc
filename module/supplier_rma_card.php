@@ -123,9 +123,14 @@ if ($action === 'add' && $permwrite) {
 
 if ($action === 'update' && $permwrite && $object->id > 0) {
 	$previousRequestId = (int) $object->fk_svc_request;
+	$previousWarehouseSource = (int) $object->fk_warehouse_source;
+	$previousWarehouseReturn = (int) $object->fk_warehouse_return;
 	warrantysvc_supplier_rma_fill_from_post($object, !$object->isIdentityLocked());
-	// The parent Service Request is immutable after creation.
+	// Parent request and internal stock-routing fields are not edited on this
+	// form, so keep their persisted values instead of clearing them on save.
 	$object->fk_svc_request = $previousRequestId;
+	$object->fk_warehouse_source = $previousWarehouseSource;
+	$object->fk_warehouse_return = $previousWarehouseReturn;
 	$result = $object->update($user);
 	if ($result > 0) {
 		setEventMessages($langs->trans('SupplierRmaUpdated'), null, 'mesgs');
