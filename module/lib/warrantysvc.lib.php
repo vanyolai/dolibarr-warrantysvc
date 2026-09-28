@@ -231,25 +231,8 @@ function warrantysvc_default_supplier_email_receivers($object)
  */
 function warrantysvc_service_request_product_allowed($db, $productId)
 {
-	$productId = (int) $productId;
-	if ($productId <= 0) {
-		return false;
-	}
-	if (!getDolGlobalString('WARRANTYSVC_WARRANTY_REQUIRES_LOTS')) {
-		return true;
-	}
-
-	$sql = "SELECT p.tobatch FROM ".MAIN_DB_PREFIX."product p";
-	$sql .= " WHERE p.rowid = ".$productId;
-	$sql .= " AND p.entity IN (".getEntity('product').")";
-	$resql = $db->query($sql);
-	if (!$resql) {
-		return false;
-	}
-	$obj = $db->fetch_object($resql);
-	$db->free($resql);
-
-	return $obj && (int) $obj->tobatch > 0;
+	require_once DOL_DOCUMENT_ROOT.'/custom/warrantysvc/class/svcrequest.class.php';
+	return SvcRequest::isProductAllowedByPolicy($db, (int) $productId);
 }
 
 
