@@ -835,3 +835,8 @@ SubstSupplierReturnExternalRef=Beszállítói visszáru engedély / hivatkozás
 SubstSupplierReturnStatus=Beszállítói visszáru állapota
 SubstSupplierReturnReason=Beszállítói visszáru oka
 SubstSupplierReturnLines=Visszaküldött tételek listája
+
+SupplierRmaLogistics=Logisztika és eredmény
+SupplierRmaServiceDetails=Szervizadatok
+OutboundTrackingUrl=Kimenő csomagkövetési URL
+ReturnTrackingUrl=Visszaúti csomagkövetési URL
