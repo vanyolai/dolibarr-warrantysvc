@@ -14,6 +14,7 @@ if (!$res && file_exists("../../../main.inc.php")) { $res = @include "../../../m
 if (!$res) { die("Include of main fails"); }
 
 require_once DOL_DOCUMENT_ROOT.'/core/class/html.formcompany.class.php';
+require_once DOL_DOCUMENT_ROOT.'/core/class/html.formfile.class.php';
 require_once DOL_DOCUMENT_ROOT.'/product/class/html.formproduct.class.php';
 require_once DOL_DOCUMENT_ROOT.'/product/class/product.class.php';
 require_once DOL_DOCUMENT_ROOT.'/societe/class/societe.class.php';
@@ -151,7 +152,26 @@ if ($object->id > 0 && $action === 'deleteline' && $permwrite) {
 
 if ($object->id > 0 && $action === 'confirm_authorize' && $confirm === 'yes' && $permwrite) {
 	$result = $object->authorize($user);
-	if ($result < 0) warrantysvc_supplier_return_error($langs, $object);
+	if ($result < 0) {
+		warrantysvc_supplier_return_error($langs, $object);
+	} elseif (!getDolGlobalString('MAIN_DISABLE_PDF_AUTOUPDATE')) {
+		// Follow Dolibarr's normal business-document workflow: once validated,
+		// immediately create the current PDF so it can be printed or mailed.
+		$object->fetch($object->id);
+		$object->fetch_thirdparty();
+
+		$outputlangs = $langs;
+		if (getDolGlobalInt('MAIN_MULTILANGS') && is_object($object->thirdparty) && !empty($object->thirdparty->default_lang)) {
+			$outputlangs = new Translate('', $conf);
+			$outputlangs->setDefaultLang($object->thirdparty->default_lang);
+		}
+		$genresult = $object->generateDocument($object->model_pdf, $outputlangs);
+		if ($genresult < 0) {
+			setEventMessages($langs->trans('ErrorSupplierReturnDocumentGeneration'), $object->errors, 'warnings');
+		} else {
+			setEventMessages($langs->trans('SupplierReturnDocumentGenerated'), null, 'mesgs');
+		}
+	}
 	header('Location: '.$_SERVER['PHP_SELF'].'?id='.$object->id); exit;
 }
 if ($object->id > 0 && $action === 'confirm_ship' && $confirm === 'yes' && $permwrite) {
@@ -185,9 +205,17 @@ if ($object->id > 0 && $action === 'confirm_delete' && $confirm === 'yes' && $pe
 	warrantysvc_supplier_return_error($langs, $object);
 }
 
-// Native Dolibarr email backend.
+// Native Dolibarr document backend.
 if ($object->id > 0 && $permwrite) {
-	$triggersendname = '';
+	$upload_dir = warrantysvc_supplier_return_output_root($object);
+	$permissiontoadd = $permwrite;
+	include DOL_DOCUMENT_ROOT.'/core/actions_builddoc.inc.php';
+}
+
+// Native Dolibarr email backend.
+// actions_sendmails.inc.php fires this only after a successful physical send.
+if ($object->id > 0 && $permwrite) {
+	$triggersendname = 'SVCSUPPLIERRETURN_SENTBYMAIL';
 	$autocopy = '';
 	$trackid = 'wsvcsret'.$object->id;
 	include DOL_DOCUMENT_ROOT.'/core/actions_sendmails.inc.php';
@@ -196,6 +224,7 @@ if ($object->id > 0 && $permwrite) {
 $form = new Form($db);
 $formcompany = new FormCompany($db);
 $formproduct = new FormProduct($db);
+$formfile = new FormFile($db);
 
 llxHeader('', $object->id ? $object->ref : $langs->trans('NewSupplierReturn'), '');
 
@@ -309,7 +338,7 @@ if ($isEdit) {
 	if ($permwrite && !$supplierReturnStockLocked && in_array($object->status, array(SvcSupplierReturn::STATUS_DRAFT, SvcSupplierReturn::STATUS_AUTHORIZED), true) && $action !== 'presend') {
 		print '<a class="butAction" href="'.$_SERVER['PHP_SELF'].'?id='.$object->id.'&action=edit&token='.newToken().'">'.$langs->trans('Modify').'</a>';
 	}
-	if ($permwrite && $action !== 'presend') {
+	if ($permwrite && $action !== 'presend' && in_array($object->status, array(SvcSupplierReturn::STATUS_AUTHORIZED, SvcSupplierReturn::STATUS_SHIPPED, SvcSupplierReturn::STATUS_CLOSED), true)) {
 		$mailurl = dolBuildUrl($_SERVER['PHP_SELF'], array('id'=>$object->id, 'action'=>'presend', 'mode'=>'init'), true);
 		foreach (warrantysvc_default_supplier_return_email_receivers($object) as $receiverKey) $mailurl .= '&receiver%5B%5D='.urlencode((string) $receiverKey);
 		$mailurl .= '#formmailbeforetitle';
@@ -561,6 +590,40 @@ if ($permwrite && !$supplierReturnStockLocked && in_array($object->status,array(
 }
 print '</table></div>';
 
+// Generated documents, using Dolibarr's standard document widget.
+if ($action !== 'presend' && in_array($object->status, array(SvcSupplierReturn::STATUS_AUTHORIZED, SvcSupplierReturn::STATUS_SHIPPED, SvcSupplierReturn::STATUS_CLOSED), true)) {
+	print '<br><a name="builddoc"></a>';
+	$objref = dol_sanitizeFileName($object->ref);
+	$filedir = warrantysvc_supplier_return_output_dir($object);
+	$urlsource = dolBuildUrl($_SERVER['PHP_SELF'], array('id' => $object->id));
+	$genallowed = $permread;
+	$delallowed = $permwrite;
+	$modelselected = !empty($object->model_pdf) ? $object->model_pdf : 'supplierreturn_standard';
+
+	print $formfile->showdocuments(
+		'warrantysvc:supplierreturn',
+		$objref,
+		$filedir,
+		$urlsource,
+		$genallowed,
+		$delallowed,
+		$modelselected,
+		1,
+		1,
+		0,
+		0,
+		0,
+		'',
+		$langs->trans('GeneratedDocuments'),
+		$langs->trans('Generate'),
+		'',
+		'',
+		$object,
+		0,
+		'remove_file'
+	);
+}
+
 // Lifecycle
 $history = $object->fetchHistory();
 print '<br>'.load_fiche_titre($langs->trans('SupplierReturnLifecycle'), '', 'history');
@@ -576,7 +639,7 @@ if ($action === 'presend' && $permwrite) {
 	$modelmail = 'svcsupplierreturn';
 	$defaulttopic = 'SupplierReturnEmailSubject';
 	$defaulttopiclang = 'warrantysvc@warrantysvc';
-	$diroutput = warrantysvc_supplier_return_output_dir($object);
+	$diroutput = warrantysvc_supplier_return_output_root($object);
 	$trackid = 'wsvcsret'.$object->id;
 	include DOL_DOCUMENT_ROOT.'/core/tpl/card_presend.tpl.php';
 }
