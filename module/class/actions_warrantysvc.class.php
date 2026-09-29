@@ -282,6 +282,68 @@ class ActionsWarrantySvc
 	}
 
 	/**
+	 * Add Supplier Returns to the native Product "Related elements" statistics.
+	 * This is called from core product.lib.php::show_stats_for_company().
+	 *
+	 * @param array $parameters Hook parameters (socid may be set)
+	 * @param Product $object Product
+	 * @param mixed $action Core passes its row counter here
+	 * @param HookManager $hookmanager Hook manager
+	 * @return int 0
+	 */
+	public function addMoreProductStat($parameters, &$object, &$action, $hookmanager)
+	{
+		global $conf, $langs, $user;
+
+		$this->resprints = '';
+		if (!isModEnabled('warrantysvc')
+			|| empty($object->id)
+			|| !$user->hasRight('warrantysvc', 'supplierreturn', 'read')
+		) {
+			return 0;
+		}
+
+		$sql = "SELECT COUNT(DISTINCT r.fk_soc_supplier) as suppliers";
+		$sql .= ", COUNT(DISTINCT r.rowid) as nb";
+		$sql .= ", COALESCE(SUM(l.qty), 0) as qty";
+		$sql .= " FROM ".MAIN_DB_PREFIX."svc_supplier_return_line l";
+		$sql .= " INNER JOIN ".MAIN_DB_PREFIX."svc_supplier_return r ON r.rowid = l.fk_supplier_return";
+		$sql .= " WHERE l.fk_product = ".((int) $object->id);
+		$sql .= " AND r.entity = ".((int) $conf->entity);
+		if (!empty($parameters['socid'])) {
+			$sql .= " AND r.fk_soc_supplier = ".((int) $parameters['socid']);
+		}
+
+		$resql = $this->db->query($sql);
+		if (!$resql) {
+			$this->error = $this->db->lasterror();
+			return -1;
+		}
+		$stats = $this->db->fetch_object($resql);
+		$this->db->free($resql);
+
+		$langs->load('warrantysvc@warrantysvc');
+		$url = DOL_URL_ROOT.'/custom/warrantysvc/supplier_return_product.php?productid='.((int) $object->id);
+		if (!empty($parameters['socid'])) {
+			$url .= '&socid='.((int) $parameters['socid']);
+		}
+
+		$this->resprints .= '<tr><td>';
+		$this->resprints .= '<a href="'.$url.'">'.img_object('', 'shipment', 'class="pictofixedwidth"').$langs->trans('SupplierReturns').'</a>';
+		$this->resprints .= '</td><td class="right">'.((int) ($stats ? $stats->suppliers : 0)).'</td>';
+		$this->resprints .= '<td class="right">'.((int) ($stats ? $stats->nb : 0)).'</td>';
+		$this->resprints .= '<td class="right">'.price($stats ? (float) $stats->qty : 0, 1, $langs, 0, 0).'</td>';
+		$this->resprints .= '</tr>';
+
+		if (is_numeric($action)) {
+			$action++;
+		}
+
+		return 0;
+	}
+
+
+	/**
 	 * Inject svcwarranty and svcrequest into the "Link to..." dropdown on any
 	 * native Dolibarr object card (orders, invoices, shipments, etc.).
 	 *
