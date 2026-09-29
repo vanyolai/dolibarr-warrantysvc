@@ -408,3 +408,20 @@
 | 8. Schema / Upgrade Safety | | | |
 | 9. Edge Cases | | | |
 | 10. Supplier Return | | | |
+
+### 10.9 Supplier Return stock traceability and reversal
+- [ ] Create and authorize a Supplier Return containing several serial-numbered lines, then ship it
+- [ ] Verify each line creates exactly one outbound Dolibarr stock movement and stock decreases exactly once
+- [ ] Verify the Supplier Return lifecycle contains both the Shipped status change and a Stock removed event listing the stock movement IDs
+- [ ] Open each returned Product Agenda and verify a Supplier Return shipped event is present with return ref, quantity, serial/LOT and movement ID
+- [ ] Open Product > Related elements and verify Supplier Returns appears with supplier count, return count and total quantity
+- [ ] Open the Supplier Returns row and verify the detail list links the SRET, supplier and exact outbound stock movement
+- [ ] On a Shipped return verify the card offers Reverse Supplier Return and no longer offers the redundant Close action
+- [ ] Reverse the shipped return and verify stock is restored exactly once with native compensating Dolibarr movements
+- [ ] Verify the original outbound movement remains present and each line shows its reversal movement
+- [ ] Verify the Supplier Return becomes Reversed and the lifecycle contains the reversal / stock restored event
+- [ ] Verify Product Agenda receives one Supplier Return reversed event per affected Product
+- [ ] Reload/retry the reversal path and verify no second compensating stock movement is created
+- [ ] Verify permanent deletion remains unavailable once any physical stock movement exists
+- [ ] Re-enable the module with an older already-shipped Supplier Return and verify Product links, Product Agenda events and STOCKOUT lifecycle entries are backfilled without changing stock
+
