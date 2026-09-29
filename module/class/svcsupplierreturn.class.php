@@ -751,7 +751,7 @@ class SvcSupplierReturn extends CommonObject
 			}
 			$movementId = $stock->createOutboundMovement(
 				$user,
-				array(self::STOCK_ORIGIN_TYPE, self::LEGACY_STOCK_ORIGIN_TYPE),
+				self::STOCK_ORIGIN_TYPE,
 				(int) $this->id,
 				(int) $line->id,
 				(int) $line->fk_product,
@@ -834,7 +834,7 @@ class SvcSupplierReturn extends CommonObject
 	/**
 	 * Reverse a physically shipped Supplier Return without destroying its audit
 	 * trail. Each outbound movement gets a native compensating movement and the
-	 * document becomes Cancelled/Invalidated.
+	 * document becomes Reversed.
 	 *
 	 * @param User $user Current user
 	 * @param string $note Audit note
@@ -896,7 +896,7 @@ class SvcSupplierReturn extends CommonObject
 			$reversalId = $stock->reverseOutboundMovement(
 				$user,
 				(int) $line->fk_stock_movement_out,
-				'svcsupplierreturn',
+				array(self::STOCK_ORIGIN_TYPE, self::LEGACY_STOCK_ORIGIN_TYPE),
 				(int) $this->id
 			);
 			if ($reversalId <= 0) {
