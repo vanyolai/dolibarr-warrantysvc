@@ -571,9 +571,9 @@ foreach ($object->lines as $line) {
 		print '<tr class="oddeven"><td>'.$plabel.'</td><td>'.dol_escape_htmltag($line->batch ?: '—').'</td><td class="right">'.price($line->qty,0,$langs,0,0,-1).'</td><td>'.$reasonHtml.'</td>';
 		$movementHtml = '—';
 		if ($line->fk_stock_movement_out) {
-			$movementHtml = '<a href="'.DOL_URL_ROOT.'/product/stock/movement.php?id='.$line->fk_stock_movement_out.'">#'.$line->fk_stock_movement_out.'</a>';
+			$movementHtml = '<a href="'.DOL_URL_ROOT.'/product/stock/movement_list.php?msid='.$line->fk_stock_movement_out.'">#'.$line->fk_stock_movement_out.'</a>';
 			if (!empty($line->fk_stock_movement_reversal)) {
-				$movementHtml .= ' '.$langs->trans('SupplierReturnMovementReversedBy').' <a href="'.DOL_URL_ROOT.'/product/stock/movement.php?id='.$line->fk_stock_movement_reversal.'">#'.$line->fk_stock_movement_reversal.'</a>';
+				$movementHtml .= ' '.$langs->trans('SupplierReturnMovementReversedBy').' <a href="'.DOL_URL_ROOT.'/product/stock/movement_list.php?msid='.$line->fk_stock_movement_reversal.'">#'.$line->fk_stock_movement_reversal.'</a>';
 			}
 		}
 		print '<td>'.$movementHtml.'</td><td class="right">';
