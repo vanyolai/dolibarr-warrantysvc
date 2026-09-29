@@ -238,16 +238,25 @@ if ($object->id > 0 && $action === 'confirm_delete' && $confirm === 'yes' && $pe
 	warrantysvc_supplier_return_error($langs, $object);
 }
 
+$supplierReturnCommunicationAllowed = ($object->id > 0
+	&& $permwrite
+	&& in_array($object->status, array(
+		SvcSupplierReturn::STATUS_AUTHORIZED,
+		SvcSupplierReturn::STATUS_SHIPPED,
+		SvcSupplierReturn::STATUS_CLOSED,
+	), true)
+);
+
 // Native Dolibarr document backend.
-if ($object->id > 0 && $permwrite) {
+if ($object->id > 0) {
 	$upload_dir = warrantysvc_supplier_return_output_root($object);
-	$permissiontoadd = $permwrite;
+	$permissiontoadd = $supplierReturnCommunicationAllowed;
 	include DOL_DOCUMENT_ROOT.'/core/actions_builddoc.inc.php';
 }
 
 // Native Dolibarr email backend.
 // actions_sendmails.inc.php fires this only after a successful physical send.
-if ($object->id > 0 && $permwrite) {
+if ($supplierReturnCommunicationAllowed) {
 	$triggersendname = 'SVCSUPPLIERRETURN_SENTBYMAIL';
 	$autocopy = '';
 	$trackid = 'wsvcsret'.$object->id;
@@ -667,8 +676,8 @@ foreach ($history as $h) {
 }
 print '</table></div>';
 
-if (GETPOST('modelselected')) $action = 'presend';
-if ($action === 'presend' && $permwrite) {
+if (GETPOST('modelselected') && $supplierReturnCommunicationAllowed) $action = 'presend';
+if ($action === 'presend' && $supplierReturnCommunicationAllowed) {
 	$modelmail = 'svcsupplierreturn';
 	$defaulttopic = 'SupplierReturnEmailSubject';
 	$defaulttopiclang = 'warrantysvc@warrantysvc';
