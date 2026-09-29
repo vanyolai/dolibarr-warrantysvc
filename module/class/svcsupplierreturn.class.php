@@ -522,6 +522,9 @@ class SvcSupplierReturn extends CommonObject
 		if ((int) $this->id <= 0 || !in_array($eventType, array('ship', 'reverse'), true)) {
 			return -1;
 		}
+		if (!isModEnabled('agenda')) {
+			return 1;
+		}
 		if (empty($this->lines)) {
 			$this->fetchLines();
 		}
