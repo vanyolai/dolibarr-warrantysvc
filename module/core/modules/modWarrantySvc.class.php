@@ -635,7 +635,7 @@ class modWarrantySvc extends DolibarrModules
 			$sql .= ", '".$this->db->idate(dol_now())."'";
 			$sql .= ", '".$this->db->escape($tpl['label'])."'";
 			$sql .= ", 10, 1";
-			$sql .= ", 'isModEnabled("warrantysvc")'";
+			$sql .= ", '1'";
 			$sql .= ", 1";
 			$sql .= ", '".$this->db->escape($tpl['topic'])."'";
 			$sql .= ", 1";
