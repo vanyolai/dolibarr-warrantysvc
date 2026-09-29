@@ -393,6 +393,7 @@ class modWarrantySvc extends DolibarrModules
 		$warrantyTable = MAIN_DB_PREFIX.'svc_warranty';
 		$typeTable = MAIN_DB_PREFIX.'svc_warranty_type';
 		$supplierRmaTable = MAIN_DB_PREFIX.'svc_supplier_rma';
+		$supplierReturnLineTable = MAIN_DB_PREFIX.'svc_supplier_return_line';
 
 		$warrantyDesc = $this->db->DDLDescTable($warrantyTable);
 		if ($warrantyDesc && $this->db->num_rows($warrantyDesc) > 0) {
@@ -449,6 +450,17 @@ class modWarrantySvc extends DolibarrModules
 				if (!$exists && $this->db->DDLAddField($typeTable, $fieldName, array('type' => 'text')) < 0) {
 					return -1;
 				}
+			}
+		}
+
+		// 1.46: keep the compensating stock movement so physical shipment
+		// corrections remain fully traceable without deleting stock history.
+		$returnLineDesc = $this->db->DDLDescTable($supplierReturnLineTable);
+		if ($returnLineDesc && $this->db->num_rows($returnLineDesc) > 0) {
+			$resReversal = $this->db->DDLDescTable($supplierReturnLineTable, 'fk_stock_movement_reversal');
+			$reversalExists = $resReversal && $this->db->fetch_object($resReversal);
+			if (!$reversalExists && $this->db->DDLAddField($supplierReturnLineTable, 'fk_stock_movement_reversal', array('type'=>'int')) < 0) {
+				return -1;
 			}
 		}
 
