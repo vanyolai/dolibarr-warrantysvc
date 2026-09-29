@@ -44,7 +44,7 @@ class modWarrantySvc extends DolibarrModules
 		// Module name (no spaces), used if translation string 'ModuleXXXName' not found
 		$this->name = preg_replace('/^mod/i', '', get_class($this));
 		$this->description = 'ModuleWarrantySvcDesc';
-		$this->version = '1.44.0';
+		$this->version = '1.45.0';
 		$this->const_name = 'MAIN_MODULE_'.strtoupper($this->name);
 		$this->picto = 'technic';
 
@@ -575,6 +575,82 @@ class modWarrantySvc extends DolibarrModules
 
 
 	/**
+	 * Ensure an editable Dolibarr email template exists for Supplier Returns.
+	 *
+	 * Existing templates are never overwritten. We only seed the language when
+	 * the current entity has no Supplier Return template for that language.
+	 *
+	 * @return int 1 on success, -1 on database error
+	 */
+	private function syncSupplierReturnEmailTemplates()
+	{
+		global $conf;
+
+		$templates = array(
+			'hu_HU' => array(
+				'label' => 'Beszállítói visszáru bejelentés',
+				'topic' => 'Beszállítói visszáru - __SUPPLIER_RETURN_REF__',
+				'content' => 'Tisztelt Partnerünk!<br><br>'
+					.'Mellékelten küldjük a <strong>__SUPPLIER_RETURN_REF__</strong> azonosítójú visszáru bejelentőt.<br>'
+					.'Visszaküldés oka: __SUPPLIER_RETURN_REASON__<br><br>'
+					.'Visszaküldött tételek:<br>__SUPPLIER_RETURN_LINES__<br><br>'
+					.'Üdvözlettel,<br>__SENDEREMAIL_SIGNATURE__',
+			),
+			'en_US' => array(
+				'label' => 'Supplier Return notification',
+				'topic' => 'Supplier Return - __SUPPLIER_RETURN_REF__',
+				'content' => 'Dear Partner,<br><br>'
+					.'Please find attached Supplier Return <strong>__SUPPLIER_RETURN_REF__</strong>.<br>'
+					.'Return reason: __SUPPLIER_RETURN_REASON__<br><br>'
+					.'Returned items:<br>__SUPPLIER_RETURN_LINES__<br><br>'
+					.'Kind regards,<br>__SENDEREMAIL_SIGNATURE__',
+			),
+		);
+
+		foreach ($templates as $lang => $tpl) {
+			$sql = "SELECT rowid FROM ".MAIN_DB_PREFIX."c_email_templates";
+			$sql .= " WHERE entity = ".((int) $conf->entity);
+			$sql .= " AND type_template = 'svcsupplierreturn'";
+			$sql .= " AND lang = '".$this->db->escape($lang)."'";
+			$sql .= " AND active = 1";
+			$sql .= $this->db->plimit(1);
+			$resql = $this->db->query($sql);
+			if (!$resql) {
+				return -1;
+			}
+			$exists = (bool) $this->db->fetch_object($resql);
+			$this->db->free($resql);
+			if ($exists) {
+				continue;
+			}
+
+			$sql = "INSERT INTO ".MAIN_DB_PREFIX."c_email_templates";
+			$sql .= " (entity, module, type_template, lang, private, fk_user, datec, label, position, defaultfortype, enabled, active, topic, joinfiles, content)";
+			$sql .= " VALUES (";
+			$sql .= ((int) $conf->entity);
+			$sql .= ", 'warrantysvc'";
+			$sql .= ", 'svcsupplierreturn'";
+			$sql .= ", '".$this->db->escape($lang)."'";
+			$sql .= ", 0, NULL";
+			$sql .= ", '".$this->db->idate(dol_now())."'";
+			$sql .= ", '".$this->db->escape($tpl['label'])."'";
+			$sql .= ", 10, 1";
+			$sql .= ", '1'";
+			$sql .= ", 1";
+			$sql .= ", '".$this->db->escape($tpl['topic'])."'";
+			$sql .= ", 1";
+			$sql .= ", '".$this->db->escape($tpl['content'])."'";
+			$sql .= ")";
+			if (!$this->db->query($sql)) {
+				return -1;
+			}
+		}
+
+		return 1;
+	}
+
+
+	/**
 	 * Function called when module is enabled.
 	 * Loads SQL tables from sql/ directory using standard Dolibarr mechanism.
 	 *
@@ -595,6 +671,9 @@ class modWarrantySvc extends DolibarrModules
 			return -1;
 		}
 		if ($this->syncNotificationEventCatalog() < 0) {
+			return -1;
+		}
+		if ($this->syncSupplierReturnEmailTemplates() < 0) {
 			return -1;
 		}
 		return $this->_init(array(), $options);

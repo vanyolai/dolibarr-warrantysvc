@@ -150,6 +150,21 @@ class InterfaceWarrantySvcTrigger extends DolibarrTriggers
 				return 1;
 
 			// ------------------------------------------------------------------
+			// Supplier Return email sent through Dolibarr's native mail pipeline.
+			// ------------------------------------------------------------------
+			case 'SVCSUPPLIERRETURN_SENTBYMAIL':
+				if (isset($object->element) && $object->element === 'svcsupplierreturn' && method_exists($object, 'logEvent')) {
+					$recipient = !empty($object->email_to) ? (string) $object->email_to : '';
+					$subject = !empty($object->email_subject) ? (string) $object->email_subject : '';
+					$note = $langs->transnoentitiesnoconv('SupplierReturnEmailAuditNote', $recipient, $subject);
+					$result = $object->logEvent('EMAIL', (string) $object->status, (string) $object->status, $note, $user);
+					if ($result < 0) {
+						dol_syslog('WarrantySvcTrigger: unable to audit SVCSUPPLIERRETURN_SENTBYMAIL for '.$object->ref.': '.$object->error, LOG_ERR);
+					}
+				}
+				return 1;
+
+			// ------------------------------------------------------------------
 			// Shipment closed or validated — auto-create warranty records
 			// for each shipped serialized product line.
 			// Gated by WARRANTYSVC_AUTO_WARRANTY_ON_SHIPMENT (master switch)

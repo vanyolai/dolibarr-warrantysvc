@@ -36,9 +36,9 @@ if ($object->fetch($id,$ref) <= 0) {
 $object->fetch_thirdparty();
 
 $upload_dir = warrantysvc_supplier_return_output_dir($object);
-$permissiontoadd = $permwrite;
+$usercangeneratedoc = $permwrite && in_array($object->status, array(SvcSupplierReturn::STATUS_AUTHORIZED, SvcSupplierReturn::STATUS_SHIPPED, SvcSupplierReturn::STATUS_CLOSED), true);
+$permissiontoadd = $usercangeneratedoc;
 $permtoedit = $permwrite;
-$usercangeneratedoc = $permwrite;
 $modulepart = 'warrantysvc';
 
 include DOL_DOCUMENT_ROOT.'/core/actions_linkedfiles.inc.php';
@@ -64,7 +64,7 @@ print '<table class="border tableforfield centpercent"><tr><td class="titlefield
 print '<tr><td>'.$langs->trans('TotalSizeOfAttachedFiles').'</td><td>'.dol_print_size($totalsize,1,1).'</td></tr></table>';
 print dol_get_fiche_end();
 
-if ($permwrite) {
+if ($usercangeneratedoc) {
 	print load_fiche_titre($langs->trans('GeneratedDocuments'),'','pdf');
 	print '<form method="POST" action="'.$_SERVER['PHP_SELF'].'?id='.$object->id.'" class="formdoc">';
 	print '<input type="hidden" name="token" value="'.newToken().'"><input type="hidden" name="action" value="builddoc">';

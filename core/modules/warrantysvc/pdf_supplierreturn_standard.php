@@ -85,7 +85,7 @@ class pdf_supplierreturn_standard extends ModelePDFWarrantySvc
 		}
 		$pdf->SetFont('', 'B', $fs + 4);
 		$pdf->SetXY($this->marge_gauche + 90, $this->marge_haute);
-		$pdf->MultiCell($usable - 90, 6, $outputlangs->transnoentities('SupplierReturnDocument'), 0, 'R');
+		$pdf->MultiCell($usable - 90, 6, $outputlangs->transnoentities('SupplierReturnPdfNotice'), 0, 'R');
 		$pdf->SetFont('', 'B', $fs + 1);
 		$pdf->SetXY($this->marge_gauche + 90, $this->marge_haute + 8);
 		$pdf->MultiCell($usable - 90, 5, $object->ref, 0, 'R');
@@ -99,6 +99,39 @@ class pdf_supplierreturn_standard extends ModelePDFWarrantySvc
 		$y += 5;
 
 		$supplierName = is_object($object->thirdparty) ? $object->thirdparty->name : '';
+
+		// Sender / recipient blocks use Dolibarr's native PDF address formatter.
+		$addressGap = 6;
+		$addressWidth = ($usable - $addressGap) / 2;
+		$addressHeight = 31;
+		$sourceAddress = trim((string) pdf_build_address($outputlangs, $mysoc, $object->thirdparty, '', 0, 'source', $object));
+		$targetAddress = is_object($object->thirdparty)
+			? trim((string) pdf_build_address($outputlangs, $mysoc, $object->thirdparty, '', 0, 'target', $object))
+			: '';
+
+		$leftX = $this->marge_gauche;
+		$rightX = $this->marge_gauche + $addressWidth + $addressGap;
+		$pdf->Rect($leftX, $y, $addressWidth, $addressHeight);
+		$pdf->Rect($rightX, $y, $addressWidth, $addressHeight);
+
+		$pdf->SetFont('', 'B', $fs - 1);
+		$pdf->SetXY($leftX + 2, $y + 2);
+		$pdf->Cell($addressWidth - 4, 5, $outputlangs->transnoentities('SupplierReturnPdfSender'), 0, 1, 'L');
+		$pdf->SetFont('', '', $fs - 2);
+		$pdf->SetXY($leftX + 2, $y + 7);
+		$sourceText = trim((string) $mysoc->name.($sourceAddress !== '' ? "\n".$sourceAddress : ''));
+		$pdf->MultiCell($addressWidth - 4, 4, $sourceText, 0, 'L');
+
+		$pdf->SetFont('', 'B', $fs - 1);
+		$pdf->SetXY($rightX + 2, $y + 2);
+		$pdf->Cell($addressWidth - 4, 5, $outputlangs->transnoentities('SupplierReturnPdfRecipient'), 0, 1, 'L');
+		$pdf->SetFont('', '', $fs - 2);
+		$pdf->SetXY($rightX + 2, $y + 7);
+		$targetText = trim((string) $supplierName.($targetAddress !== '' ? "\n".$targetAddress : ''));
+		$pdf->MultiCell($addressWidth - 4, 4, $targetText, 0, 'L');
+
+		$y += $addressHeight + 5;
+
 		$warehouseName = '';
 		if ($object->fk_warehouse_source) {
 			$wh = new Entrepot($this->db);
@@ -106,7 +139,8 @@ class pdf_supplierreturn_standard extends ModelePDFWarrantySvc
 		}
 
 		$rows = array(
-			array($outputlangs->transnoentities('Supplier'), $supplierName),
+			array($outputlangs->transnoentities('Ref'), $object->ref),
+			array($outputlangs->transnoentities('SupplierReturnDateAuthorized'), $object->date_authorized ? dol_print_date($object->date_authorized, 'day', false, $outputlangs) : ''),
 			array($outputlangs->transnoentities('SupplierReturnExternalRef'), $object->supplier_return_ref),
 			array($outputlangs->transnoentities('Warehouse'), $warehouseName),
 			array($outputlangs->transnoentities('OutboundCarrier'), $object->outbound_carrier),

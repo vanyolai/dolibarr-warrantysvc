@@ -316,13 +316,26 @@ function warrantysvc_default_supplier_return_email_receivers($object)
  * @param SvcSupplierReturn $object Supplier Return
  * @return string
  */
-function warrantysvc_supplier_return_output_dir($object)
+function warrantysvc_supplier_return_output_root($object)
 {
 	global $conf;
+
 	$base = !empty($conf->warrantysvc->multidir_output[$object->entity])
 		? $conf->warrantysvc->multidir_output[$object->entity]
 		: (!empty($conf->warrantysvc->dir_output) ? $conf->warrantysvc->dir_output : DOL_DATA_ROOT.'/warrantysvc');
-	return $base.'/supplier-return/'.dol_sanitizeFileName($object->ref);
+
+	return $base.'/supplier-return';
+}
+
+/**
+ * Return Supplier Return object output directory.
+ *
+ * @param SvcSupplierReturn $object Supplier Return
+ * @return string
+ */
+function warrantysvc_supplier_return_output_dir($object)
+{
+	return warrantysvc_supplier_return_output_root($object).'/'.dol_sanitizeFileName($object->ref);
 }
 
 
