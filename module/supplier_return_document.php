@@ -36,9 +36,9 @@ if ($object->fetch($id,$ref) <= 0) {
 $object->fetch_thirdparty();
 
 $upload_dir = warrantysvc_supplier_return_output_dir($object);
-$permissiontoadd = $permwrite;
-$permtoedit = $permwrite;
 $usercangeneratedoc = $permwrite && in_array($object->status, array(SvcSupplierReturn::STATUS_AUTHORIZED, SvcSupplierReturn::STATUS_SHIPPED, SvcSupplierReturn::STATUS_CLOSED), true);
+$permissiontoadd = $usercangeneratedoc;
+$permtoedit = $permwrite;
 $modulepart = 'warrantysvc';
 
 include DOL_DOCUMENT_ROOT.'/core/actions_linkedfiles.inc.php';
