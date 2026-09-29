@@ -3,6 +3,9 @@
 ## [Unreleased] - Dolibarr 23 fork
 
 ### Added
+- Supplier Return stock traceability now integrates with native Dolibarr Product views: shipped returns create Product links, Product Agenda events and a Supplier Returns row/detail list under Related elements.
+- Shipped Supplier Returns can be safely reversed instead of hard-deleted: Dolibarr's native stock-movement reversal creates compensating movements, preserves the original movement history and marks the return Reversed.
+- Module initialization backfills Product links, Product Agenda entries and lifecycle stock-out events for Supplier Returns that were shipped before the traceability upgrade.
 - Supplier Return authorization now creates a printable PDF notification/packing document through Dolibarr's document pipeline; the card exposes the standard generated-document block and uses a dedicated Supplier Return PDF model catalog.
 - Supplier Return email sending is available from Authorized onward through Dolibarr's native presend flow, automatically attaches the current main PDF, supports editable Dolibarr email templates, and records successful sends in the Supplier Return lifecycle.
 - Module initialization seeds Hungarian and English Supplier Return email templates only when the current entity has no existing template for that language; existing templates are preserved.
@@ -22,6 +25,8 @@
 - PHP syntax-lint workflow for the fork branch.
 
 ### Changed
+- Supplier Return workflow now treats Shipped to supplier as the normal operational end state; the redundant Close action is no longer offered in the card UI. Physical corrections use Reverse Supplier Return rather than destructive deletion.
+- Supplier Return lifecycle records explicit stock-out and stock-restoration events with the corresponding Dolibarr stock movement IDs.
 - Supplier RMA now stores an explicit quantity and locks supplier/Product/quantity/serial identity once the unit has been shipped.
 - Supplier Return shipment is atomic across all lines: line stock movements, movement references, status transition and audit logging commit together or roll back together.
 - Notification and automatic fixed-email setup now show the same compact WarrantySvc event set (Service Request assigned, Warranty created). The generic net-amount threshold editor is hidden for these rows because WarrantySvc objects have no amount-based notification semantics.
