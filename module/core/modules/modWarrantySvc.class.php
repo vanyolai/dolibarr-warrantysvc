@@ -663,6 +663,140 @@ class modWarrantySvc extends DolibarrModules
 
 
 	/**
+	 * Backfill Supplier Return traceability introduced in 1.46.
+	 *
+	 * Existing shipped records already have authoritative Dolibarr stock
+	 * movements. Re-use those rows to seed product links, product Agenda
+	 * events and missing lifecycle stock events without changing stock.
+	 *
+	 * @return int 1 on success, -1 on required backfill failure
+	 */
+	private function backfillSupplierReturnTraceability()
+	{
+		global $conf, $langs, $user;
+
+		dol_include_once('/warrantysvc/class/svcsupplierreturn.class.php');
+		require_once DOL_DOCUMENT_ROOT.'/user/class/user.class.php';
+
+		$sql = "SELECT DISTINCT r.rowid";
+		$sql .= " FROM ".MAIN_DB_PREFIX."svc_supplier_return r";
+		$sql .= " INNER JOIN ".MAIN_DB_PREFIX."svc_supplier_return_line l ON l.fk_supplier_return = r.rowid";
+		$sql .= " WHERE r.entity = ".((int) $conf->entity);
+		$sql .= " AND l.fk_stock_movement_out IS NOT NULL";
+		$sql .= " AND l.fk_stock_movement_out > 0";
+		$resql = $this->db->query($sql);
+		if (!$resql) {
+			return -1;
+		}
+
+		$returnIds = array();
+		while ($obj = $this->db->fetch_object($resql)) {
+			$returnIds[] = (int) $obj->rowid;
+		}
+		$this->db->free($resql);
+
+		foreach ($returnIds as $returnId) {
+			$return = new SvcSupplierReturn($this->db);
+			if ($return->fetch($returnId) <= 0) {
+				return -1;
+			}
+
+			$actor = null;
+			$actorId = (int) (!empty($return->fk_user_modif) ? $return->fk_user_modif : $return->fk_user_creat);
+			if ($actorId > 0) {
+				$tmpUser = new User($this->db);
+				if ($tmpUser->fetch($actorId) > 0) {
+					$actor = $tmpUser;
+				}
+			}
+			if (!is_object($actor)) {
+				$actor = $user;
+			}
+			if (!is_object($actor) || empty($actor->id)) {
+				continue;
+			}
+
+			if ($return->ensureProductLinks($actor, 1) < 0) {
+				return -1;
+			}
+
+			$shipDate = !empty($return->date_shipped) ? $return->date_shipped : $return->date_creation;
+			if ($return->ensureProductAgendaEvents($actor, 'ship', $shipDate) < 0) {
+				return -1;
+			}
+
+			$sql = "SELECT rowid FROM ".MAIN_DB_PREFIX."svc_supplier_return_log";
+			$sql .= " WHERE fk_supplier_return = ".((int) $return->id);
+			$sql .= " AND event_code = 'STOCKOUT'";
+			$sql .= $this->db->plimit(1);
+			$check = $this->db->query($sql);
+			if (!$check) {
+				return -1;
+			}
+			$hasStockOutLog = (bool) $this->db->fetch_object($check);
+			$this->db->free($check);
+
+			if (!$hasStockOutLog) {
+				$movementIds = array();
+				foreach ($return->lines as $line) {
+					if ((int) $line->fk_stock_movement_out > 0) {
+						$movementIds[(int) $line->fk_stock_movement_out] = '#'.((int) $line->fk_stock_movement_out);
+					}
+				}
+				$note = $langs->transnoentitiesnoconv(
+					'SupplierReturnStockOutAuditNote',
+					!empty($movementIds) ? implode(', ', array_values($movementIds)) : '—'
+				);
+				if ($return->logEvent('STOCKOUT', $return->status, $return->status, $note, $actor, $shipDate) < 0) {
+					return -1;
+				}
+			}
+
+			$hasReversal = false;
+			$reversalIds = array();
+			foreach ($return->lines as $line) {
+				if ((int) $line->fk_stock_movement_reversal > 0) {
+					$hasReversal = true;
+					$reversalIds[(int) $line->fk_stock_movement_reversal] = '#'.((int) $line->fk_stock_movement_reversal);
+				}
+			}
+			if ($hasReversal) {
+				$sql = "SELECT rowid, date_event FROM ".MAIN_DB_PREFIX."svc_supplier_return_log";
+				$sql .= " WHERE fk_supplier_return = ".((int) $return->id);
+				$sql .= " AND event_code = 'REVERSE'";
+				$sql .= " ORDER BY rowid DESC";
+				$sql .= $this->db->plimit(1);
+				$check = $this->db->query($sql);
+				if (!$check) {
+					return -1;
+				}
+				$reverseLog = $this->db->fetch_object($check);
+				$this->db->free($check);
+
+				$reverseDate = $reverseLog && !empty($reverseLog->date_event)
+					? $this->db->jdate($reverseLog->date_event)
+					: dol_now();
+
+				if (!$reverseLog) {
+					$note = $langs->transnoentitiesnoconv(
+						'SupplierReturnStockRestoreAuditNote',
+						implode(', ', array_values($reversalIds))
+					);
+					if ($return->logEvent('REVERSE', $return->status, $return->status, $note, $actor, $reverseDate) < 0) {
+						return -1;
+					}
+				}
+				if ($return->ensureProductAgendaEvents($actor, 'reverse', $reverseDate) < 0) {
+					return -1;
+				}
+			}
+		}
+
+		return 1;
+	}
+
+
+	/**
 	 * Function called when module is enabled.
 	 * Loads SQL tables from sql/ directory using standard Dolibarr mechanism.
 	 *
@@ -686,6 +820,9 @@ class modWarrantySvc extends DolibarrModules
 			return -1;
 		}
 		if ($this->syncSupplierReturnEmailTemplates() < 0) {
+			return -1;
+		}
+		if ($this->backfillSupplierReturnTraceability() < 0) {
 			return -1;
 		}
 		return $this->_init(array(), $options);
