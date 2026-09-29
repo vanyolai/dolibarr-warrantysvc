@@ -374,6 +374,12 @@
 - [ ] Close again and verify lifecycle timestamps and audit history are consistent
 
 ### 10.8 Documents, contacts and email
+- [ ] Draft Supplier Return: verify document generation and email sending are not available
+- [ ] Authorize the return and verify authorization automatically generates the current Supplier Return PDF unless MAIN_DISABLE_PDF_AUTOUPDATE is enabled
+- [ ] Verify the card shows Dolibarr's Generated documents block after authorization
+- [ ] Regenerate the PDF from the card and verify the configured Supplier Return PDF model is used
+- [ ] Open the generated PDF and verify sender, supplier recipient, internal return reference, authorization date, warehouse, return reason, Product, quantity and LOT/serial
+- [ ] Print/download the generated PDF and verify it is suitable as a package accompaniment
 - [ ] Add an internal handler and a supplier contact to the Supplier Return
 - [ ] Generate the Supplier Return PDF and verify Supplier, reference, warehouse, reason, Product, quantity and LOT/serial are correct
 - [ ] Verify the PDF is stored under the Supplier Return object output directory
@@ -381,6 +387,10 @@
 - [ ] Verify Email Templates offers the Supplier Return object type
 - [ ] Verify `__SUPPLIER_RETURN_REF__`, `__SUPPLIER_RETURN_EXTERNAL_REF__`, `__SUPPLIER_RETURN_STATUS__`, `__SUPPLIER_RETURN_REASON__` and `__SUPPLIER_RETURN_LINES__` are replaced with real values
 - [ ] Verify `__SUPPLIER_NAME__`, `__OUTBOUND_CARRIER__`, `__OUTBOUND_TRACKING__` and `__OUTBOUND_TRACKING_URL__` are populated for Supplier Return emails
+- [ ] Verify Email Templates offers the Supplier Return object type and the HU/EN default template appears after module initialization when no template exists for that language
+- [ ] Open E-mail sending from an Authorized return and verify the native email form automatically pre-attaches the current Supplier Return PDF
+- [ ] Send the email and verify the attachment arrives and exactly one EMAIL lifecycle event is recorded with recipient and subject
+- [ ] Modify an Authorized return line/header, save it, and verify the main PDF is refreshed automatically
 
 ---
 
