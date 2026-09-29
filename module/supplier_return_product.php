@@ -111,10 +111,10 @@ if ($num === 0) {
 
 		$movementHtml = '—';
 		if (!empty($obj->fk_stock_movement_out)) {
-			$movementHtml = '<a href="'.DOL_URL_ROOT.'/product/stock/movement.php?id='.((int) $obj->fk_stock_movement_out).'">#'.((int) $obj->fk_stock_movement_out).'</a>';
+			$movementHtml = '<a href="'.DOL_URL_ROOT.'/product/stock/movement_list.php?msid='.((int) $obj->fk_stock_movement_out).'">#'.((int) $obj->fk_stock_movement_out).'</a>';
 		}
 		if (!empty($obj->fk_stock_movement_reversal)) {
-			$movementHtml .= ' '.$langs->trans('SupplierReturnMovementReversedBy').' <a href="'.DOL_URL_ROOT.'/product/stock/movement.php?id='.((int) $obj->fk_stock_movement_reversal).'">#'.((int) $obj->fk_stock_movement_reversal).'</a>';
+			$movementHtml .= ' '.$langs->trans('SupplierReturnMovementReversedBy').' <a href="'.DOL_URL_ROOT.'/product/stock/movement_list.php?msid='.((int) $obj->fk_stock_movement_reversal).'">#'.((int) $obj->fk_stock_movement_reversal).'</a>';
 		}
 
 		print '<tr class="oddeven">';
