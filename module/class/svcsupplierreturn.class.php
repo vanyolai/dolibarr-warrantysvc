@@ -75,7 +75,7 @@ class SvcSupplierReturn extends CommonObject
 	public $fk_user_creat;
 	public $fk_user_modif;
 	public $date_creation;
-	public $model_pdf = '';
+	public $model_pdf = 'supplierreturn_standard';
 	public $last_main_doc = '';
 	public $lines = array();
 
@@ -297,6 +297,9 @@ class SvcSupplierReturn extends CommonObject
 		}
 		foreach (array('ref','supplier_return_ref','reason','status','outbound_carrier','outbound_tracking','outbound_tracking_url','note_private','model_pdf','last_main_doc') as $field) {
 			$this->{$field} = (string) $obj->{$field};
+		}
+		if (empty($this->model_pdf)) {
+			$this->model_pdf = 'supplierreturn_standard';
 		}
 		foreach (array('date_authorized','date_shipped','date_closed','date_creation') as $field) {
 			$this->{$field} = !empty($obj->{$field}) ? $this->db->jdate($obj->{$field}) : null;
