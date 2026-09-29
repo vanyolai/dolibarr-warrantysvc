@@ -130,6 +130,58 @@ class WarrantySvcStockService
 	 * @param string $batch      Optional LOT/serial
 	 * @return array|false Source ids on success, false when no proven source exists
 	 */
+	/**
+	 * Find a real supplier order line proving that this product has been ordered
+	 * from the selected supplier.
+	 *
+	 * Supplier Return eligibility is intentionally based on supplier order
+	 * history plus current physical stock. A reception record is useful extra
+	 * traceability when available, but must not be mandatory because older or
+	 * migrated Dolibarr data may not have a complete reception history.
+	 *
+	 * @param int $supplierId Supplier thirdparty id
+	 * @param int $productId  Product id
+	 * @return array|false Supplier order ids on success
+	 */
+	public function findSupplierOrderSource($supplierId, $productId)
+	{
+		global $conf;
+
+		$supplierId = (int) $supplierId;
+		$productId = (int) $productId;
+		if ($supplierId <= 0 || $productId <= 0) {
+			return false;
+		}
+
+		$sql = "SELECT cfd.rowid AS supplier_order_line_id, cf.rowid AS supplier_order_id";
+		$sql .= " FROM ".MAIN_DB_PREFIX."commande_fournisseurdet cfd";
+		$sql .= " INNER JOIN ".MAIN_DB_PREFIX."commande_fournisseur cf ON cf.rowid = cfd.fk_commande";
+		$sql .= " WHERE cfd.fk_product = ".$productId;
+		$sql .= " AND cf.fk_soc = ".$supplierId;
+		$sql .= " AND cf.entity = ".((int) $conf->entity);
+		$sql .= " AND cf.fk_statut IN (3, 4, 5)";
+		$sql .= " ORDER BY COALESCE(cf.date_reception, cf.date_commande, cf.date_creation) DESC, cfd.rowid DESC";
+		$sql .= $this->db->plimit(1);
+
+		$resql = $this->db->query($sql);
+		if (!$resql) {
+			$this->error = $this->db->lasterror();
+			return false;
+		}
+		$obj = $this->db->fetch_object($resql);
+		$this->db->free($resql);
+		if (!$obj) {
+			return false;
+		}
+
+		return array(
+			'fk_supplier_order_line' => (int) $obj->supplier_order_line_id,
+			'fk_supplier_order' => (int) $obj->supplier_order_id,
+			'fk_reception_line' => 0,
+			'fk_reception' => 0,
+		);
+	}
+
 	public function findSupplierReceiptSource($supplierId, $productId, $batch = '')
 	{
 		global $conf;
@@ -183,8 +235,8 @@ class WarrantySvcStockService
 	 *
 	 * Conditions:
 	 * - physically on hand in the selected source warehouse;
-	 * - previously received through a validated reception sourced from a
-	 *   supplier order belonging to the selected supplier;
+	 * - previously ordered on a real supplier order belonging to the selected
+	 *   supplier (reception history is linked when available, not required);
 	 * - not fully consumed by other lines of this same draft return.
 	 *
 	 * @return array<int,array<string,mixed>>
@@ -219,16 +271,12 @@ class WarrantySvcStockService
 		$sql .= " WHERE ps.reel > 0";
 		$sql .= " AND (ps.reel - COALESCE(res.qty_reserved, 0)) > 0";
 		$sql .= " AND EXISTS (";
-		$sql .= " SELECT 1 FROM ".MAIN_DB_PREFIX."receptiondet_batch rd";
-		$sql .= " INNER JOIN ".MAIN_DB_PREFIX."reception r ON r.rowid = rd.fk_reception";
-		$sql .= " INNER JOIN ".MAIN_DB_PREFIX."commande_fournisseurdet cfd ON cfd.rowid = rd.fk_elementdet";
+		$sql .= " SELECT 1 FROM ".MAIN_DB_PREFIX."commande_fournisseurdet cfd";
 		$sql .= " INNER JOIN ".MAIN_DB_PREFIX."commande_fournisseur cf ON cf.rowid = cfd.fk_commande";
-		$sql .= " WHERE rd.element_type IN ('supplier_order', 'order_supplier')";
-		$sql .= " AND rd.fk_product = p.rowid";
-		$sql .= " AND r.fk_soc = ".$supplierId;
+		$sql .= " WHERE cfd.fk_product = p.rowid";
 		$sql .= " AND cf.fk_soc = ".$supplierId;
-		$sql .= " AND r.entity = ".((int) $conf->entity);
-		$sql .= " AND r.fk_statut > 0";
+		$sql .= " AND cf.entity = ".((int) $conf->entity);
+		$sql .= " AND cf.fk_statut IN (3, 4, 5)";
 		$sql .= ")";
 		$sql .= " ORDER BY p.ref";
 
@@ -253,8 +301,8 @@ class WarrantySvcStockService
 	}
 
 	/**
-	 * Current LOT/serial choices for a Supplier Return product, restricted to
-	 * identifiers whose provenance can be traced to the selected supplier.
+	 * Current LOT/serial choices for an eligible Supplier Return product,
+	 * restricted to identifiers physically present in the selected warehouse.
 	 *
 	 * @return array<string,float> batch => available qty
 	 */
@@ -290,17 +338,12 @@ class WarrantySvcStockService
 		$sql .= " AND pb.qty > 0";
 		$sql .= " AND (pb.qty - COALESCE(res.qty_reserved, 0)) > 0";
 		$sql .= " AND EXISTS (";
-		$sql .= " SELECT 1 FROM ".MAIN_DB_PREFIX."receptiondet_batch rd";
-		$sql .= " INNER JOIN ".MAIN_DB_PREFIX."reception r ON r.rowid = rd.fk_reception";
-		$sql .= " INNER JOIN ".MAIN_DB_PREFIX."commande_fournisseurdet cfd ON cfd.rowid = rd.fk_elementdet";
+		$sql .= " SELECT 1 FROM ".MAIN_DB_PREFIX."commande_fournisseurdet cfd";
 		$sql .= " INNER JOIN ".MAIN_DB_PREFIX."commande_fournisseur cf ON cf.rowid = cfd.fk_commande";
-		$sql .= " WHERE rd.element_type IN ('supplier_order', 'order_supplier')";
-		$sql .= " AND rd.fk_product = ".$productId;
-		$sql .= " AND rd.batch = pb.batch";
-		$sql .= " AND r.fk_soc = ".$supplierId;
+		$sql .= " WHERE cfd.fk_product = ".$productId;
 		$sql .= " AND cf.fk_soc = ".$supplierId;
-		$sql .= " AND r.entity = ".((int) $conf->entity);
-		$sql .= " AND r.fk_statut > 0";
+		$sql .= " AND cf.entity = ".((int) $conf->entity);
+		$sql .= " AND cf.fk_statut IN (3, 4, 5)";
 		$sql .= ")";
 		$sql .= " ORDER BY pb.batch";
 
@@ -343,10 +386,17 @@ class WarrantySvcStockService
 		}
 		$hasBatch = method_exists($product, 'hasbatch') ? (bool) $product->hasbatch() : !empty($product->status_batch);
 
-		$source = $this->findSupplierReceiptSource($supplierId, $productId, $hasBatch ? $batch : '');
+		$source = $this->findSupplierOrderSource($supplierId, $productId);
 		if ($source === false) {
-			$this->error = $hasBatch ? 'ErrorSupplierReturnBatchNotFromSupplier' : 'ErrorSupplierReturnProductNotFromSupplier';
+			$this->error = 'ErrorSupplierReturnProductNotFromSupplier';
 			return false;
+		}
+
+		// Enrich the audit link with the exact reception when Dolibarr has one,
+		// but do not make reception history a prerequisite for returning stock.
+		$receiptSource = $this->findSupplierReceiptSource($supplierId, $productId, $hasBatch ? $batch : '');
+		if ($receiptSource !== false) {
+			$source = $receiptSource;
 		}
 
 		// Prevent the same draft Supplier Return from reserving more than the
