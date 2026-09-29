@@ -744,6 +744,7 @@ class SvcSupplierReturn extends CommonObject
 		}
 
 		$stock = new WarrantySvcStockService($this->db);
+		$movementIds = array();
 		foreach ($this->lines as $line) {
 			if (!empty($line->fk_stock_movement_out)) {
 				$movementIds[(int) $line->fk_stock_movement_out] = '#'.((int) $line->fk_stock_movement_out);
