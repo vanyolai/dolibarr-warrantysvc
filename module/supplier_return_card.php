@@ -72,6 +72,42 @@ function warrantysvc_supplier_return_error($langs, $object)
 	setEventMessages($msg, $object->errors, 'errors');
 }
 
+/**
+ * Refresh the current Supplier Return PDF using the configured Dolibarr model.
+ *
+ * @param SvcSupplierReturn $object Supplier Return
+ * @param Translate $langs Current language
+ * @param Conf $conf Dolibarr config
+ * @param bool $showSuccess Show success message
+ * @return int 1 on success, -1 on failure, 0 when PDF autoupdate is disabled
+ */
+function warrantysvc_supplier_return_refresh_document($object, $langs, $conf, $showSuccess = false)
+{
+	if (getDolGlobalString('MAIN_DISABLE_PDF_AUTOUPDATE')) {
+		return 0;
+	}
+
+	$object->fetch($object->id);
+	$object->fetch_thirdparty();
+
+	$outputlangs = $langs;
+	if (getDolGlobalInt('MAIN_MULTILANGS') && is_object($object->thirdparty) && !empty($object->thirdparty->default_lang)) {
+		$outputlangs = new Translate('', $conf);
+		$outputlangs->setDefaultLang($object->thirdparty->default_lang);
+	}
+
+	$result = $object->generateDocument($object->model_pdf, $outputlangs);
+	if ($result < 0) {
+		setEventMessages($langs->trans('ErrorSupplierReturnDocumentGeneration'), $object->errors, 'warnings');
+		return -1;
+	}
+	if ($showSuccess) {
+		setEventMessages($langs->trans('SupplierReturnDocumentGenerated'), null, 'mesgs');
+	}
+
+	return 1;
+}
+
 /*
  * Actions
  */
@@ -92,6 +128,9 @@ if ($object->id > 0 && $action === 'update' && $permwrite) {
 	$result = $object->update($user);
 	if ($result > 0) {
 		setEventMessages($langs->trans('SupplierReturnUpdated'), null, 'mesgs');
+		if ($object->status === SvcSupplierReturn::STATUS_AUTHORIZED) {
+			warrantysvc_supplier_return_refresh_document($object, $langs, $conf);
+		}
 		header('Location: '.$_SERVER['PHP_SELF'].'?id='.$object->id);
 		exit;
 	}
@@ -114,6 +153,9 @@ if ($object->id > 0 && $action === 'addline' && $permwrite) {
 		$line->reason = GETPOST('line_reason', 'restricthtml');
 		$line->rang = count($object->lines) + 1;
 		if ($line->create($user) > 0) {
+			if ($object->status === SvcSupplierReturn::STATUS_AUTHORIZED) {
+				warrantysvc_supplier_return_refresh_document($object, $langs, $conf);
+			}
 			header('Location: '.$_SERVER['PHP_SELF'].'?id='.$object->id.'#lines');
 			exit;
 		}
@@ -132,6 +174,9 @@ if ($object->id > 0 && $action === 'updateline' && $permwrite) {
 		}
 		$line->reason = GETPOST('line_reason', 'restricthtml');
 		if ($line->update($user) > 0) {
+			if ($object->status === SvcSupplierReturn::STATUS_AUTHORIZED) {
+				warrantysvc_supplier_return_refresh_document($object, $langs, $conf);
+			}
 			header('Location: '.$_SERVER['PHP_SELF'].'?id='.$object->id.'#lines');
 			exit;
 		}
@@ -143,6 +188,9 @@ if ($object->id > 0 && $action === 'deleteline' && $permwrite) {
 	$line = new SvcSupplierReturnLine($db);
 	if ($line->fetch($lineid) > 0 && (int) $line->fk_supplier_return === (int) $object->id) {
 		if ($line->delete($user) > 0) {
+			if ($object->status === SvcSupplierReturn::STATUS_AUTHORIZED) {
+				warrantysvc_supplier_return_refresh_document($object, $langs, $conf);
+			}
 			header('Location: '.$_SERVER['PHP_SELF'].'?id='.$object->id.'#lines');
 			exit;
 		}
@@ -154,23 +202,8 @@ if ($object->id > 0 && $action === 'confirm_authorize' && $confirm === 'yes' && 
 	$result = $object->authorize($user);
 	if ($result < 0) {
 		warrantysvc_supplier_return_error($langs, $object);
-	} elseif (!getDolGlobalString('MAIN_DISABLE_PDF_AUTOUPDATE')) {
-		// Follow Dolibarr's normal business-document workflow: once validated,
-		// immediately create the current PDF so it can be printed or mailed.
-		$object->fetch($object->id);
-		$object->fetch_thirdparty();
-
-		$outputlangs = $langs;
-		if (getDolGlobalInt('MAIN_MULTILANGS') && is_object($object->thirdparty) && !empty($object->thirdparty->default_lang)) {
-			$outputlangs = new Translate('', $conf);
-			$outputlangs->setDefaultLang($object->thirdparty->default_lang);
-		}
-		$genresult = $object->generateDocument($object->model_pdf, $outputlangs);
-		if ($genresult < 0) {
-			setEventMessages($langs->trans('ErrorSupplierReturnDocumentGeneration'), $object->errors, 'warnings');
-		} else {
-			setEventMessages($langs->trans('SupplierReturnDocumentGenerated'), null, 'mesgs');
-		}
+	} else {
+		warrantysvc_supplier_return_refresh_document($object, $langs, $conf, true);
 	}
 	header('Location: '.$_SERVER['PHP_SELF'].'?id='.$object->id); exit;
 }
