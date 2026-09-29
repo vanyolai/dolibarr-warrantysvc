@@ -213,6 +213,15 @@ if ($object->id > 0 && $action === 'confirm_ship' && $confirm === 'yes' && $perm
 	else setEventMessages($langs->trans('SupplierReturnStockMovedOut'), null, 'mesgs');
 	header('Location: '.$_SERVER['PHP_SELF'].'?id='.$object->id); exit;
 }
+if ($object->id > 0 && $action === 'confirm_reverse_shipment' && $confirm === 'yes' && $permwrite) {
+	$result = $object->reverseShipment($user, $langs->transnoentitiesnoconv('SupplierReturnReverseAuditNote'));
+	if ($result < 0) {
+		warrantysvc_supplier_return_error($langs, $object);
+	} else {
+		setEventMessages($langs->trans('SupplierReturnStockRestored'), null, 'mesgs');
+	}
+	header('Location: '.$_SERVER['PHP_SELF'].'?id='.$object->id); exit;
+}
 if ($object->id > 0 && $action === 'confirm_close' && $confirm === 'yes' && $permwrite) {
 	if ($object->close($user) < 0) warrantysvc_supplier_return_error($langs, $object);
 	header('Location: '.$_SERVER['PHP_SELF'].'?id='.$object->id); exit;
@@ -305,6 +314,8 @@ if ($action === 'authorize') {
 	$formconfirm = $form->formconfirm($_SERVER['PHP_SELF'].'?id='.$object->id, $langs->trans('SupplierReturnAuthorize'), $langs->trans('ConfirmSupplierReturnAuthorize'), 'confirm_authorize', '', 0, 1);
 } elseif ($action === 'ship') {
 	$formconfirm = $form->formconfirm($_SERVER['PHP_SELF'].'?id='.$object->id, $langs->trans('SupplierReturnShip'), $langs->trans('ConfirmSupplierReturnShip'), 'confirm_ship', '', 0, 1);
+} elseif ($action === 'reverse_shipment') {
+	$formconfirm = $form->formconfirm($_SERVER['PHP_SELF'].'?id='.$object->id, $langs->trans('SupplierReturnReverseShipment'), $langs->trans('ConfirmSupplierReturnReverseShipment'), 'confirm_reverse_shipment', '', 0, 1);
 } elseif ($action === 'close') {
 	$formconfirm = $form->formconfirm($_SERVER['PHP_SELF'].'?id='.$object->id, $langs->trans('SupplierReturnClose'), $langs->trans('ConfirmSupplierReturnClose'), 'confirm_close', '', 0, 1);
 } elseif ($action === 'cancel') {
@@ -388,7 +399,7 @@ if ($isEdit) {
 	}
 	if ($permwrite && $object->status === SvcSupplierReturn::STATUS_DRAFT) print '<a class="butAction" href="'.$_SERVER['PHP_SELF'].'?id='.$object->id.'&action=authorize&token='.newToken().'">'.$langs->trans('SupplierReturnAuthorize').'</a>';
 	if ($permwrite && $object->status === SvcSupplierReturn::STATUS_AUTHORIZED) print '<a class="butAction" href="'.$_SERVER['PHP_SELF'].'?id='.$object->id.'&action=ship&token='.newToken().'">'.$langs->trans('SupplierReturnShip').'</a>';
-	if ($permwrite && $object->status === SvcSupplierReturn::STATUS_SHIPPED) print '<a class="butAction" href="'.$_SERVER['PHP_SELF'].'?id='.$object->id.'&action=close&token='.newToken().'">'.$langs->trans('SupplierReturnClose').'</a>';
+	if ($permwrite && in_array($object->status, array(SvcSupplierReturn::STATUS_SHIPPED, SvcSupplierReturn::STATUS_CLOSED), true)) print '<a class="butActionDelete" href="'.$_SERVER['PHP_SELF'].'?id='.$object->id.'&action=reverse_shipment&token='.newToken().'">'.$langs->trans('SupplierReturnReverseShipment').'</a>';
 	if ($permwrite && !$supplierReturnStockLocked && in_array($object->status, array(SvcSupplierReturn::STATUS_DRAFT, SvcSupplierReturn::STATUS_AUTHORIZED), true)) print '<a class="butActionDelete" href="'.$_SERVER['PHP_SELF'].'?id='.$object->id.'&action=cancel&token='.newToken().'">'.$langs->trans('Cancel').'</a>';
 	if ($permwrite && $object->status === SvcSupplierReturn::STATUS_CANCELLED) print '<a class="butAction" href="'.$_SERVER['PHP_SELF'].'?id='.$object->id.'&action=reopen&token='.newToken().'">'.$langs->trans('Reopen').'</a>';
 	if ($permwrite && (!$supplierReturnStockLocked || $object->status === SvcSupplierReturn::STATUS_CLOSED) && in_array($object->status, array(SvcSupplierReturn::STATUS_AUTHORIZED, SvcSupplierReturn::STATUS_CLOSED), true)) print '<a class="butAction" href="'.$_SERVER['PHP_SELF'].'?id='.$object->id.'&action=rollback&token='.newToken().'">'.$langs->trans('SupplierReturnRollback').'</a>';
@@ -558,7 +569,14 @@ foreach ($object->lines as $line) {
 		}
 
 		print '<tr class="oddeven"><td>'.$plabel.'</td><td>'.dol_escape_htmltag($line->batch ?: '—').'</td><td class="right">'.price($line->qty,0,$langs,0,0,-1).'</td><td>'.$reasonHtml.'</td>';
-		print '<td>'.($line->fk_stock_movement_out ? '<a href="'.DOL_URL_ROOT.'/product/stock/movement.php?id='.$line->fk_stock_movement_out.'">#'.$line->fk_stock_movement_out.'</a>' : '—').'</td><td class="right">';
+		$movementHtml = '—';
+		if ($line->fk_stock_movement_out) {
+			$movementHtml = '<a href="'.DOL_URL_ROOT.'/product/stock/movement.php?id='.$line->fk_stock_movement_out.'">#'.$line->fk_stock_movement_out.'</a>';
+			if (!empty($line->fk_stock_movement_reversal)) {
+				$movementHtml .= ' '.$langs->trans('SupplierReturnMovementReversedBy').' <a href="'.DOL_URL_ROOT.'/product/stock/movement.php?id='.$line->fk_stock_movement_reversal.'">#'.$line->fk_stock_movement_reversal.'</a>';
+			}
+		}
+		print '<td>'.$movementHtml.'</td><td class="right">';
 		if ($permwrite && !$supplierReturnStockLocked && in_array($object->status,array(SvcSupplierReturn::STATUS_DRAFT,SvcSupplierReturn::STATUS_AUTHORIZED),true) && empty($line->fk_stock_movement_out)) {
 			print '<a href="'.$_SERVER['PHP_SELF'].'?id='.$object->id.'&action=editline&lineid='.$line->id.'#lines">'.img_edit().'</a> ';
 			print '<a href="'.$_SERVER['PHP_SELF'].'?id='.$object->id.'&action=deleteline&lineid='.$line->id.'&token='.newToken().'#lines">'.img_delete().'</a>';
