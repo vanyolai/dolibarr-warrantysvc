@@ -3,6 +3,9 @@
 ## [Unreleased] - Dolibarr 23 fork
 
 ### Added
+- Supplier Return authorization now creates a printable PDF notification/packing document through Dolibarr's document pipeline; the card exposes the standard generated-document block and uses a dedicated Supplier Return PDF model catalog.
+- Supplier Return email sending is available from Authorized onward through Dolibarr's native presend flow, automatically attaches the current main PDF, supports editable Dolibarr email templates, and records successful sends in the Supplier Return lifecycle.
+- Module initialization seeds Hungarian and English Supplier Return email templates only when the current entity has no existing template for that language; existing templates are preserved.
 - Added Supplier Return as a first-class WarrantySvc object for non-warranty goods returned to a supplier, with its own lifecycle, lines, permissions, contacts, PDF/document handling, email template type and Hungarian/English UI.
 - Added a shared idempotent WarrantySvc stock-movement service using deterministic inventory codes, explicit LOT/serial and warehouse validation, and origin-linked movement traceability.
 - WarrantySvc business events remain available internally, while email notifications are intentionally limited to two user-facing events: Service Request assigned and Warranty created. These use the same user, third-party-contact and fixed-address subscriptions as native Dolibarr events.
