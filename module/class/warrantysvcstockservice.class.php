@@ -486,7 +486,12 @@ class WarrantySvcStockService
 			return -1;
 		}
 
-		$inventoryCode = substr('WSVC-OUT-'.preg_replace('/[^A-Za-z0-9_-]/', '', $originType).'-'.$originId.'-'.$lineId, 0, 128);
+		$inventoryOriginKey = ($originType === 'SvcSupplierReturn@warrantysvc') ? 'svcsupplierreturn' : $originType;
+		$originAliases = array($originType);
+		if ($originType === 'SvcSupplierReturn@warrantysvc') {
+			$originAliases[] = 'svcsupplierreturn';
+		}
+		$inventoryCode = substr('WSVC-OUT-'.preg_replace('/[^A-Za-z0-9_-]/', '', $inventoryOriginKey).'-'.$originId.'-'.$lineId, 0, 128);
 
 		/*
 		 * Keep the idempotency lookup, stock check and actual movement in one
@@ -514,10 +519,18 @@ class WarrantySvcStockService
 		}
 		$this->db->free($resql);
 
-		$sql = "SELECT rowid, fk_product, fk_entrepot, value, type_mouvement, batch";
+		$sql = "SELECT rowid, fk_product, fk_entrepot, value, type_mouvement, batch, origintype";
 		$sql .= " FROM ".MAIN_DB_PREFIX."stock_mouvement";
 		$sql .= " WHERE inventorycode = '".$this->db->escape($inventoryCode)."'";
-		$sql .= " AND origintype = '".$this->db->escape($originType)."'";
+		if (count($originAliases) > 1) {
+			$escapedOriginAliases = array();
+			foreach ($originAliases as $originAlias) {
+				$escapedOriginAliases[] = "'".$this->db->escape($originAlias)."'";
+			}
+			$sql .= " AND origintype IN (".implode(',', $escapedOriginAliases).")";
+		} else {
+			$sql .= " AND origintype = '".$this->db->escape($originType)."'";
+		}
 		$sql .= " AND fk_origin = ".$originId;
 		$sql .= " ORDER BY rowid DESC";
 		$sql .= $this->db->plimit(1);
@@ -540,6 +553,16 @@ class WarrantySvcStockService
 				$this->error = 'ErrorWarrantySvcStockMovementConflict';
 				$this->db->rollback();
 				return -1;
+			}
+			if ((string) $existing->origintype !== $originType) {
+				$sql = "UPDATE ".MAIN_DB_PREFIX."stock_mouvement";
+				$sql .= " SET origintype = '".$this->db->escape($originType)."'";
+				$sql .= " WHERE rowid = ".((int) $existing->rowid);
+				if (!$this->db->query($sql)) {
+					$this->error = $this->db->lasterror();
+					$this->db->rollback();
+					return -1;
+				}
 			}
 			$this->db->commit();
 			return (int) $existing->rowid;
@@ -586,7 +609,7 @@ class WarrantySvcStockService
 	 *
 	 * @param User $user Current user
 	 * @param int  $movementId Outbound stock movement rowid
-	 * @param string $expectedOriginType Optional origin type guard
+	 * @param string|array<string> $expectedOriginType Optional origin type guard
 	 * @param int $expectedOriginId Optional origin id guard
 	 * @return int Reversal movement rowid or -1 on error
 	 */
@@ -611,9 +634,12 @@ class WarrantySvcStockService
 			$this->error = 'ErrorWarrantySvcStockMovementConflict';
 			return -1;
 		}
-		if ($expectedOriginType !== '' && (string) $movement->origin_type !== (string) $expectedOriginType) {
-			$this->error = 'ErrorWarrantySvcStockMovementConflict';
-			return -1;
+		if ($expectedOriginType !== '') {
+			$expectedOriginTypes = is_array($expectedOriginType) ? $expectedOriginType : array($expectedOriginType);
+			if (!in_array((string) $movement->origin_type, $expectedOriginTypes, true)) {
+				$this->error = 'ErrorWarrantySvcStockMovementConflict';
+				return -1;
+			}
 		}
 		if ((int) $expectedOriginId > 0 && (int) $movement->origin_id !== (int) $expectedOriginId) {
 			$this->error = 'ErrorWarrantySvcStockMovementConflict';
