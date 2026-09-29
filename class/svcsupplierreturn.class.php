@@ -8,6 +8,7 @@
  */
 
 require_once DOL_DOCUMENT_ROOT.'/core/class/commonobject.class.php';
+require_once DOL_DOCUMENT_ROOT.'/comm/action/class/actioncomm.class.php';
 require_once DOL_DOCUMENT_ROOT.'/custom/warrantysvc/class/svcsupplierreturnline.class.php';
 require_once DOL_DOCUMENT_ROOT.'/custom/warrantysvc/class/warrantysvcstockservice.class.php';
 
@@ -26,6 +27,10 @@ class SvcSupplierReturn extends CommonObject
 	const STATUS_SHIPPED = 'shipped';
 	const STATUS_CLOSED = 'closed';
 	const STATUS_CANCELLED = 'cancelled';
+	const STATUS_REVERSED = 'reversed';
+
+	const STOCK_ORIGIN_TYPE = 'SvcSupplierReturn@warrantysvc';
+	const LEGACY_STOCK_ORIGIN_TYPE = 'svcsupplierreturn';
 
 	public $fields = array(
 		'rowid' => array('type'=>'integer', 'label'=>'TechnicalID', 'enabled'=>1, 'visible'=>-1, 'notnull'=>1),
@@ -125,7 +130,7 @@ class SvcSupplierReturn extends CommonObject
 		}
 
 		$sql = "SELECT rowid FROM ".MAIN_DB_PREFIX."stock_mouvement";
-		$sql .= " WHERE origintype = 'svcsupplierreturn'";
+		$sql .= " WHERE origintype IN ('".self::STOCK_ORIGIN_TYPE."','".self::LEGACY_STOCK_ORIGIN_TYPE."')";
 		$sql .= " AND fk_origin = ".((int) $this->id);
 		$sql .= " AND value < 0";
 		$sql .= $this->db->plimit(1);
@@ -414,6 +419,7 @@ class SvcSupplierReturn extends CommonObject
 		}
 
 		$stock = new WarrantySvcStockService($this->db);
+		$movementIds = array();
 		foreach ($this->lines as $line) {
 			$source = $stock->validateSupplierReturnLine(
 				(int) $this->fk_soc_supplier,
@@ -444,6 +450,163 @@ class SvcSupplierReturn extends CommonObject
 				}
 				$line->fk_supplier_order_line = (int) $source['fk_supplier_order_line'];
 				$line->fk_reception_line = (int) $source['fk_reception_line'];
+			}
+		}
+
+		return 1;
+	}
+
+	/**
+	 * Ensure the standard Dolibarr element_element link exists from each
+	 * returned Product to this Supplier Return.
+	 *
+	 * @param User $user Current user
+	 * @param int $notrigger 1 to skip OBJECT_LINK_INSERT trigger during backfill
+	 * @return int 1 on success, -1 on error
+	 */
+	public function ensureProductLinks($user, $notrigger = 0)
+	{
+		if ((int) $this->id <= 0) {
+			return -1;
+		}
+		if (empty($this->lines)) {
+			$this->fetchLines();
+		}
+
+		$productIds = array();
+		foreach ($this->lines as $line) {
+			if ((int) $line->fk_product > 0) {
+				$productIds[(int) $line->fk_product] = (int) $line->fk_product;
+			}
+		}
+
+		foreach ($productIds as $productId) {
+			$sql = "SELECT rowid FROM ".MAIN_DB_PREFIX."element_element";
+			$sql .= " WHERE fk_source = ".((int) $productId);
+			$sql .= " AND sourcetype = 'product'";
+			$sql .= " AND fk_target = ".((int) $this->id);
+			$sql .= " AND targettype = 'warrantysvc_svcsupplierreturn'";
+			$sql .= $this->db->plimit(1);
+			$resql = $this->db->query($sql);
+			if (!$resql) {
+				$this->error = $this->db->lasterror();
+				return -1;
+			}
+			$exists = (bool) $this->db->fetch_object($resql);
+			$this->db->free($resql);
+			if ($exists) {
+				continue;
+			}
+
+			$result = $this->add_object_linked('product', $productId, $user, $notrigger);
+			if ($result <= 0) {
+				if (empty($this->error)) {
+					$this->error = 'ErrorSupplierReturnProductLinkFailed';
+				}
+				return -1;
+			}
+		}
+
+		return 1;
+	}
+
+	/**
+	 * Add one native Dolibarr Agenda event per Product for a shipment or
+	 * compensating stock reversal. ref_ext makes the operation idempotent.
+	 *
+	 * @param User $user Event owner/author
+	 * @param string $eventType 'ship' or 'reverse'
+	 * @param int|null $eventDate Event timestamp
+	 * @return int 1 on success, -1 on error
+	 */
+	public function ensureProductAgendaEvents($user, $eventType, $eventDate = null)
+	{
+		global $langs, $conf;
+
+		if ((int) $this->id <= 0 || !in_array($eventType, array('ship', 'reverse'), true)) {
+			return -1;
+		}
+		if (!isModEnabled('agenda')) {
+			return 1;
+		}
+		if (empty($this->lines)) {
+			$this->fetchLines();
+		}
+		$langs->load('warrantysvc@warrantysvc');
+
+		$groups = array();
+		foreach ($this->lines as $line) {
+			$productId = (int) $line->fk_product;
+			if ($productId <= 0) {
+				continue;
+			}
+			if (!isset($groups[$productId])) {
+				$groups[$productId] = array(
+					'qty' => 0.0,
+					'batches' => array(),
+					'movements' => array(),
+				);
+			}
+			$groups[$productId]['qty'] += (float) $line->qty;
+			if (trim((string) $line->batch) !== '') {
+				$groups[$productId]['batches'][trim((string) $line->batch)] = trim((string) $line->batch);
+			}
+			$movementId = ($eventType === 'reverse')
+				? (int) $line->fk_stock_movement_reversal
+				: (int) $line->fk_stock_movement_out;
+			if ($movementId > 0) {
+				$groups[$productId]['movements'][$movementId] = '#'.$movementId;
+			}
+		}
+
+		foreach ($groups as $productId => $info) {
+			$refExt = 'wsvcsret:'.((int) $this->id).':'.$eventType.':'.((int) $productId);
+			$sql = "SELECT id FROM ".MAIN_DB_PREFIX."actioncomm";
+			$sql .= " WHERE entity = ".((int) $conf->entity);
+			$sql .= " AND ref_ext = '".$this->db->escape($refExt)."'";
+			$sql .= $this->db->plimit(1);
+			$resql = $this->db->query($sql);
+			if (!$resql) {
+				$this->error = $this->db->lasterror();
+				return -1;
+			}
+			$exists = (bool) $this->db->fetch_object($resql);
+			$this->db->free($resql);
+			if ($exists) {
+				continue;
+			}
+
+			$event = new ActionComm($this->db);
+			$event->type_code = 'AC_OTH_AUTO';
+			$event->code = ($eventType === 'reverse')
+				? 'AC_WSVC_SUPPLIER_RETURN_REVERSE'
+				: 'AC_WSVC_SUPPLIER_RETURN_SHIP';
+			$event->label = $langs->transnoentitiesnoconv(
+				$eventType === 'reverse' ? 'SupplierReturnProductAgendaReversed' : 'SupplierReturnProductAgendaShipped',
+				$this->ref
+			);
+			$event->datep = !empty($eventDate) ? $eventDate : dol_now();
+			$event->userownerid = (int) $user->id;
+			$event->socid = (int) $this->fk_soc_supplier;
+			$event->elementtype = 'product';
+			$event->elementid = (int) $productId;
+			$event->ref_ext = $refExt;
+			$event->percentage = 100;
+
+			$batches = !empty($info['batches']) ? implode(', ', array_values($info['batches'])) : '—';
+			$movements = !empty($info['movements']) ? implode(', ', array_values($info['movements'])) : '—';
+			$event->note_private = $langs->transnoentitiesnoconv(
+				$eventType === 'reverse' ? 'SupplierReturnProductAgendaReverseNote' : 'SupplierReturnProductAgendaShipNote',
+				$this->ref,
+				price($info['qty'], 0, $langs, 0, 0, -1),
+				$batches,
+				$movements
+			);
+
+			if ($event->create($user, 1) <= 0) {
+				$this->error = !empty($event->error) ? $event->error : 'ErrorSupplierReturnAgendaEventFailed';
+				$this->errors = !empty($event->errors) ? $event->errors : array();
+				return -1;
 			}
 		}
 
@@ -534,6 +697,8 @@ class SvcSupplierReturn extends CommonObject
 	 */
 	public function ship($user, $note = '')
 	{
+		global $langs;
+
 		if ($this->status !== self::STATUS_AUTHORIZED) {
 			$this->error = 'ErrorSupplierReturnInvalidTransition';
 			return -1;
@@ -579,13 +744,15 @@ class SvcSupplierReturn extends CommonObject
 		}
 
 		$stock = new WarrantySvcStockService($this->db);
+		$movementIds = array();
 		foreach ($this->lines as $line) {
 			if (!empty($line->fk_stock_movement_out)) {
+				$movementIds[(int) $line->fk_stock_movement_out] = '#'.((int) $line->fk_stock_movement_out);
 				continue;
 			}
 			$movementId = $stock->createOutboundMovement(
 				$user,
-				'svcsupplierreturn',
+				self::STOCK_ORIGIN_TYPE,
 				(int) $this->id,
 				(int) $line->id,
 				(int) $line->fk_product,
@@ -618,6 +785,7 @@ class SvcSupplierReturn extends CommonObject
 				return -1;
 			}
 			$line->fk_stock_movement_out = $movementId;
+			$movementIds[(int) $movementId] = '#'.((int) $movementId);
 		}
 
 		$oldStatus = $this->status;
@@ -642,6 +810,162 @@ class SvcSupplierReturn extends CommonObject
 			$this->db->rollback();
 			return -1;
 		}
+
+		$movementNote = $langs->transnoentitiesnoconv(
+			'SupplierReturnStockOutAuditNote',
+			!empty($movementIds) ? implode(', ', array_values($movementIds)) : '—'
+		);
+		if ($this->logEvent('STOCKOUT', self::STATUS_SHIPPED, self::STATUS_SHIPPED, $movementNote, $user) < 0) {
+			$this->db->rollback();
+			return -1;
+		}
+		if ($this->ensureProductLinks($user) < 0) {
+			$this->db->rollback();
+			return -1;
+		}
+		if ($this->ensureProductAgendaEvents($user, 'ship', $now) < 0) {
+			$this->db->rollback();
+			return -1;
+		}
+
+		$this->db->commit();
+		return 1;
+	}
+
+	/**
+	 * Reverse a physically shipped Supplier Return without destroying its audit
+	 * trail. Each outbound movement gets a native compensating movement and the
+	 * document becomes Reversed.
+	 *
+	 * @param User $user Current user
+	 * @param string $note Audit note
+	 * @return int 1 on success, -1 on error
+	 */
+	public function reverseShipment($user, $note = '')
+	{
+		global $langs;
+
+		if (!in_array($this->status, array(self::STATUS_SHIPPED, self::STATUS_CLOSED), true)) {
+			$this->error = 'ErrorSupplierReturnInvalidTransition';
+			return -1;
+		}
+
+		$this->db->begin();
+
+		$sql = "SELECT status FROM ".MAIN_DB_PREFIX."svc_supplier_return";
+		$sql .= " WHERE rowid = ".((int) $this->id);
+		$sql .= " AND entity = ".((int) $this->entity);
+		if ($this->db->type !== 'sqlite3') {
+			$sql .= " FOR UPDATE";
+		}
+		$resql = $this->db->query($sql);
+		if (!$resql || !($current = $this->db->fetch_object($resql))) {
+			if ($resql) {
+				$this->db->free($resql);
+			}
+			$this->error = $resql ? 'ErrorRecordNotFound' : $this->db->lasterror();
+			$this->db->rollback();
+			return -1;
+		}
+		$this->db->free($resql);
+		if (!in_array((string) $current->status, array(self::STATUS_SHIPPED, self::STATUS_CLOSED), true)) {
+			$this->error = 'ErrorSupplierReturnConcurrentUpdate';
+			$this->db->rollback();
+			return -1;
+		}
+
+		if ($this->fetchLines() < 0 || empty($this->lines)) {
+			$this->error = 'ErrorSupplierReturnNeedsLines';
+			$this->db->rollback();
+			return -1;
+		}
+
+		$stock = new WarrantySvcStockService($this->db);
+		$reversalIds = array();
+		foreach ($this->lines as $line) {
+			if ((int) $line->fk_stock_movement_out <= 0) {
+				$this->error = 'ErrorSupplierReturnMissingStockMovement';
+				$this->db->rollback();
+				return -1;
+			}
+
+			if ((int) $line->fk_stock_movement_reversal > 0) {
+				$reversalIds[(int) $line->fk_stock_movement_reversal] = '#'.((int) $line->fk_stock_movement_reversal);
+				continue;
+			}
+
+			$reversalId = $stock->reverseOutboundMovement(
+				$user,
+				(int) $line->fk_stock_movement_out,
+				array(self::STOCK_ORIGIN_TYPE, self::LEGACY_STOCK_ORIGIN_TYPE),
+				(int) $this->id
+			);
+			if ($reversalId <= 0) {
+				$this->error = $stock->error;
+				$this->errors = $stock->errors;
+				$this->db->rollback();
+				return -1;
+			}
+
+			$sql = "UPDATE ".MAIN_DB_PREFIX."svc_supplier_return_line";
+			$sql .= " SET fk_stock_movement_reversal = ".((int) $reversalId);
+			$sql .= " WHERE rowid = ".((int) $line->id);
+			$sql .= " AND fk_supplier_return = ".((int) $this->id);
+			$sql .= " AND (fk_stock_movement_reversal IS NULL OR fk_stock_movement_reversal = 0)";
+			$resql = $this->db->query($sql);
+			if (!$resql) {
+				$this->error = $this->db->lasterror();
+				$this->db->rollback();
+				return -1;
+			}
+			if ($this->db->affected_rows($resql) < 1) {
+				$this->error = 'ErrorSupplierReturnConcurrentUpdate';
+				$this->db->rollback();
+				return -1;
+			}
+
+			$line->fk_stock_movement_reversal = $reversalId;
+			$reversalIds[(int) $reversalId] = '#'.((int) $reversalId);
+		}
+
+		$oldStatus = $this->status;
+		$now = dol_now();
+		$sql = "UPDATE ".MAIN_DB_PREFIX."svc_supplier_return SET";
+		$sql .= " status = '".self::STATUS_REVERSED."'";
+		$sql .= ", date_closed = NULL";
+		$sql .= ", fk_user_modif = ".((int) $user->id);
+		$sql .= " WHERE rowid = ".((int) $this->id);
+		$sql .= " AND entity = ".((int) $this->entity);
+		$sql .= " AND status IN ('".self::STATUS_SHIPPED."','".self::STATUS_CLOSED."')";
+		$resql = $this->db->query($sql);
+		if (!$resql || $this->db->affected_rows($resql) < 1) {
+			$this->error = $resql ? 'ErrorSupplierReturnConcurrentUpdate' : $this->db->lasterror();
+			$this->db->rollback();
+			return -1;
+		}
+
+		$this->status = self::STATUS_REVERSED;
+		$this->date_closed = null;
+		$auditNote = $langs->transnoentitiesnoconv(
+			'SupplierReturnStockRestoreAuditNote',
+			!empty($reversalIds) ? implode(', ', array_values($reversalIds)) : '—'
+		);
+		if ($note !== '') {
+			$auditNote .= ' - '.$note;
+		}
+		if ($this->logEvent('REVERSE', $oldStatus, self::STATUS_REVERSED, $auditNote, $user) < 0) {
+			$this->db->rollback();
+			return -1;
+		}
+		if ($this->ensureProductLinks($user) < 0) {
+			$this->db->rollback();
+			return -1;
+		}
+		if ($this->ensureProductAgendaEvents($user, 'reverse', $now) < 0) {
+			$this->db->rollback();
+			return -1;
+		}
+
 		$this->db->commit();
 		return 1;
 	}
@@ -751,7 +1075,7 @@ class SvcSupplierReturn extends CommonObject
 		return 1;
 	}
 
-	public function logEvent($eventCode, $oldStatus, $newStatus, $note, $user)
+	public function logEvent($eventCode, $oldStatus, $newStatus, $note, $user, $dateEvent = null)
 	{
 		global $conf;
 		$sql = "INSERT INTO ".MAIN_DB_PREFIX."svc_supplier_return_log";
@@ -761,7 +1085,7 @@ class SvcSupplierReturn extends CommonObject
 		$sql .= ", ".$this->sqlStringOrNull($oldStatus);
 		$sql .= ", ".$this->sqlStringOrNull($newStatus);
 		$sql .= ", ".$this->sqlStringOrNull($note);
-		$sql .= ", '".$this->db->idate(dol_now())."'";
+		$sql .= ", '".$this->db->idate(!empty($dateEvent) ? $dateEvent : dol_now())."'";
 		$sql .= ", ".((int) $user->id).")";
 		if (!$this->db->query($sql)) {
 			$this->error = $this->db->lasterror();
@@ -832,6 +1156,7 @@ class SvcSupplierReturn extends CommonObject
 			self::STATUS_SHIPPED=>array('SupplierReturnStatusShipped','status4'),
 			self::STATUS_CLOSED=>array('SupplierReturnStatusClosed','status6'),
 			self::STATUS_CANCELLED=>array('SupplierReturnStatusCancelled','status9'),
+			self::STATUS_REVERSED=>array('SupplierReturnStatusReversed','status9'),
 		);
 		$item = isset($map[$this->status]) ? $map[$this->status] : array($this->status,'status0');
 		$label = $langs->trans($item[0]);

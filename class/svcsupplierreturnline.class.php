@@ -24,6 +24,7 @@ class SvcSupplierReturnLine extends CommonObjectLine
 	public $fk_reception_line;
 	public $reason;
 	public $fk_stock_movement_out;
+	public $fk_stock_movement_reversal;
 	public $rang = 0;
 
 	public function __construct($db)
@@ -94,7 +95,7 @@ class SvcSupplierReturnLine extends CommonObjectLine
 		}
 
 		$sql = "SELECT rowid FROM ".MAIN_DB_PREFIX."stock_mouvement";
-		$sql .= " WHERE origintype = 'svcsupplierreturn'";
+		$sql .= " WHERE origintype IN ('SvcSupplierReturn@warrantysvc','svcsupplierreturn')";
 		$sql .= " AND fk_origin = ".((int) $this->fk_supplier_return);
 		$sql .= " AND value < 0";
 		$sql .= $this->db->plimit(1);
@@ -207,7 +208,7 @@ class SvcSupplierReturnLine extends CommonObjectLine
 		}
 
 		$sql = "INSERT INTO ".MAIN_DB_PREFIX."svc_supplier_return_line";
-		$sql .= " (fk_supplier_return, fk_product, qty, batch, fk_supplier_order_line, fk_reception_line, reason, fk_stock_movement_out, rang) VALUES (";
+		$sql .= " (fk_supplier_return, fk_product, qty, batch, fk_supplier_order_line, fk_reception_line, reason, fk_stock_movement_out, fk_stock_movement_reversal, rang) VALUES (";
 		$sql .= ((int) $this->fk_supplier_return);
 		$sql .= ", ".((int) $this->fk_product);
 		$sql .= ", ".price2num((float) $this->qty, 'MU');
@@ -216,6 +217,7 @@ class SvcSupplierReturnLine extends CommonObjectLine
 		$sql .= ", ".$this->sqlIntOrNull($this->fk_reception_line);
 		$sql .= ", ".$this->sqlStringOrNull($this->reason);
 		$sql .= ", ".$this->sqlIntOrNull($this->fk_stock_movement_out);
+		$sql .= ", ".$this->sqlIntOrNull($this->fk_stock_movement_reversal);
 		$sql .= ", ".((int) $this->rang);
 		$sql .= ")";
 		if (!$this->db->query($sql)) {
@@ -248,6 +250,7 @@ class SvcSupplierReturnLine extends CommonObjectLine
 		$this->fk_reception_line = (int) $obj->fk_reception_line;
 		$this->reason = (string) $obj->reason;
 		$this->fk_stock_movement_out = (int) $obj->fk_stock_movement_out;
+		$this->fk_stock_movement_reversal = (int) $obj->fk_stock_movement_reversal;
 		$this->rang = (int) $obj->rang;
 		return 1;
 	}

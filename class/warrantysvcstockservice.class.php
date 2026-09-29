@@ -486,7 +486,12 @@ class WarrantySvcStockService
 			return -1;
 		}
 
-		$inventoryCode = substr('WSVC-OUT-'.preg_replace('/[^A-Za-z0-9_-]/', '', $originType).'-'.$originId.'-'.$lineId, 0, 128);
+		$inventoryOriginKey = ($originType === 'SvcSupplierReturn@warrantysvc') ? 'svcsupplierreturn' : $originType;
+		$originAliases = array($originType);
+		if ($originType === 'SvcSupplierReturn@warrantysvc') {
+			$originAliases[] = 'svcsupplierreturn';
+		}
+		$inventoryCode = substr('WSVC-OUT-'.preg_replace('/[^A-Za-z0-9_-]/', '', $inventoryOriginKey).'-'.$originId.'-'.$lineId, 0, 128);
 
 		/*
 		 * Keep the idempotency lookup, stock check and actual movement in one
@@ -514,10 +519,18 @@ class WarrantySvcStockService
 		}
 		$this->db->free($resql);
 
-		$sql = "SELECT rowid, fk_product, fk_entrepot, value, type_mouvement, batch";
+		$sql = "SELECT rowid, fk_product, fk_entrepot, value, type_mouvement, batch, origintype";
 		$sql .= " FROM ".MAIN_DB_PREFIX."stock_mouvement";
 		$sql .= " WHERE inventorycode = '".$this->db->escape($inventoryCode)."'";
-		$sql .= " AND origintype = '".$this->db->escape($originType)."'";
+		if (count($originAliases) > 1) {
+			$escapedOriginAliases = array();
+			foreach ($originAliases as $originAlias) {
+				$escapedOriginAliases[] = "'".$this->db->escape($originAlias)."'";
+			}
+			$sql .= " AND origintype IN (".implode(',', $escapedOriginAliases).")";
+		} else {
+			$sql .= " AND origintype = '".$this->db->escape($originType)."'";
+		}
 		$sql .= " AND fk_origin = ".$originId;
 		$sql .= " ORDER BY rowid DESC";
 		$sql .= $this->db->plimit(1);
@@ -540,6 +553,16 @@ class WarrantySvcStockService
 				$this->error = 'ErrorWarrantySvcStockMovementConflict';
 				$this->db->rollback();
 				return -1;
+			}
+			if ((string) $existing->origintype !== $originType) {
+				$sql = "UPDATE ".MAIN_DB_PREFIX."stock_mouvement";
+				$sql .= " SET origintype = '".$this->db->escape($originType)."'";
+				$sql .= " WHERE rowid = ".((int) $existing->rowid);
+				if (!$this->db->query($sql)) {
+					$this->error = $this->db->lasterror();
+					$this->db->rollback();
+					return -1;
+				}
 			}
 			$this->db->commit();
 			return (int) $existing->rowid;
@@ -575,5 +598,104 @@ class WarrantySvcStockService
 
 		$this->db->commit();
 		return (int) $result;
+	}
+
+	/**
+	 * Reverse an existing outbound stock movement using Dolibarr's native
+	 * MouvementStock::reverseMovement() implementation.
+	 *
+	 * The lookup is idempotent: if the standard REVERT-* movement already
+	 * exists, its rowid is returned instead of creating a second reversal.
+	 *
+	 * @param User $user Current user
+	 * @param int  $movementId Outbound stock movement rowid
+	 * @param string|array<string> $expectedOriginType Optional origin type guard
+	 * @param int $expectedOriginId Optional origin id guard
+	 * @return int Reversal movement rowid or -1 on error
+	 */
+	public function reverseOutboundMovement($user, $movementId, $expectedOriginType = '', $expectedOriginId = 0)
+	{
+		$this->error = '';
+		$this->errors = array();
+
+		$movementId = (int) $movementId;
+		if ($movementId <= 0) {
+			$this->error = 'ErrorWarrantySvcInvalidStockMovement';
+			return -1;
+		}
+
+		$movement = new MouvementStock($this->db);
+		if ($movement->fetch($movementId) <= 0) {
+			$this->error = !empty($movement->error) ? $movement->error : 'ErrorRecordNotFound';
+			return -1;
+		}
+
+		if ((int) $movement->type !== 2 || (float) $movement->qty >= 0) {
+			$this->error = 'ErrorWarrantySvcStockMovementConflict';
+			return -1;
+		}
+		if ($expectedOriginType !== '') {
+			$expectedOriginTypes = is_array($expectedOriginType) ? $expectedOriginType : array($expectedOriginType);
+			if (!in_array((string) $movement->origin_type, $expectedOriginTypes, true)) {
+				$this->error = 'ErrorWarrantySvcStockMovementConflict';
+				return -1;
+			}
+		}
+		if ((int) $expectedOriginId > 0 && (int) $movement->origin_id !== (int) $expectedOriginId) {
+			$this->error = 'ErrorWarrantySvcStockMovementConflict';
+			return -1;
+		}
+
+		$revertCode = 'REVERT-'.(!empty($movement->inventorycode)
+			? (string) $movement->inventorycode
+			: dol_print_date($movement->datem, '%Y%m%d%His'));
+
+		$sql = "SELECT rowid FROM ".MAIN_DB_PREFIX."stock_mouvement";
+		$sql .= " WHERE inventorycode = '".$this->db->escape($revertCode)."'";
+		if (!empty($movement->origin_type)) {
+			$sql .= " AND origintype = '".$this->db->escape((string) $movement->origin_type)."'";
+		}
+		if ((int) $movement->origin_id > 0) {
+			$sql .= " AND fk_origin = ".((int) $movement->origin_id);
+		}
+		$sql .= " ORDER BY rowid DESC";
+		$sql .= $this->db->plimit(1);
+		$resql = $this->db->query($sql);
+		if (!$resql) {
+			$this->error = $this->db->lasterror();
+			return -1;
+		}
+		$existing = $this->db->fetch_object($resql);
+		$this->db->free($resql);
+		if ($existing) {
+			return (int) $existing->rowid;
+		}
+
+		/*
+		 * reverseMovement() intentionally uses the current global Dolibarr user.
+		 * The caller passes that same authenticated user here; keeping the native
+		 * helper preserves core batch/serial handling and STOCK_MOVEMENT trigger
+		 * behaviour.
+		 */
+		$result = $movement->reverseMovement();
+		if ($result <= 0) {
+			$this->error = !empty($movement->error) ? $movement->error : 'ErrorWarrantySvcStockMovementReverseFailed';
+			$this->errors = !empty($movement->errors) ? $movement->errors : array();
+			return -1;
+		}
+
+		$resql = $this->db->query($sql);
+		if (!$resql) {
+			$this->error = $this->db->lasterror();
+			return -1;
+		}
+		$created = $this->db->fetch_object($resql);
+		$this->db->free($resql);
+		if (!$created) {
+			$this->error = 'ErrorWarrantySvcStockMovementReverseFailed';
+			return -1;
+		}
+
+		return (int) $created->rowid;
 	}
 }
