@@ -95,7 +95,7 @@ class SvcSupplierReturnLine extends CommonObjectLine
 		}
 
 		$sql = "SELECT rowid FROM ".MAIN_DB_PREFIX."stock_mouvement";
-		$sql .= " WHERE origintype = 'svcsupplierreturn'";
+		$sql .= " WHERE origintype IN ('SvcSupplierReturn@warrantysvc','svcsupplierreturn')";
 		$sql .= " AND fk_origin = ".((int) $this->fk_supplier_return);
 		$sql .= " AND value < 0";
 		$sql .= $this->db->plimit(1);
