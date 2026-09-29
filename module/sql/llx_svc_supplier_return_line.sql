@@ -9,6 +9,7 @@ CREATE TABLE llx_svc_supplier_return_line(
 	fk_reception_line        INTEGER,
 	reason                   TEXT,
 	fk_stock_movement_out    INTEGER,
+	fk_stock_movement_reversal INTEGER,
 	rang                     INTEGER DEFAULT 0,
 	tms                      TIMESTAMP
 ) ENGINE=innodb;
