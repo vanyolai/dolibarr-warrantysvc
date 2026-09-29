@@ -352,11 +352,54 @@ $buildProductOptions = function ($choices, $selectedProductId = 0) use ($db, $la
 	return $options;
 };
 
-$buildBatchOptions = function ($choices) use ($langs) {
+$buildBatchOptions = function ($product, $warehouseId, $returnLines, $excludeLineId = 0) use ($langs) {
 	$options = array();
-	foreach ($choices as $batch => $available) {
-		$options[(string) $batch] = (string) $batch.' ('.$langs->transnoentitiesnoconv('Stock').': '.price($available, 0, $langs, 0, 0, -1).')';
+	if (!is_object($product) || empty($product->id) || (int) $warehouseId <= 0) {
+		return $options;
 	}
+
+	/*
+	 * Use Dolibarr's own stock loader. For batch/serial managed products it
+	 * populates stock_warehouse[warehouse]->detail_batch through
+	 * Productbatch::findAll(), i.e. the same source used by the core stock UI.
+	 */
+	if ($product->load_stock('novirtual') < 0) {
+		return $options;
+	}
+	if (empty($product->stock_warehouse[(int) $warehouseId])
+		|| empty($product->stock_warehouse[(int) $warehouseId]->detail_batch)
+		|| !is_array($product->stock_warehouse[(int) $warehouseId]->detail_batch)
+	) {
+		return $options;
+	}
+
+	$reserved = array();
+	foreach ($returnLines as $returnLine) {
+		if ((int) $returnLine->id === (int) $excludeLineId
+			|| (int) $returnLine->fk_product !== (int) $product->id
+			|| trim((string) $returnLine->batch) === ''
+		) {
+			continue;
+		}
+		$key = trim((string) $returnLine->batch);
+		if (!isset($reserved[$key])) {
+			$reserved[$key] = 0.0;
+		}
+		$reserved[$key] += (float) $returnLine->qty;
+	}
+
+	foreach ($product->stock_warehouse[(int) $warehouseId]->detail_batch as $detail) {
+		$batch = trim((string) $detail->batch);
+		if ($batch === '') {
+			continue;
+		}
+		$available = (float) $detail->qty - (isset($reserved[$batch]) ? (float) $reserved[$batch] : 0.0);
+		if ($available <= 0.00000001) {
+			continue;
+		}
+		$options[$batch] = $batch.' ('.$langs->transnoentitiesnoconv('Stock').': '.price($available, 0, $langs, 0, 0, -1).')';
+	}
+
 	return $options;
 };
 
@@ -408,14 +451,12 @@ foreach ($object->lines as $line) {
 
 		print '<td>';
 		if ($hasBatch) {
-			$batchChoices = $stockSelector->getSupplierReturnBatchChoices(
-				(int) $object->fk_soc_supplier,
+			$batchOptions = $buildBatchOptions(
+				$selectedProduct,
 				(int) $object->fk_warehouse_source,
-				$editProductId,
-				(int) $object->id,
+				$object->lines,
 				(int) $line->id
 			);
-			$batchOptions = $buildBatchOptions($batchChoices);
 			if ($editBatch !== '' && !isset($batchOptions[$editBatch])) {
 				$batchOptions[$editBatch] = $editBatch;
 			}
@@ -488,14 +529,12 @@ if ($permwrite && !$supplierReturnStockLocked && in_array($object->status,array(
 	$addHasBatch = $addProductLoaded && (method_exists($addProduct, 'hasbatch') ? (bool) $addProduct->hasbatch() : !empty($addProduct->status_batch));
 	$batchOptions = array();
 	if ($addHasBatch) {
-		$batchChoices = $stockSelector->getSupplierReturnBatchChoices(
-			(int) $object->fk_soc_supplier,
+		$batchOptions = $buildBatchOptions(
+			$addProduct,
 			(int) $object->fk_warehouse_source,
-			$addProductId,
-			(int) $object->id,
+			$object->lines,
 			0
 		);
-		$batchOptions = $buildBatchOptions($batchChoices);
 		print Form::selectarray('line_batch', $batchOptions, $addBatch, $langs->transnoentitiesnoconv('SelectSerialOrLot'), 0, 0, '', 0, 0, 0, '', 'minwidth200');
 	} elseif ($addProductLoaded) {
 		print '—<input type="hidden" name="line_batch" value="">';
