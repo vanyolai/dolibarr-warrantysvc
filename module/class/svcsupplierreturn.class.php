@@ -27,6 +27,7 @@ class SvcSupplierReturn extends CommonObject
 	const STATUS_SHIPPED = 'shipped';
 	const STATUS_CLOSED = 'closed';
 	const STATUS_CANCELLED = 'cancelled';
+	const STATUS_REVERSED = 'reversed';
 
 	public $fields = array(
 		'rowid' => array('type'=>'integer', 'label'=>'TechnicalID', 'enabled'=>1, 'visible'=>-1, 'notnull'=>1),
@@ -926,7 +927,7 @@ class SvcSupplierReturn extends CommonObject
 		$oldStatus = $this->status;
 		$now = dol_now();
 		$sql = "UPDATE ".MAIN_DB_PREFIX."svc_supplier_return SET";
-		$sql .= " status = '".self::STATUS_CANCELLED."'";
+		$sql .= " status = '".self::STATUS_REVERSED."'";
 		$sql .= ", date_closed = NULL";
 		$sql .= ", fk_user_modif = ".((int) $user->id);
 		$sql .= " WHERE rowid = ".((int) $this->id);
@@ -939,7 +940,7 @@ class SvcSupplierReturn extends CommonObject
 			return -1;
 		}
 
-		$this->status = self::STATUS_CANCELLED;
+		$this->status = self::STATUS_REVERSED;
 		$this->date_closed = null;
 		$auditNote = $langs->transnoentitiesnoconv(
 			'SupplierReturnStockRestoreAuditNote',
@@ -948,7 +949,7 @@ class SvcSupplierReturn extends CommonObject
 		if ($note !== '') {
 			$auditNote .= ' - '.$note;
 		}
-		if ($this->logEvent('REVERSE', $oldStatus, self::STATUS_CANCELLED, $auditNote, $user) < 0) {
+		if ($this->logEvent('REVERSE', $oldStatus, self::STATUS_REVERSED, $auditNote, $user) < 0) {
 			$this->db->rollback();
 			return -1;
 		}
@@ -1151,6 +1152,7 @@ class SvcSupplierReturn extends CommonObject
 			self::STATUS_SHIPPED=>array('SupplierReturnStatusShipped','status4'),
 			self::STATUS_CLOSED=>array('SupplierReturnStatusClosed','status6'),
 			self::STATUS_CANCELLED=>array('SupplierReturnStatusCancelled','status9'),
+			self::STATUS_REVERSED=>array('SupplierReturnStatusReversed','status9'),
 		);
 		$item = isset($map[$this->status]) ? $map[$this->status] : array($this->status,'status0');
 		$label = $langs->trans($item[0]);
