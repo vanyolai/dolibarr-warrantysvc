@@ -29,6 +29,9 @@ class SvcSupplierReturn extends CommonObject
 	const STATUS_CANCELLED = 'cancelled';
 	const STATUS_REVERSED = 'reversed';
 
+	const STOCK_ORIGIN_TYPE = 'SvcSupplierReturn@warrantysvc';
+	const LEGACY_STOCK_ORIGIN_TYPE = 'svcsupplierreturn';
+
 	public $fields = array(
 		'rowid' => array('type'=>'integer', 'label'=>'TechnicalID', 'enabled'=>1, 'visible'=>-1, 'notnull'=>1),
 		'ref' => array('type'=>'varchar(50)', 'label'=>'Ref', 'enabled'=>1, 'visible'=>1, 'notnull'=>1),
@@ -127,7 +130,7 @@ class SvcSupplierReturn extends CommonObject
 		}
 
 		$sql = "SELECT rowid FROM ".MAIN_DB_PREFIX."stock_mouvement";
-		$sql .= " WHERE origintype = 'svcsupplierreturn'";
+		$sql .= " WHERE origintype IN ('".self::STOCK_ORIGIN_TYPE."','".self::LEGACY_STOCK_ORIGIN_TYPE."')";
 		$sql .= " AND fk_origin = ".((int) $this->id);
 		$sql .= " AND value < 0";
 		$sql .= $this->db->plimit(1);
@@ -748,7 +751,7 @@ class SvcSupplierReturn extends CommonObject
 			}
 			$movementId = $stock->createOutboundMovement(
 				$user,
-				'svcsupplierreturn',
+				array(self::STOCK_ORIGIN_TYPE, self::LEGACY_STOCK_ORIGIN_TYPE),
 				(int) $this->id,
 				(int) $line->id,
 				(int) $line->fk_product,
