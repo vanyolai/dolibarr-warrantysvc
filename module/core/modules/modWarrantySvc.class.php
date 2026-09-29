@@ -44,7 +44,7 @@ class modWarrantySvc extends DolibarrModules
 		// Module name (no spaces), used if translation string 'ModuleXXXName' not found
 		$this->name = preg_replace('/^mod/i', '', get_class($this));
 		$this->description = 'ModuleWarrantySvcDesc';
-		$this->version = '1.45.0';
+		$this->version = '1.46.0';
 		$this->const_name = 'MAIN_MODULE_'.strtoupper($this->name);
 		$this->picto = 'technic';
 
@@ -675,6 +675,7 @@ class modWarrantySvc extends DolibarrModules
 	{
 		global $conf, $langs, $user;
 
+		$langs->load('warrantysvc@warrantysvc');
 		dol_include_once('/warrantysvc/class/svcsupplierreturn.class.php');
 		require_once DOL_DOCUMENT_ROOT.'/user/class/user.class.php';
 
