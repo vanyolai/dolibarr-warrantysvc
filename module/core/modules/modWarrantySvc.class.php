@@ -702,6 +702,17 @@ class modWarrantySvc extends DolibarrModules
 				return -1;
 			}
 
+			// Dolibarr's stock movement origin renderer resolves external objects
+			// in Class@Module form. Normalize legacy metadata only; quantities,
+			// warehouses, batches and movement rowids are left untouched.
+			$sql = "UPDATE ".MAIN_DB_PREFIX."stock_mouvement";
+			$sql .= " SET origintype = '".$this->db->escape(SvcSupplierReturn::STOCK_ORIGIN_TYPE)."'";
+			$sql .= " WHERE fk_origin = ".((int) $return->id);
+			$sql .= " AND origintype = '".$this->db->escape(SvcSupplierReturn::LEGACY_STOCK_ORIGIN_TYPE)."'";
+			if (!$this->db->query($sql)) {
+				return -1;
+			}
+
 			$actor = null;
 			$actorId = (int) (!empty($return->fk_user_modif) ? $return->fk_user_modif : $return->fk_user_creat);
 			if ($actorId > 0) {
