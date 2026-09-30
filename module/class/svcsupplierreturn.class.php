@@ -1053,12 +1053,52 @@ class SvcSupplierReturn extends CommonObject
 			return -1;
 		}
 		if ($hasMovements > 0) {
-			$this->error = 'ErrorSupplierReturnDeleteStockMovements';
-			$this->db->rollback();
-			return -1;
+			if ($this->status !== self::STATUS_REVERSED) {
+				$this->error = 'ErrorSupplierReturnDeleteStockMovements';
+				$this->db->rollback();
+				return -1;
+			}
+
+			// A physically shipped return may be deleted only after every outbound
+			// stock movement has a recorded compensating movement. This mirrors
+			// Dolibarr's native document deletion pattern while keeping the stock
+			// movement and Product Agenda audit trail intact.
+			if ($this->fetchLines() < 0) {
+				$this->db->rollback();
+				return -1;
+			}
+			foreach ($this->lines as $line) {
+				if ((int) $line->fk_stock_movement_out <= 0 || (int) $line->fk_stock_movement_reversal <= 0) {
+					$this->error = 'ErrorSupplierReturnDeleteNeedsReversal';
+					$this->db->rollback();
+					return -1;
+				}
+
+				$sql = "SELECT rowid, value FROM ".MAIN_DB_PREFIX."stock_mouvement";
+				$sql .= " WHERE rowid = ".((int) $line->fk_stock_movement_reversal);
+				$sql .= " AND fk_product = ".((int) $line->fk_product);
+				$sql .= " AND fk_entrepot = ".((int) $this->fk_warehouse_source);
+				$sql .= $this->db->plimit(1);
+				$resql = $this->db->query($sql);
+				if (!$resql) {
+					$this->error = $this->db->lasterror();
+					$this->db->rollback();
+					return -1;
+				}
+				$reversal = $this->db->fetch_object($resql);
+				$this->db->free($resql);
+				if (!$reversal || (float) $reversal->value <= 0) {
+					$this->error = 'ErrorSupplierReturnDeleteNeedsReversal';
+					$this->db->rollback();
+					return -1;
+				}
+			}
 		}
 
+		$targetType = $this->getElementType();
 		foreach (array(
+			"DELETE FROM ".MAIN_DB_PREFIX."element_element WHERE fk_target = ".((int) $this->id)." AND targettype = '".$this->db->escape($targetType)."'",
+			"DELETE FROM ".MAIN_DB_PREFIX."element_element WHERE fk_source = ".((int) $this->id)." AND sourcetype = '".$this->db->escape($targetType)."'",
 			"DELETE FROM ".MAIN_DB_PREFIX."svc_supplier_return_log WHERE fk_supplier_return = ".((int) $this->id),
 			"DELETE FROM ".MAIN_DB_PREFIX."svc_supplier_return_line WHERE fk_supplier_return = ".((int) $this->id),
 			"DELETE FROM ".MAIN_DB_PREFIX."element_contact WHERE element_id = ".((int) $this->id)." AND fk_c_type_contact IN (SELECT rowid FROM ".MAIN_DB_PREFIX."c_type_contact WHERE element = 'svcsupplierreturn')",
