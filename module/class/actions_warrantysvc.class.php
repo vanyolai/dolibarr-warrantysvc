@@ -516,6 +516,7 @@ class ActionsWarrantySvc
 		print dolGetButtonAction('', $langs->trans('SendWarrantyConfirmation'), 'email', $url, '');
 		return 0;
 	}
+
 	/**
 	 * Register WarrantySvc business events with Dolibarr's standard
 	 * Notification module.
@@ -611,7 +612,6 @@ class ActionsWarrantySvc
 			$this->results['svcrequest'] = img_picto('', 'technic', 'class="pictofixedwidth"').dol_escape_htmltag($langs->trans('MailToSvcRequest'));
 		}
 		if ($user->hasRight('warrantysvc', 'svcwarranty', 'read')) {
-			$this->results['svcwarranty'] = img_picto('', 'bill', 'class="pictofixedwidth"').dol_escape_htmltag($langs->trans('MailToSvcWarranty'));
 			$this->results['svcwarrantyconfirmation'] = img_picto('', 'email', 'class="pictofixedwidth"').dol_escape_htmltag($langs->trans('MailToWarrantyConfirmation'));
 		}
 		if ($user->hasRight('warrantysvc', 'supplierrma', 'read')) {
