@@ -883,3 +883,6 @@ ErrorAutoWarrantyLoadShipmentLines = Automatic warranty creation failed: shipmen
 ErrorAutoWarrantyLoadBatches = Automatic warranty creation failed: serial/LOT allocations could not be loaded for shipment line %s.
 ErrorAutoWarrantyMissingBatch = Automatic warranty creation failed: batch/serial-managed Product %s has no valid serial/LOT allocation on shipment line %s.
 ErrorAutoWarrantyCreateFailed = Automatic warranty creation failed for shipment item %s: %s
+
+DocumentModelNautilus=Nautilus - Digital Nautics shipment
+NautilusWarrantyExpiry=Warranty expiry
