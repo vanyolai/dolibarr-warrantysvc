@@ -724,6 +724,11 @@ function warrantysvc_resolve_shipment_item($db, $shipmentId, $itemKey, &$error =
 	$type = $matches[1];
 	$rowId = (int) $matches[2];
 
+	if ($type === 'l' && getDolGlobalInt('WARRANTYSVC_WARRANTY_REQUIRES_LOTS')) {
+		$error = $langs->trans('ErrorWarrantyRequiresLotProduct');
+		return null;
+	}
+
 	if ($type === 'b') {
 		$sql  = "SELECT e.fk_soc, e.date_expedition, e.date_delivery, ed.rowid AS fk_expeditiondet, ed.fk_product,";
 		$sql .= " edl.batch AS serial_number, edl.qty AS covered_qty";

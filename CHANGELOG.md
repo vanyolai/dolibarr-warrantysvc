@@ -54,6 +54,8 @@
 - Existing upstream schemas are upgraded explicitly and idempotently before normal module table loading.
 
 ### Fixed
+- Serialized/LOT-only policy now also governs shipment-derived warranties: automatic shipment warranty creation skips ordinary non-LOT lines, and the manual shipment warranty wizard excludes/rejects them server-side.
+- Shipment-trigger failures are no longer queued twice in the UI; WarrantySvc now propagates the trigger error and lets Dolibarr's shipment workflow render it once.
 - Module enable/re-enable no longer reruns the complete base SQL/key set when all WarrantySvc tables already exist. This removes duplicate table/index errors from normal reactivation.
 - Removed legacy `llx_*_upgrade.sql` files from the activation scan. The old service-log migration was not idempotent and could remigrate an already-SMALLINT `condition_status`; schema upgrades now use explicit column/type introspection before changing data or DDL.
 - Historical Service Request link-type normalization, `seal_number`, Service Log `import_key`, legacy text `condition_status`, Supplier RMA quantity and Supplier Return reversal columns are now migrated programmatically and idempotently.

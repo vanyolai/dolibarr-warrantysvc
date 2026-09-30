@@ -23,6 +23,17 @@
 
 ## 0. MODULE UPGRADE / RE-ENABLE SAFETY
 
+## 0B. SHIPMENT WARRANTY POLICY / ERROR PROPAGATION
+
+- [ ] Enable "serialized/LOT products only" and automatic warranty creation on shipment validation
+- [ ] Validate a mixed shipment containing one serialized/LOT product and one ordinary physical product
+- [ ] Verify a warranty is created only for the serialized/LOT item
+- [ ] Open "Create from existing shipment" and verify the ordinary shipment line is not offered
+- [ ] Submit a crafted ordinary-line shipment item token and verify server-side rejection
+- [ ] Disable the serialized/LOT-only policy and verify ordinary physical shipment lines can create warranties again
+- [ ] Validate a shipment with no usable shipment/planned date and verify the blocking error is shown exactly once
+- [ ] Verify planned delivery remains an accepted fallback warranty start date
+
 ## 0A. NAUTILUS SHIPMENT PDF
 
 - [ ] Verify WarrantySvc is enabled and its module-parts model registration is active
