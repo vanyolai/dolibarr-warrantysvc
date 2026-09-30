@@ -876,3 +876,5 @@ ErrorSupplierReturnMissingStockMovement=A shipped Supplier Return line is missin
 ErrorSupplierReturnProductLinkFailed=Could not link the Supplier Return to the Product.
 ErrorSupplierReturnAgendaEventFailed=Could not record the Supplier Return in the Product event history.
 ErrorWarrantySvcStockMovementReverseFailed=The stock movement could not be reversed.
+ConfirmDeleteReversedSupplierReturn=Permanently delete Supplier Return %s? Stock has already been restored by compensating movements. Stock movements and Product Agenda audit entries will be preserved.
+ErrorSupplierReturnDeleteNeedsReversal=The Supplier Return cannot be deleted because at least one outbound stock movement has no valid compensating movement.
