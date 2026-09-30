@@ -162,6 +162,10 @@ class SvcWarranty extends CommonObject
 
 		if (empty($this->ref)) {
 			$this->ref = $this->getNextNumRef();
+			if (empty($this->ref)) {
+				$this->db->rollback();
+				return -1;
+			}
 		}
 
 		$now = dol_now();
@@ -501,22 +505,31 @@ class SvcWarranty extends CommonObject
 	public function getNextNumRef()
 	{
 		global $conf;
-		$year  = dol_print_date(dol_now(), '%Y');
+		$year = dol_print_date(dol_now(), '%Y');
 		$month = dol_print_date(dol_now(), '%m');
+		$prefix = 'WTY-'.$year.$month.'-';
+		$counterPosition = strlen($prefix) + 1;
 
-		$sql = "SELECT MAX(CAST(SUBSTRING(ref, 15) AS SIGNED)) as max FROM ".MAIN_DB_PREFIX."svc_warranty";
-		$sql .= " WHERE ref LIKE 'WTY-".$year.$month."-%' AND entity = ".$conf->entity;
+		// Keep the counter extraction aligned with the actual reference prefix.
+		// The previous hard-coded offset (15) only read the final digit of
+		// WTY-YYYYMM-NNNN and started reusing references after 0009.
+		$sql = "SELECT MAX(CAST(SUBSTRING(ref FROM ".$counterPosition.") AS SIGNED)) as max";
+		$sql .= " FROM ".MAIN_DB_PREFIX."svc_warranty";
+		$sql .= " WHERE ref LIKE '".$this->db->escape($prefix)."%' AND entity = ".((int) $conf->entity);
 
-		$max = 0;
 		$resql = $this->db->query($sql);
-		if ($resql) {
-			$obj = $this->db->fetch_object($resql);
-			if ($obj) {
-				$max = intval($obj->max);
-			}
+		if (!$resql) {
+			$this->error = $this->db->lasterror();
+			return '';
 		}
 
-		return 'WTY-'.$year.$month.'-'.sprintf('%04d', $max + 1);
+		$max = 0;
+		$obj = $this->db->fetch_object($resql);
+		if ($obj) {
+			$max = (int) $obj->max;
+		}
+
+		return $prefix.sprintf('%04d', $max + 1);
 	}
 
 	/**
