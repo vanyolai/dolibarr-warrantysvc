@@ -53,6 +53,10 @@
 - Existing upstream schemas are upgraded explicitly and idempotently before normal module table loading.
 
 ### Fixed
+- Module enable/re-enable no longer reruns the complete base SQL/key set when all WarrantySvc tables already exist. This removes duplicate table/index errors from normal reactivation.
+- Removed legacy `llx_*_upgrade.sql` files from the activation scan. The old service-log migration was not idempotent and could remigrate an already-SMALLINT `condition_status`; schema upgrades now use explicit column/type introspection before changing data or DDL.
+- Historical Service Request link-type normalization, `seal_number`, Service Log `import_key`, legacy text `condition_status`, Supplier RMA quantity and Supplier Return reversal columns are now migrated programmatically and idempotently.
+
 - Shipment/order automatic warranty creation now uses Dolibarr 23's native `ExpeditionLineBatch::fetchAll()` loader for serial/LOT allocations and treats technical generation failures as trigger failures, so the enclosing shipment/order transaction rolls back instead of silently completing without an expected warranty.
 - Warranty reference numbering now extracts the counter from the real `WTY-YYYYMM-` prefix length; the former hard-coded offset only read the last digit and started reusing reference numbers after `0009`.
 - Hardened Supplier Return against duplicate or partial stock deduction: concurrent shipments are serialized, existing deterministic movements are verified before reuse, stale edits are rejected, and stock-bearing returns cannot be cancelled, deleted or rolled back before Shipped.
