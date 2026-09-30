@@ -425,3 +425,5 @@
 - [ ] Verify permanent deletion remains unavailable once any physical stock movement exists
 - [ ] Re-enable the module with an older already-shipped Supplier Return and verify Product links, Product Agenda events and STOCKOUT lifecycle entries are backfilled without changing stock
 
+
+- [ ] Reverse a shipped Supplier Return, verify stock is restored, then verify the reversed return can be deleted while stock movements and Product Agenda audit entries remain
