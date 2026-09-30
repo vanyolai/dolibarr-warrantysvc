@@ -886,3 +886,12 @@ ErrorAutoWarrantyCreateFailed = Automatic warranty creation failed for shipment 
 
 DocumentModelNautilus=Nautilus - Digital Nautics shipment
 NautilusWarrantyExpiry=Warranty expiry
+
+# Shipment-level customer warranty confirmation
+MailToWarrantyConfirmation=Warranty confirmation (shipment)
+SendWarrantyConfirmation=Send warranty confirmation
+WarrantyConfirmation=Warranty confirmation
+WarrantyConfirmationForShipment=Warranty confirmation – %s
+WarrantyConfirmationEmailSubject=Warranty confirmation - %s
+WarrantyConfirmationNoWarranties=There are no warranties to send for this shipment.
+SubstWarrantyConfirmationLines=Grouped product/serial-number warranty list for the shipment
