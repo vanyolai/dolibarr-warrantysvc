@@ -44,6 +44,10 @@
 - [ ] Verify expiry uses calendar-month arithmetic from the configured Product field
 - [ ] Verify shipment line, shipment, order, quantity and serial (when present) are persisted
 - [ ] Repeat the trigger event — verify no duplicate warranty records are created
+- [ ] With at least 10 warranties already created in the same month, create another warranty and verify the reference counter continues monotonically (for example `WTY-202609-0011`) instead of reusing `0010`
+- [ ] Force a technical warranty-creation failure (for example temporarily invalidate the configured Product warranty field) and validate a shipment — verify shipment validation is rejected/rolled back with a visible error instead of silently succeeding
+- [ ] Restore the configuration and validate again — verify the warranty and shipment commit together
+- [ ] For a serial/LOT-managed product, verify automatic creation reads the exact shipment allocation and preserves its serial/LOT and quantity
 
 ### 1.3 Void Warranty
 - [ ] Open a warranty card > click "Void"
