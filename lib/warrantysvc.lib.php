@@ -340,6 +340,199 @@ function warrantysvc_supplier_return_output_dir($object)
 
 
 /**
+ * Count non-voided warranties created from a Shipment.
+ *
+ * @param DoliDB $db Database handler
+ * @param int $shipmentId Shipment id
+ * @return int
+ */
+function warrantysvc_count_shipment_warranties($db, $shipmentId)
+{
+	if ((int) $shipmentId <= 0) {
+		return 0;
+	}
+
+	$sql = "SELECT COUNT(*) AS nb FROM ".MAIN_DB_PREFIX."svc_warranty";
+	$sql .= " WHERE fk_expedition = ".((int) $shipmentId);
+	$sql .= " AND status <> 'voided'";
+	$sql .= " AND entity IN (".getEntity('svcwarranty').")";
+	$resql = $db->query($sql);
+	if (!$resql) {
+		return 0;
+	}
+	$obj = $db->fetch_object($resql);
+	$db->free($resql);
+
+	return $obj ? (int) $obj->nb : 0;
+}
+
+
+/**
+ * Return native FormMail receiver keys for a customer-facing Warranty
+ * Confirmation linked to a Shipment.
+ *
+ * Shipment-linked external contacts with an email address take priority.
+ * Otherwise the customer's default company email is selected.
+ *
+ * @param Expedition $shipment Shipment object
+ * @return array<int,string|int>
+ */
+function warrantysvc_default_warranty_confirmation_receivers($shipment)
+{
+	$receivers = array();
+
+	if (method_exists($shipment, 'liste_contact')) {
+		$contacts = $shipment->liste_contact(-1, 'external', 0, '', 1);
+		if (is_array($contacts)) {
+			foreach ($contacts as $contact) {
+				if ((int) ($contact['socid'] ?? 0) === (int) $shipment->socid && !empty($contact['email'])) {
+					$receivers[(int) $contact['id']] = (int) $contact['id'];
+				}
+			}
+		}
+	}
+	if (!empty($receivers)) {
+		return array_values($receivers);
+	}
+
+	if (!is_object($shipment->thirdparty) && method_exists($shipment, 'fetch_thirdparty')) {
+		$shipment->fetch_thirdparty();
+	}
+	if (is_object($shipment->thirdparty) && !empty($shipment->thirdparty->email)) {
+		return array('thirdparty');
+	}
+
+	return array();
+}
+
+
+/**
+ * Return grouped warranties for one Shipment.
+ *
+ * One group represents one Product + start date + expiry date combination.
+ * All serial/LOT numbers in that group are returned together.
+ *
+ * @param DoliDB $db Database handler
+ * @param int $shipmentId Shipment id
+ * @return array<int,array<string,mixed>>
+ */
+function warrantysvc_get_shipment_warranty_groups($db, $shipmentId)
+{
+	$groups = array();
+	if ((int) $shipmentId <= 0) {
+		return $groups;
+	}
+
+	$sql = "SELECT w.fk_product, w.serial_number, w.covered_qty, w.start_date, w.expiry_date,";
+	$sql .= " p.ref AS product_ref, p.label AS product_label";
+	$sql .= " FROM ".MAIN_DB_PREFIX."svc_warranty w";
+	$sql .= " LEFT JOIN ".MAIN_DB_PREFIX."product p ON p.rowid = w.fk_product";
+	$sql .= " WHERE w.fk_expedition = ".((int) $shipmentId);
+	$sql .= " AND w.status <> 'voided'";
+	$sql .= " AND w.entity IN (".getEntity('svcwarranty').")";
+	$sql .= " ORDER BY p.ref, w.start_date, w.expiry_date, w.serial_number";
+
+	$resql = $db->query($sql);
+	if (!$resql) {
+		return $groups;
+	}
+
+	$byKey = array();
+	while ($obj = $db->fetch_object($resql)) {
+		$key = ((int) $obj->fk_product)."\x1f".(string) $obj->start_date."\x1f".(string) $obj->expiry_date;
+		if (!isset($byKey[$key])) {
+			$byKey[$key] = count($groups);
+			$groups[] = array(
+				'fk_product' => (int) $obj->fk_product,
+				'product_ref' => (string) $obj->product_ref,
+				'product_label' => (string) $obj->product_label,
+				'start_date' => (string) $obj->start_date,
+				'expiry_date' => (string) $obj->expiry_date,
+				'qty' => 0.0,
+				'serials' => array(),
+			);
+		}
+
+		$idx = $byKey[$key];
+		$groups[$idx]['qty'] += (float) $obj->covered_qty;
+		$serial = trim((string) $obj->serial_number);
+		if ($serial !== '') {
+			$groups[$idx]['serials'][$serial] = $serial;
+		}
+	}
+	$db->free($resql);
+
+	foreach ($groups as &$group) {
+		$group['serials'] = array_values($group['serials']);
+	}
+	unset($group);
+
+	return $groups;
+}
+
+
+/**
+ * Render a compact HTML Warranty Confirmation summary for a Shipment email.
+ *
+ * @param DoliDB $db Database handler
+ * @param int $shipmentId Shipment id
+ * @param Translate $outputlangs Output language
+ * @return string HTML table
+ */
+function warrantysvc_render_warranty_confirmation_lines($db, $shipmentId, $outputlangs)
+{
+	$outputlangs->loadLangs(array('warrantysvc@warrantysvc', 'products', 'stocks'));
+	$groups = warrantysvc_get_shipment_warranty_groups($db, (int) $shipmentId);
+	if (empty($groups)) {
+		return '';
+	}
+
+	$html = '<table style="border-collapse:collapse;width:100%;" border="1" cellpadding="5" cellspacing="0">';
+	$html .= '<thead><tr>';
+	$html .= '<th align="left">'.dol_escape_htmltag($outputlangs->transnoentitiesnoconv('Product')).'</th>';
+	$html .= '<th align="left">'.dol_escape_htmltag($outputlangs->transnoentitiesnoconv('SvcSerialNumber')).'</th>';
+	$html .= '<th align="right">'.dol_escape_htmltag($outputlangs->transnoentitiesnoconv('Qty')).'</th>';
+	$html .= '<th align="left">'.dol_escape_htmltag($outputlangs->transnoentitiesnoconv('StartDate')).'</th>';
+	$html .= '<th align="left">'.dol_escape_htmltag($outputlangs->transnoentitiesnoconv('ExpiryDate')).'</th>';
+	$html .= '</tr></thead><tbody>';
+
+	foreach ($groups as $group) {
+		$productText = trim((string) $group['product_ref']);
+		if (!empty($group['product_label'])) {
+			$productText .= ($productText !== '' ? ' - ' : '').(string) $group['product_label'];
+		}
+
+		if (!empty($group['serials'])) {
+			$escapedSerials = array();
+			foreach ($group['serials'] as $serial) {
+				$escapedSerials[] = dol_escape_htmltag((string) $serial);
+			}
+			$serialText = implode('<br>', $escapedSerials);
+		} else {
+			$serialText = '<span style="color:#777;">&mdash;</span>';
+		}
+
+		$start = !empty($group['start_date'])
+			? dol_print_date($db->jdate($group['start_date']), 'day', false, $outputlangs)
+			: '';
+		$expiry = !empty($group['expiry_date'])
+			? dol_print_date($db->jdate($group['expiry_date']), 'day', false, $outputlangs)
+			: '';
+
+		$html .= '<tr>';
+		$html .= '<td>'.dol_escape_htmltag($productText).'</td>';
+		$html .= '<td>'.$serialText.'</td>';
+		$html .= '<td align="right">'.price((float) $group['qty'], 0, $outputlangs, 0, 0, -1).'</td>';
+		$html .= '<td>'.dol_escape_htmltag($start).'</td>';
+		$html .= '<td>'.dol_escape_htmltag($expiry).'</td>';
+		$html .= '</tr>';
+	}
+
+	$html .= '</tbody></table>';
+	return $html;
+}
+
+/**
  * Return array of tabs for a SvcWarranty card
  *
  * @param  SvcWarranty $object SvcWarranty object

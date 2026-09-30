@@ -44,7 +44,7 @@ class modWarrantySvc extends DolibarrModules
 		// Module name (no spaces), used if translation string 'ModuleXXXName' not found
 		$this->name = preg_replace('/^mod/i', '', get_class($this));
 		$this->description = 'ModuleWarrantySvcDesc';
-		$this->version = '1.46.8';
+		$this->version = '1.46.9';
 		$this->const_name = 'MAIN_MODULE_'.strtoupper($this->name);
 		$this->picto = 'technic';
 
@@ -55,7 +55,7 @@ class modWarrantySvc extends DolibarrModules
 			'login' => 0,
 			'substitutions' => 1,
 			'menus' => 0,
-			'hooks' => array('data' => array('elementproperties', 'productcard', 'productstatsinvoice', 'commonobject', 'ordercard', 'notification', 'emailtemplates', 'main'), 'entity' => '0'),
+			'hooks' => array('data' => array('elementproperties', 'productcard', 'productstatsinvoice', 'commonobject', 'ordercard', 'expeditioncard', 'notification', 'emailtemplates', 'main'), 'entity' => '0'),
 			'apis' => 1,      // api/ directory enabled (registers via Luracast)
 		);
 
@@ -695,6 +695,82 @@ class modWarrantySvc extends DolibarrModules
 
 
 	/**
+	 * Ensure editable customer-facing Warranty Confirmation email templates.
+	 *
+	 * Existing templates are never overwritten. Confirmation is Shipment-scoped,
+	 * so one email can summarize every Warranty created from that Shipment.
+	 *
+	 * @return int 1 on success, -1 on database error
+	 */
+	private function syncWarrantyConfirmationEmailTemplates()
+	{
+		global $conf;
+
+		$templates = array(
+			'hu_HU' => array(
+				'label' => 'Garancia-visszaigazolás',
+				'topic' => 'Garancia-visszaigazolás - __REF__',
+				'content' => 'Tisztelt Partnerünk!<br><br>'
+					.'Tájékoztatjuk, hogy a __REF__ szállítmányhoz tartozó alábbi termékek garanciája rendszerünkben rögzítésre került.<br><br>'
+					.'__WARRANTY_CONFIRMATION_LINES__<br><br>'
+					.'Kérjük, hogy esetleges garanciális ügyintézés során lehetőség szerint hivatkozzon a termék sorozatszámára és a kapcsolódó bizonylatra.<br><br>'
+					.'Üdvözlettel,<br>__SENDEREMAIL_SIGNATURE__',
+			),
+			'en_US' => array(
+				'label' => 'Warranty confirmation',
+				'topic' => 'Warranty confirmation - __REF__',
+				'content' => 'Dear Partner,<br><br>'
+					.'The warranties for the following products in shipment __REF__ have been registered in our system.<br><br>'
+					.'__WARRANTY_CONFIRMATION_LINES__<br><br>'
+					.'For warranty service, please refer to the product serial number and the related document whenever possible.<br><br>'
+					.'Kind regards,<br>__SENDEREMAIL_SIGNATURE__',
+			),
+		);
+
+		foreach ($templates as $lang => $tpl) {
+			$sql = "SELECT rowid FROM ".MAIN_DB_PREFIX."c_email_templates";
+			$sql .= " WHERE entity = ".((int) $conf->entity);
+			$sql .= " AND type_template = 'svcwarrantyconfirmation'";
+			$sql .= " AND lang = '".$this->db->escape($lang)."'";
+			$sql .= " AND active = 1";
+			$sql .= $this->db->plimit(1);
+			$resql = $this->db->query($sql);
+			if (!$resql) {
+				return -1;
+			}
+			$exists = (bool) $this->db->fetch_object($resql);
+			$this->db->free($resql);
+			if ($exists) {
+				continue;
+			}
+
+			$sql = "INSERT INTO ".MAIN_DB_PREFIX."c_email_templates";
+			$sql .= " (entity, module, type_template, lang, private, fk_user, datec, label, position, defaultfortype, enabled, active, topic, joinfiles, content)";
+			$sql .= " VALUES (";
+			$sql .= ((int) $conf->entity);
+			$sql .= ", 'warrantysvc'";
+			$sql .= ", 'svcwarrantyconfirmation'";
+			$sql .= ", '".$this->db->escape($lang)."'";
+			$sql .= ", 0, NULL";
+			$sql .= ", '".$this->db->idate(dol_now())."'";
+			$sql .= ", '".$this->db->escape($tpl['label'])."'";
+			$sql .= ", 10, 1";
+			$sql .= ", '1'";
+			$sql .= ", 1";
+			$sql .= ", '".$this->db->escape($tpl['topic'])."'";
+			$sql .= ", 0";
+			$sql .= ", '".$this->db->escape($tpl['content'])."'";
+			$sql .= ")";
+			if (!$this->db->query($sql)) {
+				return -1;
+			}
+		}
+
+		return 1;
+	}
+
+
+	/**
 	 * Ensure an editable Dolibarr email template exists for Supplier Returns.
 	 *
 	 * Existing templates are never overwritten. We only seed the language when
@@ -968,6 +1044,9 @@ class modWarrantySvc extends DolibarrModules
 			return -1;
 		}
 		if ($this->syncNotificationEventCatalog() < 0) {
+			return -1;
+		}
+		if ($this->syncWarrantyConfirmationEmailTemplates() < 0) {
 			return -1;
 		}
 		if ($this->syncSupplierReturnEmailTemplates() < 0) {

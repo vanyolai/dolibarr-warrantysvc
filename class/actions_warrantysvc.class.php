@@ -471,6 +471,53 @@ class ActionsWarrantySvc
 	}
 
 	/**
+	 * Add the grouped customer Warranty Confirmation action to Shipment cards.
+	 *
+	 * @param  array       $parameters  Hook parameters
+	 * @param  object      $object      Current object
+	 * @param  string      $action      Current action
+	 * @param  HookManager $hookmanager Hook manager
+	 * @return int                      0 = continue core buttons
+	 */
+	public function addMoreActionsButtons($parameters, &$object, &$action, $hookmanager)
+	{
+		global $langs, $user;
+
+		if (!isModEnabled('warrantysvc')
+			|| !isset($object->element)
+			|| $object->element !== 'shipping'
+			|| empty($object->id)
+			|| !$user->hasRight('warrantysvc', 'svcwarranty', 'write')
+			|| $action === 'presend'
+		) {
+			return 0;
+		}
+
+		dol_include_once('/warrantysvc/lib/warrantysvc.lib.php');
+		if (warrantysvc_count_shipment_warranties($this->db, (int) $object->id) <= 0) {
+			return 0;
+		}
+
+		$langs->load('warrantysvc@warrantysvc');
+		if (!is_object($object->thirdparty)) {
+			$object->fetch_thirdparty();
+		}
+
+		$url = dolBuildUrl(
+			DOL_URL_ROOT.'/custom/warrantysvc/warranty_confirmation.php',
+			array('id' => (int) $object->id, 'action' => 'presend', 'mode' => 'init'),
+			true
+		);
+		foreach (warrantysvc_default_warranty_confirmation_receivers($object) as $receiverKey) {
+			$url .= '&receiver%5B%5D='.urlencode((string) $receiverKey);
+		}
+		$url .= '#formmailbeforetitle';
+
+		print dolGetButtonAction('', $langs->trans('SendWarrantyConfirmation'), 'email', $url, '');
+		return 0;
+	}
+
+	/**
 	 * Register WarrantySvc business events with Dolibarr's standard
 	 * Notification module.
 	 *
@@ -494,7 +541,6 @@ class ActionsWarrantySvc
 		$this->results = array(
 			'arrayofnotifsupported' => array(
 				'WARRANTYSVC_ASSIGNED',
-				'SVCWARRANTY_CREATE',
 			),
 		);
 
@@ -524,7 +570,6 @@ class ActionsWarrantySvc
 
 		$codes = array(
 			'WARRANTYSVC_ASSIGNED',
-			'SVCWARRANTY_CREATE',
 		);
 
 		$this->resprints = '<script nonce="'.getNonce().'">';
@@ -567,7 +612,7 @@ class ActionsWarrantySvc
 			$this->results['svcrequest'] = img_picto('', 'technic', 'class="pictofixedwidth"').dol_escape_htmltag($langs->trans('MailToSvcRequest'));
 		}
 		if ($user->hasRight('warrantysvc', 'svcwarranty', 'read')) {
-			$this->results['svcwarranty'] = img_picto('', 'bill', 'class="pictofixedwidth"').dol_escape_htmltag($langs->trans('MailToSvcWarranty'));
+			$this->results['svcwarrantyconfirmation'] = img_picto('', 'email', 'class="pictofixedwidth"').dol_escape_htmltag($langs->trans('MailToWarrantyConfirmation'));
 		}
 		if ($user->hasRight('warrantysvc', 'supplierrma', 'read')) {
 			$this->results['svcsupplierrma'] = img_picto('', 'tools', 'class="pictofixedwidth"').dol_escape_htmltag($langs->trans('MailToSupplierRma'));

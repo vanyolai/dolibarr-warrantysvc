@@ -1610,6 +1610,23 @@ if ($action == 'edit') {
 			.(!empty($object->fk_product) ? '&fk_product='.$object->fk_product : '');
 		print dolGetButtonAction('', $langs->trans('NewSvcRequest'), 'default', $sr_url, '');
 	}
+	if ($permwrite && !empty($object->fk_expedition) && $display_status != SvcWarranty::STATUS_VOIDED) {
+		require_once DOL_DOCUMENT_ROOT.'/expedition/class/expedition.class.php';
+		$confirmationShipment = new Expedition($db);
+		if ($confirmationShipment->fetch((int) $object->fk_expedition) > 0) {
+			$confirmationShipment->fetch_thirdparty();
+			$confirmationUrl = dolBuildUrl(
+				DOL_URL_ROOT.'/custom/warrantysvc/warranty_confirmation.php',
+				array('id' => (int) $confirmationShipment->id, 'action' => 'presend', 'mode' => 'init'),
+				true
+			);
+			foreach (warrantysvc_default_warranty_confirmation_receivers($confirmationShipment) as $receiverKey) {
+				$confirmationUrl .= '&receiver%5B%5D='.urlencode((string) $receiverKey);
+			}
+			$confirmationUrl .= '#formmailbeforetitle';
+			print dolGetButtonAction('', $langs->trans('SendWarrantyConfirmation'), 'email', $confirmationUrl, '');
+		}
+	}
 	if ($permwrite && $display_status != SvcWarranty::STATUS_VOIDED) {
 		print dolGetButtonAction('', $langs->trans('VoidWarranty'), 'danger', $_SERVER['PHP_SELF'].'?id='.$object->id.'&action=void&token='.newToken(), '');
 	}

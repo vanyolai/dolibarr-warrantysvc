@@ -207,9 +207,18 @@ class pdf_nautilus extends pdf_espadon
             }
         }
 
+        // Nautilus is a presentation model: consolidate repeated serialized
+        // shipment lines only for the generated PDF, then restore the original
+        // Shipment lines unchanged.
+        $originalLines = $object->lines;
+        if (!empty($object->lines) && is_array($object->lines)) {
+            $object->lines = $this->groupShipmentLinesForPdf($object->lines);
+        }
+
         try {
             return parent::write_file($object, $outputlangs, $srctemplatepath, $hidedetails, $hidedesc, $hideref);
         } finally {
+            $object->lines = $originalLines;
             foreach ($decoratedLines as $index) {
                 if (isset($object->lines[$index]->array_options[self::WARRANTY_EXPIRY_COLUMN])) {
                     unset($object->lines[$index]->array_options[self::WARRANTY_EXPIRY_COLUMN]);
@@ -373,6 +382,128 @@ class pdf_nautilus extends pdf_espadon
         }
     }
 
+    /**
+     * Merge repeated serialized/LOT shipment lines for PDF presentation only.
+     *
+     * A group must have the same Product, rendered warranty expiry and other
+     * printable line semantics. Therefore different warranty expiry dates
+     * always remain separate PDF rows while equal rows list all serials below
+     * the Product description.
+     *
+     * @param array<int,object> $lines Shipment lines
+     * @return array<int,object>
+     */
+    private function groupShipmentLinesForPdf(array $lines)
+    {
+        $grouped = array();
+        $positions = array();
+
+        foreach ($lines as $line) {
+            $batchDetails = !empty($line->detail_batch) && is_array($line->detail_batch)
+                ? $line->detail_batch
+                : array();
+            $productId = !empty($line->fk_product) ? (int) $line->fk_product : 0;
+            $productType = isset($line->fk_product_type)
+                ? (int) $line->fk_product_type
+                : (isset($line->product_type) ? (int) $line->product_type : 0);
+
+            // Ordinary/non-batch lines retain their original row structure.
+            if ($productId <= 0 || $productType !== 0 || empty($batchDetails)
+                || (!empty($line->special_code) && (int) $line->special_code === SUBTOTALS_SPECIAL_CODE)
+            ) {
+                $grouped[] = $line;
+                continue;
+            }
+
+            $options = !empty($line->array_options) && is_array($line->array_options)
+                ? $line->array_options
+                : array();
+            ksort($options);
+
+            // Keep prices/discounts in the key too: if the optional amount
+            // columns are enabled, lines with different commercial semantics
+            // must not be collapsed merely because the Product is identical.
+            $groupKey = implode("\x1f", array(
+                (string) $productId,
+                isset($options[self::WARRANTY_EXPIRY_COLUMN]) ? (string) $options[self::WARRANTY_EXPIRY_COLUMN] : '',
+                isset($line->fk_unit) ? (string) $line->fk_unit : '',
+                isset($line->desc) ? (string) $line->desc : '',
+                isset($line->product_label) ? (string) $line->product_label : '',
+                isset($line->weight) ? (string) $line->weight : '',
+                isset($line->weight_units) ? (string) $line->weight_units : '',
+                isset($line->subprice) ? (string) $line->subprice : '',
+                isset($line->remise_percent) ? (string) $line->remise_percent : '',
+                isset($line->tva_tx) ? (string) $line->tva_tx : '',
+                json_encode($options),
+            ));
+
+            if (!isset($positions[$groupKey])) {
+                $copy = clone $line;
+                $copy->detail_batch = $this->mergeBatchDetailsForPdf(array(), $batchDetails);
+                $positions[$groupKey] = count($grouped);
+                $grouped[] = $copy;
+                continue;
+            }
+
+            $pos = $positions[$groupKey];
+            $target = $grouped[$pos];
+
+            if (isset($target->qty_shipped) || isset($line->qty_shipped)) {
+                $target->qty_shipped = (float) ($target->qty_shipped ?? 0) + (float) ($line->qty_shipped ?? 0);
+            }
+            if (isset($target->qty_asked) || isset($line->qty_asked)) {
+                $target->qty_asked = (float) ($target->qty_asked ?? 0) + (float) ($line->qty_asked ?? 0);
+            }
+            if (isset($target->qty) || isset($line->qty)) {
+                $target->qty = (float) ($target->qty ?? 0) + (float) ($line->qty ?? 0);
+            }
+            foreach (array('total_ht', 'total_tva', 'total_ttc', 'multicurrency_total_ht', 'multicurrency_total_tva', 'multicurrency_total_ttc') as $totalField) {
+                if (isset($target->{$totalField}) || isset($line->{$totalField})) {
+                    $target->{$totalField} = (float) ($target->{$totalField} ?? 0) + (float) ($line->{$totalField} ?? 0);
+                }
+            }
+
+            $target->detail_batch = $this->mergeBatchDetailsForPdf(
+                !empty($target->detail_batch) && is_array($target->detail_batch) ? $target->detail_batch : array(),
+                $batchDetails
+            );
+            $grouped[$pos] = $target;
+        }
+
+        return $grouped;
+    }
+
+    /**
+     * Merge LOT/serial detail rows for a consolidated PDF line.
+     *
+     * @param array<int,object> $base Existing details
+     * @param array<int,object> $extra Additional details
+     * @return array<int,object>
+     */
+    private function mergeBatchDetailsForPdf(array $base, array $extra)
+    {
+        $merged = array();
+        $positions = array();
+
+        foreach (array_merge($base, $extra) as $detail) {
+            if (!is_object($detail)) {
+                continue;
+            }
+
+            $key = (string) ($detail->batch ?? '')."\x1f".(string) ($detail->fk_origin_stock ?? 0);
+            if (!isset($positions[$key])) {
+                $copy = clone $detail;
+                $positions[$key] = count($merged);
+                $merged[] = $copy;
+                continue;
+            }
+
+            $pos = $positions[$key];
+            $merged[$pos]->qty = (float) ($merged[$pos]->qty ?? 0) + (float) ($detail->qty ?? 0);
+        }
+
+        return $merged;
+    }
     /**
      * Decide whether per-batch quantity adds useful information.
      *

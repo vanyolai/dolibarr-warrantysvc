@@ -886,3 +886,12 @@ ErrorAutoWarrantyCreateFailed = Az automatikus garancialétrehozás sikertelen a
 
 DocumentModelNautilus=Nautilus - Digital Nautics szállítólevél
 NautilusWarrantyExpiry=Garancia lejárata
+
+# Shipment-level customer warranty confirmation
+MailToWarrantyConfirmation=Garancia-visszaigazolás (szállítmány)
+SendWarrantyConfirmation=Garancia-visszaigazolás küldése
+WarrantyConfirmation=Garancia-visszaigazolás
+WarrantyConfirmationForShipment=Garancia-visszaigazolás – %s
+WarrantyConfirmationEmailSubject=Garancia-visszaigazolás - %s
+WarrantyConfirmationNoWarranties=Ehhez a szállítmányhoz nincs kiküldhető garancia.
+SubstWarrantyConfirmationLines=A szállítmányhoz tartozó garanciák csoportosított termék/sorozatszám listája
