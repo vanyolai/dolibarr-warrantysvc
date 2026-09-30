@@ -876,3 +876,5 @@ ErrorSupplierReturnMissingStockMovement=Az elküldött beszállítói visszáru 
 ErrorSupplierReturnProductLinkFailed=Nem sikerült a beszállítói visszárut a termékhez kapcsolni.
 ErrorSupplierReturnAgendaEventFailed=Nem sikerült a termék eseménytörténetébe rögzíteni a beszállítói visszárut.
 ErrorWarrantySvcStockMovementReverseFailed=A készletmozgás visszafordítása nem sikerült.
+ConfirmDeleteReversedSupplierReturn=Biztosan véglegesen törlöd a(z) %s visszárut? A készlet már ellenmozgással vissza lett állítva. A készletmozgások és a termék Napirend auditbejegyzései megmaradnak.
+ErrorSupplierReturnDeleteNeedsReversal=A visszáru nem törölhető, mert legalább egy készletkivezetéshez nincs érvényes visszafordító készletmozgás.
