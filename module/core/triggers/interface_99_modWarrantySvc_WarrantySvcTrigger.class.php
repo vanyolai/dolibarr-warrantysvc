@@ -183,7 +183,13 @@ class InterfaceWarrantySvcTrigger extends DolibarrTriggers
 						$fire = true;
 					}
 					if ($fire) {
-						$this->_autoCreateWarrantiesFromShipment($object, $user, $langs);
+						$autoResult = $this->_autoCreateWarrantiesFromShipment($object, $user, $langs);
+						if ($autoResult < 0) {
+							if (!empty($this->error)) {
+								setEventMessages($this->error, null, 'errors');
+							}
+							return -1;
+						}
 					}
 				}
 				return 1;
@@ -202,7 +208,13 @@ class InterfaceWarrantySvcTrigger extends DolibarrTriggers
 							if (empty($expedition->socid) && !empty($object->socid)) {
 								$expedition->socid = $object->socid;
 							}
-							$this->_autoCreateWarrantiesFromShipment($expedition, $user, $langs);
+							$autoResult = $this->_autoCreateWarrantiesFromShipment($expedition, $user, $langs);
+							if ($autoResult < 0) {
+								if (!empty($this->error)) {
+									setEventMessages($this->error, null, 'errors');
+								}
+								return -1;
+							}
 						}
 					}
 				}
@@ -435,19 +447,23 @@ class InterfaceWarrantySvcTrigger extends DolibarrTriggers
 	}
 
 	/**
-	 * Auto-create SvcWarranty records for serialized products
-	 * in a closed shipment (SHIPPING_CLOSED trigger).
+	 * Auto-create SvcWarranty records for warranty-eligible physical shipment items.
 	 *
-	 * For each expedition line with a serial/lot (llx_expeditiondet_batch),
-	 * check if a warranty already exists for that serial. If not, create one
-	 * using the product-specific warranty type default (if configured),
-	 * falling back to the first active warranty type, with coverage_terms
-	 * and exclusions populated from the resolved type.
+	 * Dolibarr's own ExpeditionLineBatch loader is used for serial/LOT allocations
+	 * instead of duplicating the core batch-table mapping here. Ordinary product
+	 * shipment lines remain supported when the selected duration policy gives
+	 * them warranty coverage.
 	 *
-	 * @param  Expedition $object Closed shipment object
+	 * Technical failures are blocking: this method runs inside the shipment/order
+	 * transaction, so returning <0 lets Dolibarr roll the business event back
+	 * instead of silently validating a shipment without its expected warranty.
+	 * A blank/zero Product warranty period is a policy decision, not an error, and
+	 * that item is simply skipped.
+	 *
+	 * @param  Expedition $object Shipment object
 	 * @param  User       $user   Actor
 	 * @param  Translate  $langs  Lang
-	 * @return void
+	 * @return int Number of warranties created, 0 when none were needed, <0 on technical failure
 	 */
 	private function _autoCreateWarrantiesFromShipment($object, $user, $langs)
 	{
@@ -455,6 +471,7 @@ class InterfaceWarrantySvcTrigger extends DolibarrTriggers
 
 		require_once DOL_DOCUMENT_ROOT.'/custom/warrantysvc/class/svcwarranty.class.php';
 		require_once DOL_DOCUMENT_ROOT.'/custom/warrantysvc/class/svcwarrantytype.class.php';
+		require_once DOL_DOCUMENT_ROOT.'/expedition/class/expeditionlinebatch.class.php';
 
 		$global_coverage_days = getDolGlobalInt('WARRANTYSVC_DEFAULT_COVERAGE_DAYS', 365);
 		$duration_source = warrantysvc_get_duration_source();
@@ -463,8 +480,9 @@ class InterfaceWarrantySvcTrigger extends DolibarrTriggers
 		// time this trigger happens to run.
 		$warranty_start = warrantysvc_resolve_shipment_start_date($this->db, $object);
 		if ($warranty_start === null) {
-			dol_syslog('WarrantySvcTrigger: no shipment date available for warranty start on shipment '.$object->id, LOG_WARNING);
-			return;
+			$this->error = $langs->trans('ErrorShipmentWarrantyStartDateMissing');
+			dol_syslog('WarrantySvcTrigger: '.$this->error.' Shipment '.$object->id, LOG_ERR);
+			return -1;
 		}
 
 		// Validate Product-field mode once before iterating shipment lines.
@@ -472,44 +490,123 @@ class InterfaceWarrantySvcTrigger extends DolibarrTriggers
 			$product_month_field_error = '';
 			$product_month_field = warrantysvc_get_product_month_field($this->db, (int) $conf->entity, $product_month_field_error);
 			if ($product_month_field === '' || $product_month_field_error !== '') {
-				dol_syslog(
-					'WarrantySvcTrigger: '.($product_month_field_error !== '' ? $product_month_field_error : 'Product warranty-duration field is not configured'),
-					LOG_ERR
-				);
-				return;
+				$this->error = $product_month_field_error !== ''
+					? $product_month_field_error
+					: $langs->trans('ErrorProductWarrantyFieldNotConfigured');
+				dol_syslog('WarrantySvcTrigger: '.$this->error, LOG_ERR);
+				return -1;
 			}
 		}
 
 		// Warranty Types are only part of the upstream duration mode.
 		$all_types = $duration_source === 'warranty_type' ? SvcWarrantyType::fetchAllForForm($this->db) : array();
 
-		// Resolve order ID from shipment origin
+		// Resolve order ID from shipment origin.
 		$order_id = 0;
-		if (!empty($object->origin) && $object->origin == 'commande' && !empty($object->origin_id)) {
+		$originType = !empty($object->origin_type) ? $object->origin_type : (!empty($object->origin) ? $object->origin : '');
+		if ($originType === 'commande' && !empty($object->origin_id)) {
 			$order_id = (int) $object->origin_id;
 		}
 
-		// Fetch every physical shipment line. Serialized/lot-tracked lines expand to
-		// one row per batch allocation; ordinary lines remain one row with NULL serial.
-		$sql  = "SELECT ed.rowid AS fk_expeditiondet, ed.fk_product, ed.qty AS line_qty,";
-		$sql .= " edl.batch AS serial_number, edl.qty AS batch_qty";
-		$sql .= " FROM ".MAIN_DB_PREFIX."expeditiondet ed";
-		$sql .= " LEFT JOIN ".MAIN_DB_PREFIX."expeditiondet_batch edl ON edl.fk_expeditiondet = ed.rowid";
-		$sql .= " JOIN ".MAIN_DB_PREFIX."product p ON p.rowid = ed.fk_product";
-		$sql .= " WHERE ed.fk_expedition = ".((int) $object->id);
-		$sql .= " AND p.fk_product_type = 0";
-		$sql .= " ORDER BY ed.rowid ASC, edl.rowid ASC";
-
-		$resql = $this->db->query($sql);
-		if (!$resql) {
-			dol_syslog('WarrantySvcTrigger: SHIPPING_CLOSED query failed: '.$this->db->lasterror(), LOG_WARNING);
-			return;
+		if (empty($object->socid)) {
+			$this->error = $langs->trans('ErrorAutoWarrantyMissingCustomer', (string) $object->id);
+			dol_syslog('WarrantySvcTrigger: '.$this->error, LOG_ERR);
+			return -1;
 		}
 
-		while ($line = $this->db->fetch_object($resql)) {
+		// The trigger normally receives a fully fetched Expedition object. Keep a
+		// defensive reload path for other callers (for example ORDER_CLOSE).
+		if (empty($object->lines) && method_exists($object, 'fetch_lines')) {
+			$fetchLinesResult = $object->fetch_lines();
+			if ($fetchLinesResult < 0) {
+				$this->error = $langs->trans('ErrorAutoWarrantyLoadShipmentLines', (string) $object->id);
+				dol_syslog('WarrantySvcTrigger: '.$this->error.' '.$object->error, LOG_ERR);
+				return -1;
+			}
+		}
+
+		$batchLoader = new ExpeditionLineBatch($this->db);
+		$candidates = array();
+
+		foreach ((array) $object->lines as $shipmentLine) {
+			$productId = !empty($shipmentLine->fk_product) ? (int) $shipmentLine->fk_product : 0;
+			if ($productId <= 0) {
+				continue;
+			}
+
+			$productType = isset($shipmentLine->product_type)
+				? (int) $shipmentLine->product_type
+				: (isset($shipmentLine->fk_product_type) ? (int) $shipmentLine->fk_product_type : 0);
+			if ($productType !== 0) {
+				continue;
+			}
+
+			$details = !empty($shipmentLine->details_entrepot) ? (array) $shipmentLine->details_entrepot : array();
+			if (empty($details) && !empty($shipmentLine->id)) {
+				$detail = new stdClass();
+				$detail->line_id = (int) $shipmentLine->id;
+				$detail->qty_shipped = isset($shipmentLine->qty_shipped)
+					? (float) $shipmentLine->qty_shipped
+					: (isset($shipmentLine->qty) ? (float) $shipmentLine->qty : 0);
+				$details[] = $detail;
+			}
+
+			foreach ($details as $detail) {
+				$shipmentLineId = !empty($detail->line_id) ? (int) $detail->line_id : 0;
+				$lineQty = isset($detail->qty_shipped) ? (float) $detail->qty_shipped : 0;
+				if ($shipmentLineId <= 0 || $lineQty <= 0) {
+					continue;
+				}
+
+				$batches = $batchLoader->fetchAll($shipmentLineId, $productId);
+				if ($batches === -1) {
+					$this->error = $langs->trans('ErrorAutoWarrantyLoadBatches', (string) $shipmentLineId);
+					dol_syslog('WarrantySvcTrigger: '.$this->error.' '.$this->db->lasterror(), LOG_ERR);
+					return -1;
+				}
+
+				if (is_array($batches) && !empty($batches)) {
+					foreach ($batches as $batch) {
+						$serialNumber = trim((string) $batch->batch);
+						$batchQty = (float) $batch->qty;
+						if ($batchQty <= 0) {
+							continue;
+						}
+						if ($serialNumber === '') {
+							$this->error = $langs->trans('ErrorAutoWarrantyMissingBatch', (string) $productId, (string) $shipmentLineId);
+							dol_syslog('WarrantySvcTrigger: '.$this->error, LOG_ERR);
+							return -1;
+						}
+
+						$candidate = new stdClass();
+						$candidate->fk_expeditiondet = $shipmentLineId;
+						$candidate->fk_product = $productId;
+						$candidate->serial_number = $serialNumber;
+						$candidate->covered_qty = $batchQty;
+						$candidates[] = $candidate;
+					}
+				} else {
+					if (!empty($shipmentLine->product_tobatch)) {
+						$this->error = $langs->trans('ErrorAutoWarrantyMissingBatch', (string) $productId, (string) $shipmentLineId);
+						dol_syslog('WarrantySvcTrigger: '.$this->error, LOG_ERR);
+						return -1;
+					}
+
+					$candidate = new stdClass();
+					$candidate->fk_expeditiondet = $shipmentLineId;
+					$candidate->fk_product = $productId;
+					$candidate->serial_number = '';
+					$candidate->covered_qty = $lineQty;
+					$candidates[] = $candidate;
+				}
+			}
+		}
+
+		$created = 0;
+		foreach ($candidates as $line) {
 			$serial_number = trim((string) $line->serial_number);
 			$has_serial = ($serial_number !== '');
-			$covered_qty = $has_serial ? (float) $line->batch_qty : (float) $line->line_qty;
+			$covered_qty = (float) $line->covered_qty;
 			if ($covered_qty <= 0) {
 				continue;
 			}
@@ -597,8 +694,9 @@ class InterfaceWarrantySvcTrigger extends DolibarrTriggers
 					$period_error
 				);
 				if ($period_error !== '') {
+					$this->error = $period_error;
 					dol_syslog('WarrantySvcTrigger: '.$period_error.' Product '.$line->fk_product, LOG_ERR);
-					continue;
+					return -1;
 				}
 				if ($period === null) {
 					dol_syslog(
@@ -621,6 +719,7 @@ class InterfaceWarrantySvcTrigger extends DolibarrTriggers
 
 			$result = $warranty->create($user);
 			if ($result > 0) {
+				$created++;
 				// Link warranty to shipment and order in element_element
 				if ($warranty->fk_expedition > 0) {
 					$warranty->add_object_linked('shipping', $warranty->fk_expedition);
@@ -637,13 +736,13 @@ class InterfaceWarrantySvcTrigger extends DolibarrTriggers
 					}
 				}
 			} else {
-				dol_syslog(
-					'WarrantySvcTrigger: failed to create warranty for '.($has_serial ? 'serial '.$serial_number : 'shipment line '.$line->fk_expeditiondet).': '.$warranty->error,
-					LOG_WARNING
-				);
+				$itemLabel = $has_serial ? $serial_number : '#'.((int) $line->fk_expeditiondet);
+				$this->error = $langs->trans('ErrorAutoWarrantyCreateFailed', $itemLabel, $warranty->error);
+				dol_syslog('WarrantySvcTrigger: '.$this->error, LOG_ERR);
+				return -1;
 			}
 		}
 
-		$this->db->free($resql);
+		return $created;
 	}
 }
