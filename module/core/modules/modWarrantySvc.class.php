@@ -44,7 +44,7 @@ class modWarrantySvc extends DolibarrModules
 		// Module name (no spaces), used if translation string 'ModuleXXXName' not found
 		$this->name = preg_replace('/^mod/i', '', get_class($this));
 		$this->description = 'ModuleWarrantySvcDesc';
-		$this->version = '1.46.8';
+		$this->version = '1.46.9';
 		$this->const_name = 'MAIN_MODULE_'.strtoupper($this->name);
 		$this->picto = 'technic';
 
@@ -55,7 +55,7 @@ class modWarrantySvc extends DolibarrModules
 			'login' => 0,
 			'substitutions' => 1,
 			'menus' => 0,
-			'hooks' => array('data' => array('elementproperties', 'productcard', 'productstatsinvoice', 'commonobject', 'ordercard', 'notification', 'emailtemplates', 'main'), 'entity' => '0'),
+			'hooks' => array('data' => array('elementproperties', 'productcard', 'productstatsinvoice', 'commonobject', 'ordercard', 'expeditioncard', 'notification', 'emailtemplates', 'main'), 'entity' => '0'),
 			'apis' => 1,      // api/ directory enabled (registers via Luracast)
 		);
 
