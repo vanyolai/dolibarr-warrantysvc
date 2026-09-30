@@ -569,9 +569,9 @@ if ($action == 'create_from_shipment') {
 	var inpCov = document.getElementById("coverage_days");
 	var hint = document.getElementById("coverage_auto_hint");
 	var btn = document.getElementById("btn_save_ship");
-	var fromTypeText = "'.dol_escape_js($langs->trans('CoverageFromType')).'";
-	var fromProductText = "'.dol_escape_js($langs->trans('CoverageFromProductMonths', '__MONTHS__')).'";
-	var missingProductText = "'.dol_escape_js($langs->trans('ProductWarrantyPeriodMissing')).'";
+	var fromTypeText = "'.dol_escape_js($langs->transnoentitiesnoconv('CoverageFromType')).'";
+	var fromProductText = "'.dol_escape_js($langs->transnoentitiesnoconv('CoverageFromProductMonths', '__MONTHS__')).'";
+	var missingProductText = "'.dol_escape_js($langs->transnoentitiesnoconv('ProductWarrantyPeriodMissing')).'";
 
 	function currentItem(){
 		var key = selItem ? selItem.value : "";
@@ -593,7 +593,7 @@ if ($action == 'create_from_shipment') {
 			if(inpExpDet) inpExpDet.value = "";
 			if(inpSerial) inpSerial.value = "";
 			if(inpQty) inpQty.value = "1";
-			if(lblProd) lblProd.textContent = "'.dol_escape_js($langs->trans('AutoFilledFromShipmentItem')).'";
+			if(lblProd) lblProd.textContent = "'.dol_escape_js($langs->transnoentitiesnoconv('AutoFilledFromShipmentItem')).'";
 			if(serialDisplay) serialDisplay.textContent = "";
 			if(serialRow) serialRow.style.display = "none";
 		}
@@ -613,7 +613,7 @@ if ($action == 'create_from_shipment') {
 				inpCov.value = "";
 				inpCov.readOnly = true;
 				inpCov.style.opacity = "0.5";
-				if(hint){ hint.textContent = item ? missingProductText : "'.dol_escape_js($langs->trans('SelectShipmentItemForWarrantyPeriod')).'"; hint.style.display = ""; }
+				if(hint){ hint.textContent = item ? missingProductText : "'.dol_escape_js($langs->transnoentitiesnoconv('SelectShipmentItemForWarrantyPeriod')).'"; hint.style.display = ""; }
 				if(btn) btn.disabled = true;
 			}
 			return;
@@ -712,7 +712,7 @@ if ($action == 'create') {
 	// Customer (shared across all modes)
 	print '<tr><td class="fieldrequired">'.$langs->trans('Customer').'</td>';
 	print '<td>';
-	print $formcompany->select_company(GETPOST('fk_soc', 'int'), 'fk_soc', '(s.client:IN:1,3)', $langs->trans('SelectThird'), 0, 0, null, 0, 'minwidth300 maxwidth500 widthcentpercentminusxx');
+	print $formcompany->select_company(GETPOST('fk_soc', 'int'), 'fk_soc', '(s.client:IN:1,3)', $langs->trans('SelectThirdParty'), 0, 0, null, 0, 'minwidth300 maxwidth500 widthcentpercentminusxx');
 	print '</td></tr>';
 
 	// Product — Standard row (populated via AJAX after customer is selected)
@@ -765,11 +765,11 @@ if ($action == 'create') {
 	$std_prev_ser  = ($prev_mode === 'standard') ? dol_escape_js($prev_serial) : '';
 	print '<script>(function(){
 var ajaxBase   = "'.$ajax_base.'";
-var selCustTxt = "'.dol_escape_js($langs->trans('SelectCustomerFirst')).'";
-var selProdTxt = "'.dol_escape_js($langs->trans('SelectProductFirst')).'";
-var selSerTxt  = "— '.dol_escape_js($langs->trans('SelectSerial')).' —";
-var noSerTxt   = "'.dol_escape_js($langs->trans('NoSerialsAvailable')).'";
-var autoOrdTxt = "'.dol_escape_js($langs->trans('AutoFilledFromSerial')).'";
+var selCustTxt = "'.dol_escape_js($langs->transnoentitiesnoconv('SelectCustomerFirst')).'";
+var selProdTxt = "'.dol_escape_js($langs->transnoentitiesnoconv('SelectProductFirst')).'";
+var selSerTxt  = "— '.dol_escape_js($langs->transnoentitiesnoconv('SelectSerial')).' —";
+var noSerTxt   = "'.dol_escape_js($langs->transnoentitiesnoconv('NoSerialsAvailable')).'";
+var autoOrdTxt = "'.dol_escape_js($langs->transnoentitiesnoconv('AutoFilledFromSerial')).'";
 var warnOvr    = "'.$warn_ovr_txt.'";
 var prevProduct = '.(int) $std_prev_prod.';
 var prevSerial  = "'.$std_prev_ser.'";
