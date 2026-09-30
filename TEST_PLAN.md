@@ -21,6 +21,15 @@
 
 ---
 
+## 0. MODULE UPGRADE / RE-ENABLE SAFETY
+
+- [ ] With an existing populated WarrantySvc installation, disable and re-enable the module
+- [ ] Verify the Dolibarr log contains no `DB_ERROR_TABLE_ALREADY_EXISTS`, `DB_ERROR_KEY_NAME_ALREADY_EXISTS`, or duplicate-column errors from WarrantySvc activation
+- [ ] Verify existing `svc_service_log.condition_status` values are unchanged by re-enable
+- [ ] Verify all existing WarrantySvc records, links, stock movement references and Supplier Return audit rows remain unchanged
+- [ ] On a fresh database, enable WarrantySvc and verify all module tables and indexes are created
+- [ ] Re-enable immediately a second time and verify the operation is idempotent
+
 ## 1. WARRANTY LIFECYCLE
 
 ### 1.1 Create Warranty Manually — Product-field mode
