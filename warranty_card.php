@@ -339,6 +339,9 @@ if ($action == 'create_from_shipment') {
 			$sql_items .= " JOIN ".MAIN_DB_PREFIX."product p ON p.rowid = ed.fk_product";
 			$sql_items .= " WHERE ed.fk_expedition = ".((int) $fk_expedition_src);
 			$sql_items .= " AND p.fk_product_type = 0";
+			if (getDolGlobalInt('WARRANTYSVC_WARRANTY_REQUIRES_LOTS')) {
+				$sql_items .= " AND p.tobatch > 0";
+			}
 			$sql_items .= " ORDER BY ed.rowid ASC, edl.rowid ASC";
 			$res_items = $db->query($sql_items);
 		}

@@ -185,9 +185,6 @@ class InterfaceWarrantySvcTrigger extends DolibarrTriggers
 					if ($fire) {
 						$autoResult = $this->_autoCreateWarrantiesFromShipment($object, $user, $langs);
 						if ($autoResult < 0) {
-							if (!empty($this->error)) {
-								setEventMessages($this->error, null, 'errors');
-							}
 							return -1;
 						}
 					}
@@ -210,9 +207,6 @@ class InterfaceWarrantySvcTrigger extends DolibarrTriggers
 							}
 							$autoResult = $this->_autoCreateWarrantiesFromShipment($expedition, $user, $langs);
 							if ($autoResult < 0) {
-								if (!empty($this->error)) {
-									setEventMessages($this->error, null, 'errors');
-								}
 								return -1;
 							}
 						}
@@ -475,6 +469,7 @@ class InterfaceWarrantySvcTrigger extends DolibarrTriggers
 
 		$global_coverage_days = getDolGlobalInt('WARRANTYSVC_DEFAULT_COVERAGE_DAYS', 365);
 		$duration_source = warrantysvc_get_duration_source();
+		$requires_lot_tracking = (bool) getDolGlobalInt('WARRANTYSVC_WARRANTY_REQUIRES_LOTS');
 
 		// Resolve the contractual warranty start from the shipment, not from the
 		// time this trigger happens to run.
@@ -590,6 +585,12 @@ class InterfaceWarrantySvcTrigger extends DolibarrTriggers
 						$this->error = $langs->trans('ErrorAutoWarrantyMissingBatch', (string) $productId, (string) $shipmentLineId);
 						dol_syslog('WarrantySvcTrigger: '.$this->error, LOG_ERR);
 						return -1;
+					}
+
+					// When the serialized/LOT-only policy is enabled, ordinary
+					// shipment lines must not produce warranty records.
+					if ($requires_lot_tracking) {
+						continue;
 					}
 
 					$candidate = new stdClass();
