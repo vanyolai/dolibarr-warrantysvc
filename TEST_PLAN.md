@@ -23,6 +23,17 @@
 
 ## 0. MODULE UPGRADE / RE-ENABLE SAFETY
 
+## 0A. NAUTILUS SHIPMENT PDF
+
+- [ ] Verify WarrantySvc is enabled and its module-parts model registration is active
+- [ ] In Shipping setup, verify Nautilus is discovered from WarrantySvc and can be enabled/defaulted
+- [ ] Generate a Nautilus PDF with Warranty duration source = Product field and verify physical Product lines with positive configured months show the calculated warranty-expiry column
+- [ ] Verify Product lines with blank/zero warranty months keep the expiry cell blank and do not block PDF generation
+- [ ] Switch Warranty duration source = Warranty Type and verify Nautilus still generates normally without the Product-field expiry column
+- [ ] Verify generating Nautilus does not create or modify Shipment-line extra fields and does not create, update or delete Warranty records
+- [ ] Verify LOT/serial rendering remains compact and ordinary Espadon features (page breaks, header, totals, printable real extra fields) still work
+
+
 - [ ] With an existing populated WarrantySvc installation, disable and re-enable the module
 - [ ] Verify the Dolibarr log contains no `DB_ERROR_TABLE_ALREADY_EXISTS`, `DB_ERROR_KEY_NAME_ALREADY_EXISTS`, or duplicate-column errors from WarrantySvc activation
 - [ ] Verify existing `svc_service_log.condition_status` values are unchanged by re-enable

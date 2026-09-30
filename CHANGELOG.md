@@ -3,6 +3,7 @@
 ## [Unreleased] - Dolibarr 23 fork
 
 ### Added
+- Nautilus shipment PDF model now belongs to WarrantySvc instead of the retired WarrantyPeriod module. It keeps the compact Espadon-based layout and, in Product-field mode only, renders warranty expiry directly from WarrantySvc's existing Product-month calculation without storing Shipment-line warranty data.
 - Supplier Return stock traceability now integrates with native Dolibarr Product views: shipped returns create Product links, Product Agenda events and a Supplier Returns row/detail list under Related elements.
 - Shipped Supplier Returns can be safely reversed instead of hard-deleted: Dolibarr's native stock-movement reversal creates compensating movements, preserves the original movement history and marks the return Reversed.
 - Module initialization backfills Product links, Product Agenda entries and lifecycle stock-out events for Supplier Returns that were shipped before the traceability upgrade.
