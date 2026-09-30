@@ -48,8 +48,9 @@ class pdf_nautilus extends pdf_espadon
     /**
      * Define a compact shipment table.
      *
-     * Weight/volume is displayed only when at least one physical product has
-     * meaningful dimensional data. In WarrantySvc Product-field mode, a
+     * Weight is displayed only when at least one physical product has a
+     * meaningful configured weight. Volume is intentionally suppressed in
+     * Nautilus. In WarrantySvc Product-field mode, a
      * PDF-only warranty-expiry column is added when at least one shipped
      * physical Product has a configured warranty period.
      *
@@ -69,9 +70,9 @@ class pdf_nautilus extends pdf_espadon
             $this->cols['position']['status'] = false;
         }
 
-        // Do not reserve a large empty weight/volume column. Show it only when
-        // at least one physical product actually carries dimensional data.
-        $hasWeightOrVolume = false;
+        // Do not reserve an empty weight column. Nautilus intentionally ignores
+        // Product volume: only configured weight makes this column relevant.
+        $hasWeight = false;
         if (!empty($object->lines) && is_array($object->lines)) {
             foreach ($object->lines as $line) {
                 $productType = isset($line->fk_product_type)
@@ -80,15 +81,18 @@ class pdf_nautilus extends pdf_espadon
                 if ($productType !== 0) {
                     continue;
                 }
-                if (!empty($line->weight) || !empty($line->volume)) {
-                    $hasWeightOrVolume = true;
+                if (!empty($line->weight)) {
+                    $hasWeight = true;
                     break;
                 }
             }
         }
         if (isset($this->cols['weight'])) {
-            $this->cols['weight']['status'] = $hasWeightOrVolume;
+            $this->cols['weight']['status'] = $hasWeight;
             $this->cols['weight']['width'] = 24;
+            // Espadon labels this shared column as Weight/Volume. Nautilus only
+            // renders weight, so reuse Dolibarr's native "Weight" translation.
+            $this->cols['weight']['title']['textkey'] = 'Weight';
         }
 
         // Compact quantity columns leave more room for product descriptions.
@@ -148,6 +152,13 @@ class pdf_nautilus extends pdf_espadon
         $this->showWarrantyExpiryColumn = false;
         $decoratedLines = array();
 
+        // Espadon has one shared Weight/Volume column and can suppress volume
+        // through a standard Dolibarr setting. Force that setting only for the
+        // duration of Nautilus generation, then restore the caller's state.
+        $hadHideVolume = isset($conf->global->SHIPPING_PDF_HIDE_VOLUME);
+        $previousHideVolume = $hadHideVolume ? $conf->global->SHIPPING_PDF_HIDE_VOLUME : null;
+        $conf->global->SHIPPING_PDF_HIDE_VOLUME = 1;
+
         if (warrantysvc_uses_product_months() && !empty($object->lines) && is_array($object->lines)) {
             $startDate = warrantysvc_resolve_shipment_start_date($this->db, $object);
 
@@ -205,6 +216,12 @@ class pdf_nautilus extends pdf_espadon
                 }
             }
             $this->showWarrantyExpiryColumn = false;
+
+            if ($hadHideVolume) {
+                $conf->global->SHIPPING_PDF_HIDE_VOLUME = $previousHideVolume;
+            } else {
+                unset($conf->global->SHIPPING_PDF_HIDE_VOLUME);
+            }
         }
     }
 

@@ -43,6 +43,8 @@
 - [ ] Switch Warranty duration source = Warranty Type and verify Nautilus still generates normally without the Product-field expiry column
 - [ ] Verify generating Nautilus does not create or modify Shipment-line extra fields and does not create, update or delete Warranty records
 - [ ] Verify LOT/serial rendering remains compact and ordinary Espadon features (page breaks, header, totals, printable real extra fields) still work
+- [ ] With Product weight and volume both populated, verify Nautilus shows per-line/total weight only, never volume, and the column heading is the native translated Weight label
+- [ ] With volume populated but weight empty, verify Nautilus does not reserve an empty Weight/Volume column
 
 
 - [ ] With an existing populated WarrantySvc installation, disable and re-enable the module

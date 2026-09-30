@@ -26,6 +26,7 @@
 - PHP syntax-lint workflow for the fork branch.
 
 ### Changed
+- Nautilus shipment PDFs now render weight only. Product/shipment volume is deliberately suppressed for Nautilus, and the shared Espadon column is relabeled with Dolibarr's native `Weight` translation.
 - Warranty status rendering now uses Dolibarr's native status pictograms instead of custom word badges; the Warranty model also exposes the standard `getLibStatut()` entry point.
 - Reversed Supplier Returns can now be permanently deleted only after every outbound stock movement has a valid compensating movement; Product Agenda and stock-movement audit records are preserved.
 - Supplier Return workflow now treats Shipped to supplier as the normal operational end state; the redundant Close action is no longer offered in the card UI. Physical corrections use Reverse Supplier Return rather than destructive deletion.
