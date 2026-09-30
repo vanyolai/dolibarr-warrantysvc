@@ -129,6 +129,11 @@ class InterfaceWarrantySvcTrigger extends DolibarrTriggers
 			case 'SVCWARRANTY_CREATE':
 				return 1;
 
+			// Grouped customer-facing confirmation sent from the Shipment-level
+			// native Dolibarr mail form. Sending does not change Warranty state.
+			case 'WARRANTYSVC_CONFIRMATION_SENTBYMAIL':
+				return 1;
+
 			// ------------------------------------------------------------------
 			// Supplier RMA email sent through Dolibarr's native
 			// actions_sendmails.inc.php pipeline. The physical message has already
