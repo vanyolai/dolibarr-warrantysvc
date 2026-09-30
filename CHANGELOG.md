@@ -25,6 +25,7 @@
 - PHP syntax-lint workflow for the fork branch.
 
 ### Changed
+- Reversed Supplier Returns can now be permanently deleted only after every outbound stock movement has a valid compensating movement; Product Agenda and stock-movement audit records are preserved.
 - Supplier Return workflow now treats Shipped to supplier as the normal operational end state; the redundant Close action is no longer offered in the card UI. Physical corrections use Reverse Supplier Return rather than destructive deletion.
 - Supplier Return lifecycle records explicit stock-out and stock-restoration events with the corresponding Dolibarr stock movement IDs.
 - Supplier RMA now stores an explicit quantity and locks supplier/Product/quantity/serial identity once the unit has been shipped.
