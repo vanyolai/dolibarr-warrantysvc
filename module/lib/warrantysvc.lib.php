@@ -405,10 +405,10 @@ function svcrequest_status_badge($status, $mode = 0)
 
 
 /**
- * Return HTML badge for a warranty status
+ * Return the native Dolibarr status pictogram for a warranty status.
  *
  * @param  string $status  Status string: active|expired|voided|none
- * @param  int    $mode    0=badge, 1=label only
+ * @param  int    $mode    0=native status pictogram, 1=label only
  * @return string          HTML
  */
 function svcwarranty_status_badge($status, $mode = 0)
@@ -417,20 +417,20 @@ function svcwarranty_status_badge($status, $mode = 0)
 	$langs->loadLangs(array('warrantysvc@warrantysvc'));
 
 	$map = array(
-		'active'  => array('label' => 'SvcActive',  'badge' => 'badge-status4'),
-		'expired' => array('label' => 'SvcExpired', 'badge' => 'badge-status8'),
-		'voided'  => array('label' => 'SvcVoided',  'badge' => 'badge-status9'),
-		'none'    => array('label' => 'NoCoverage',  'badge' => 'badge-status0'),
+		'active'  => array('label' => 'SvcActive',  'status' => 'status4'),
+		'expired' => array('label' => 'SvcExpired', 'status' => 'status8'),
+		'voided'  => array('label' => 'SvcVoided',  'status' => 'status9'),
+		'none'    => array('label' => 'NoCoverage',  'status' => 'status0'),
 	);
 
-	$s = isset($map[$status]) ? $map[$status] : array('label' => 'NoCoverage', 'badge' => 'badge-status0');
-	$label = $langs->trans($s['label']);
+	$s = isset($map[$status]) ? $map[$status] : array('label' => 'NoCoverage', 'status' => 'status0');
+	$label = $langs->transnoentitiesnoconv($s['label']);
 
 	if ($mode == 1) {
 		return $label;
 	}
 
-	return '<span class="badge badge-status '.$s['badge'].'">'.$label.'</span>';
+	return dolGetStatus($label, $label, '', $s['status'], 3);
 }
 
 

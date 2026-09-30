@@ -263,10 +263,10 @@ print '</td>';
 // Expiry date range
 $form = new Form($db);
 print '<td class="liste_titre">';
-print $form->selectDate($search_expiry_from, 'search_expiry_from', 0, 0, 1, 'searchFormList', 1, 0, 0, '', '', '', '', 1, '', $langs->trans('From'));
+print $form->selectDate($search_expiry_from, 'search_expiry_from', 0, 0, 1, 'searchFormList', 1, 0, 0, '', '', '', '', 1, '', $langs->trans('DateStart'));
 print '</td>';
 print '<td class="liste_titre">';
-print $form->selectDate($search_expiry_to, 'search_expiry_to', 0, 0, 1, 'searchFormList', 1, 0, 0, '', '', '', '', 1, '', $langs->trans('To'));
+print $form->selectDate($search_expiry_to, 'search_expiry_to', 0, 0, 1, 'searchFormList', 1, 0, 0, '', '', '', '', 1, '', $langs->trans('DateEnd'));
 print '</td>';
 
 print '<td class="liste_titre center"></td>'; // claims
@@ -281,7 +281,7 @@ print '<tr class="liste_titre">';
 print getTitleFieldOfList('Ref',           0, $_SERVER['PHP_SELF'], 't.ref',          '', '', '',       '', $sortfield, $sortorder);
 print getTitleFieldOfList('Company',       0, $_SERVER['PHP_SELF'], 's.nom',          '', '', '',       '', $sortfield, $sortorder);
 print getTitleFieldOfList('Product',       0, $_SERVER['PHP_SELF'], 'p.ref',          '', '', '',       '', $sortfield, $sortorder);
-print getTitleFieldOfList('SerialNumber',  0, $_SERVER['PHP_SELF'], 't.serial_number', '', '', '',       '', $sortfield, $sortorder);
+print getTitleFieldOfList('SvcSerialNumber',  0, $_SERVER['PHP_SELF'], 't.serial_number', '', '', '',       '', $sortfield, $sortorder);
 if ($use_warranty_types) {
 	print getTitleFieldOfList('WarrantyType', 0, $_SERVER['PHP_SELF'], 't.warranty_type', '', '', '', '', $sortfield, $sortorder);
 } else {

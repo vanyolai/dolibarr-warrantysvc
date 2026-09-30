@@ -64,6 +64,9 @@
 - [ ] Verify the created record stores coverage_months as an immutable snapshot
 - [ ] Change the Product warranty-month value afterwards — verify the existing warranty expiry does not change
 - [ ] Verify warranty appears in Warranty List with correct filters
+- [ ] Verify the New Warranty customer placeholder uses the translated native Third Party selector text
+- [ ] After selecting a customer, verify Product / serial prompts show normal Hungarian accents (no literal HTML entities such as `&aacute;`)
+- [ ] In Warranty List, verify status is shown with Dolibarr's native colored status dot, the serial column is translated, and the expiry-range inputs use date-specific start/end labels
 
 ### 1.2 Auto-Create Warranty on Shipment
 - [ ] Enable automatic warranty creation and select the intended shipment event

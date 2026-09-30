@@ -26,6 +26,7 @@
 - PHP syntax-lint workflow for the fork branch.
 
 ### Changed
+- Warranty status rendering now uses Dolibarr's native status pictograms instead of custom word badges; the Warranty model also exposes the standard `getLibStatut()` entry point.
 - Reversed Supplier Returns can now be permanently deleted only after every outbound stock movement has a valid compensating movement; Product Agenda and stock-movement audit records are preserved.
 - Supplier Return workflow now treats Shipped to supplier as the normal operational end state; the redundant Close action is no longer offered in the card UI. Physical corrections use Reverse Supplier Return rather than destructive deletion.
 - Supplier Return lifecycle records explicit stock-out and stock-restoration events with the corresponding Dolibarr stock movement IDs.
@@ -54,6 +55,8 @@
 - Existing upstream schemas are upgraded explicitly and idempotently before normal module table loading.
 
 ### Fixed
+- New Warranty now uses Dolibarr's native `SelectThirdParty` key, and JavaScript-populated Product/serial/warranty-period prompts use non-entity translations so Hungarian accents are not shown as literal `&...;` sequences.
+- Warranty list filters use Dolibarr's date-specific `DateStart` / `DateEnd` labels instead of the mail-oriented `From` / `To` translations, and the serial column reuses the module's existing `SvcSerialNumber` key.
 - Serialized/LOT-only policy now also governs shipment-derived warranties: automatic shipment warranty creation skips ordinary non-LOT lines, and the manual shipment warranty wizard excludes/rejects them server-side.
 - Shipment-trigger failures are no longer queued twice in the UI; WarrantySvc now propagates the trigger error and lets Dolibarr's shipment workflow render it once.
 - Module enable/re-enable no longer reruns the complete base SQL/key set when all WarrantySvc tables already exist. This removes duplicate table/index errors from normal reactivation.

@@ -533,10 +533,22 @@ class SvcWarranty extends CommonObject
 	}
 
 	/**
-	 * Return status label
+	 * Return status label using Dolibarr's native status renderer.
+	 *
+	 * @param  int $mode 0=long label, 1=short label, 2=picto + short label, 3=picto,
+	 *                  4=picto + long label, 5=short label + picto, 6=long label + picto
+	 * @return string    Label
+	 */
+	public function getLibStatut($mode = 0)
+	{
+		return $this->LibStatut($this->status, $mode);
+	}
+
+	/**
+	 * Return status label using Dolibarr's native status renderer.
 	 *
 	 * @param  string $status Status value
-	 * @param  int    $mode   0=long, 1=short
+	 * @param  int    $mode   Dolibarr status display mode
 	 * @return string         Label
 	 */
 	public function LibStatut($status = '', $mode = 0)
@@ -549,13 +561,15 @@ class SvcWarranty extends CommonObject
 		}
 
 		$labels = array(
-			self::STATUS_ACTIVE  => array('label' => 'SvcActive',  'class' => 'badge-status1'),
-			self::STATUS_EXPIRED => array('label' => 'SvcExpired', 'class' => 'badge-status8'),
-			self::STATUS_VOIDED  => array('label' => 'SvcVoided',  'class' => 'badge-status9'),
+			self::STATUS_ACTIVE  => array('label' => 'SvcActive',  'status' => 'status4'),
+			self::STATUS_EXPIRED => array('label' => 'SvcExpired', 'status' => 'status8'),
+			self::STATUS_VOIDED  => array('label' => 'SvcVoided',  'status' => 'status9'),
 		);
 
-		$s = isset($labels[$status]) ? $labels[$status] : array('label' => 'Unknown', 'class' => 'badge-status0');
-		return '<span class="badge '.$s['class'].'">'.$langs->trans($s['label']).'</span>';
+		$s = isset($labels[$status]) ? $labels[$status] : array('label' => 'Unknown', 'status' => 'status0');
+		$label = $langs->transnoentitiesnoconv($s['label']);
+
+		return dolGetStatus($label, $label, '', $s['status'], $mode);
 	}
 
 	/**
