@@ -44,7 +44,7 @@ class modWarrantySvc extends DolibarrModules
 		// Module name (no spaces), used if translation string 'ModuleXXXName' not found
 		$this->name = preg_replace('/^mod/i', '', get_class($this));
 		$this->description = 'ModuleWarrantySvcDesc';
-		$this->version = '1.46.2';
+		$this->version = '1.46.3';
 		$this->const_name = 'MAIN_MODULE_'.strtoupper($this->name);
 		$this->picto = 'technic';
 
@@ -380,11 +380,44 @@ class modWarrantySvc extends DolibarrModules
 	}
 
 	/**
-	 * Upgrade an existing upstream WarrantySvc schema to the fork schema.
+	 * Check whether a module table exists without issuing an erroring DESCRIBE.
 	 *
-	 * Fresh installs already contain these fields in the base SQL files.
-	 * Existing installs are upgraded here before _load_tables() runs so that
-	 * subsequent key creation never references missing columns.
+	 * @param  string $table Full table name including Dolibarr prefix
+	 * @return bool
+	 */
+	private function tableExists($table)
+	{
+		$tables = $this->db->DDLListTables($this->db->database_name, $table);
+		return in_array($table, $tables, true);
+	}
+
+	/**
+	 * Return database column types keyed by column name.
+	 *
+	 * DDLInfoTable() exposes the same first two fields (name/type) on MySQL and
+	 * PostgreSQL, which is enough for the legacy service-log migration.
+	 *
+	 * @param  string $table Full table name including Dolibarr prefix
+	 * @return array<string,string>
+	 */
+	private function getColumnTypes($table)
+	{
+		$result = array();
+		foreach ((array) $this->db->DDLInfoTable($table) as $row) {
+			if (isset($row[0])) {
+				$result[(string) $row[0]] = isset($row[1]) ? strtolower((string) $row[1]) : '';
+			}
+		}
+		return $result;
+	}
+
+	/**
+	 * Upgrade an existing upstream/older WarrantySvc schema to the current one.
+	 *
+	 * Every change in this method is introspection-gated and therefore safe to
+	 * run repeatedly. Legacy one-shot SQL migration files are deliberately not
+	 * used here: Dolibarr's _load_tables() scans every llx_*.sql on each module
+	 * activation, so destructive migrations must never live in that directory.
 	 *
 	 * @return int 1 if OK, -1 on a required schema change failure
 	 */
@@ -392,20 +425,20 @@ class modWarrantySvc extends DolibarrModules
 	{
 		$warrantyTable = MAIN_DB_PREFIX.'svc_warranty';
 		$typeTable = MAIN_DB_PREFIX.'svc_warranty_type';
+		$requestTable = MAIN_DB_PREFIX.'svc_request';
+		$serviceLogTable = MAIN_DB_PREFIX.'svc_service_log';
 		$supplierRmaTable = MAIN_DB_PREFIX.'svc_supplier_rma';
 		$supplierReturnLineTable = MAIN_DB_PREFIX.'svc_supplier_return_line';
 
-		$warrantyDesc = $this->db->DDLDescTable($warrantyTable);
-		if ($warrantyDesc && $this->db->num_rows($warrantyDesc) > 0) {
+		if ($this->tableExists($warrantyTable)) {
+			$columns = $this->getColumnTypes($warrantyTable);
 			$fields = array(
 				'covered_qty' => array('type' => 'decimal', 'value' => '24,8', 'default' => '1'),
 				'fk_expeditiondet' => array('type' => 'int'),
 				'coverage_months' => array('type' => 'int'),
 			);
 			foreach ($fields as $fieldName => $fieldDesc) {
-				$res = $this->db->DDLDescTable($warrantyTable, $fieldName);
-				$exists = $res && $this->db->fetch_object($res);
-				if (!$exists && $this->db->DDLAddField($warrantyTable, $fieldName, $fieldDesc) < 0) {
+				if (!isset($columns[$fieldName]) && $this->db->DDLAddField($warrantyTable, $fieldName, $fieldDesc) < 0) {
 					return -1;
 				}
 			}
@@ -439,38 +472,113 @@ class modWarrantySvc extends DolibarrModules
 						return -1;
 					}
 				}
+			} elseif ($this->db->type === 'pgsql') {
+				$sqlIndex = "SELECT 1 FROM pg_indexes WHERE schemaname = 'public'";
+				$sqlIndex .= " AND tablename = '".$this->db->escape($warrantyTable)."'";
+				$sqlIndex .= " AND indexname = 'uk_svc_warranty_serial'";
+				$resIndex = $this->db->query($sqlIndex);
+				if ($resIndex && $this->db->fetch_object($resIndex)) {
+					if (!$this->db->query("DROP INDEX uk_svc_warranty_serial")) {
+						return -1;
+					}
+				}
 			}
 		}
 
-		$typeDesc = $this->db->DDLDescTable($typeTable);
-		if ($typeDesc && $this->db->num_rows($typeDesc) > 0) {
+		if ($this->tableExists($typeTable)) {
+			$columns = $this->getColumnTypes($typeTable);
 			foreach (array('coverage_terms', 'exclusions') as $fieldName) {
-				$res = $this->db->DDLDescTable($typeTable, $fieldName);
-				$exists = $res && $this->db->fetch_object($res);
-				if (!$exists && $this->db->DDLAddField($typeTable, $fieldName, array('type' => 'text')) < 0) {
+				if (!isset($columns[$fieldName]) && $this->db->DDLAddField($typeTable, $fieldName, array('type' => 'text')) < 0) {
 					return -1;
 				}
 			}
 		}
 
+		// v1.32: service requests gained a security-seal field.
+		if ($this->tableExists($requestTable)) {
+			$columns = $this->getColumnTypes($requestTable);
+			if (!isset($columns['seal_number']) && $this->db->DDLAddField($requestTable, 'seal_number', array('type'=>'varchar', 'value'=>'128')) < 0) {
+				return -1;
+			}
+
+			// Historical versions used bare/mismatching linked-object type names.
+			// These normalisations are idempotent and preserve all link IDs.
+			$linkUpdates = array(
+				"UPDATE ".MAIN_DB_PREFIX."element_element SET sourcetype = 'shipping' WHERE sourcetype = 'expedition' AND targettype IN ('warrantysvc_svcwarranty', 'svcwarranty')",
+				"UPDATE ".MAIN_DB_PREFIX."element_element SET targettype = 'shipping' WHERE targettype = 'expedition' AND sourcetype IN ('warrantysvc_svcwarranty', 'svcwarranty')",
+				"UPDATE ".MAIN_DB_PREFIX."element_element SET sourcetype = 'warrantysvc_svcwarranty' WHERE sourcetype = 'svcwarranty'",
+				"UPDATE ".MAIN_DB_PREFIX."element_element SET targettype = 'warrantysvc_svcwarranty' WHERE targettype = 'svcwarranty'",
+				"UPDATE ".MAIN_DB_PREFIX."element_element SET sourcetype = 'warrantysvc_svcrequest' WHERE sourcetype = 'svcrequest'",
+				"UPDATE ".MAIN_DB_PREFIX."element_element SET targettype = 'warrantysvc_svcrequest' WHERE targettype = 'svcrequest'",
+			);
+			foreach ($linkUpdates as $sql) {
+				if (!$this->db->query($sql)) {
+					return -1;
+				}
+			}
+		}
+
+		// Legacy service-log releases stored condition_status as text. Convert it
+		// exactly once, based on the actual column type, and ensure import_key.
+		if ($this->tableExists($serviceLogTable)) {
+			$columns = $this->getColumnTypes($serviceLogTable);
+
+			// Clean up a temporary column left by an interrupted historical upgrade.
+			if (isset($columns['condition_status_int']) && isset($columns['condition_status'])) {
+				if ($this->db->DDLDropField($serviceLogTable, 'condition_status_int') < 0) {
+					return -1;
+				}
+				unset($columns['condition_status_int']);
+			}
+
+			if (!isset($columns['condition_status'])) {
+				if ($this->db->DDLAddField($serviceLogTable, 'condition_status', array('type'=>'smallint', 'default'=>'0')) < 0) {
+					return -1;
+				}
+			} elseif (strpos($columns['condition_status'], 'char') !== false || strpos($columns['condition_status'], 'text') !== false) {
+				if ($this->db->type === 'pgsql') {
+					$sql = "ALTER TABLE ".$serviceLogTable." ALTER COLUMN condition_status TYPE SMALLINT USING (CASE LOWER(condition_status::text)";
+					$sql .= " WHEN 'good' THEN 0 WHEN 'fair' THEN 1 WHEN 'poor' THEN 2 WHEN 'scrap' THEN 3";
+					$sql .= " WHEN '0' THEN 0 WHEN '1' THEN 1 WHEN '2' THEN 2 WHEN '3' THEN 3 ELSE 0 END)";
+					if (!$this->db->query($sql)) {
+						return -1;
+					}
+					if (!$this->db->query("ALTER TABLE ".$serviceLogTable." ALTER COLUMN condition_status SET DEFAULT 0")) {
+						return -1;
+					}
+				} else {
+					$sql = "UPDATE ".$serviceLogTable." SET condition_status = CASE LOWER(condition_status)";
+					$sql .= " WHEN 'good' THEN '0' WHEN 'fair' THEN '1' WHEN 'poor' THEN '2' WHEN 'scrap' THEN '3'";
+					$sql .= " WHEN '0' THEN '0' WHEN '1' THEN '1' WHEN '2' THEN '2' WHEN '3' THEN '3' ELSE '0' END";
+					if (!$this->db->query($sql)) {
+						return -1;
+					}
+					if ($this->db->DDLUpdateField($serviceLogTable, 'condition_status', array('type'=>'smallint', 'default'=>'0')) < 0) {
+						return -1;
+					}
+				}
+			}
+
+			$columns = $this->getColumnTypes($serviceLogTable);
+			if (!isset($columns['import_key']) && $this->db->DDLAddField($serviceLogTable, 'import_key', array('type'=>'varchar', 'value'=>'14')) < 0) {
+				return -1;
+			}
+		}
+
 		// 1.46: keep the compensating stock movement so physical shipment
 		// corrections remain fully traceable without deleting stock history.
-		$returnLineDesc = $this->db->DDLDescTable($supplierReturnLineTable);
-		if ($returnLineDesc && $this->db->num_rows($returnLineDesc) > 0) {
-			$resReversal = $this->db->DDLDescTable($supplierReturnLineTable, 'fk_stock_movement_reversal');
-			$reversalExists = $resReversal && $this->db->fetch_object($resReversal);
-			if (!$reversalExists && $this->db->DDLAddField($supplierReturnLineTable, 'fk_stock_movement_reversal', array('type'=>'int')) < 0) {
+		if ($this->tableExists($supplierReturnLineTable)) {
+			$columns = $this->getColumnTypes($supplierReturnLineTable);
+			if (!isset($columns['fk_stock_movement_reversal']) && $this->db->DDLAddField($supplierReturnLineTable, 'fk_stock_movement_reversal', array('type'=>'int')) < 0) {
 				return -1;
 			}
 		}
 
 		// 1.44: Supplier RMA gained quantity so LOT based RMAs can represent
 		// more than one unit while serial-numbered RMAs still use qty=1.
-		$rmaDesc = $this->db->DDLDescTable($supplierRmaTable);
-		if ($rmaDesc && $this->db->num_rows($rmaDesc) > 0) {
-			$resQty = $this->db->DDLDescTable($supplierRmaTable, 'qty');
-			$qtyExists = $resQty && $this->db->fetch_object($resQty);
-			if (!$qtyExists && $this->db->DDLAddField($supplierRmaTable, 'qty', array('type'=>'decimal', 'value'=>'24,8', 'default'=>'1')) < 0) {
+		if ($this->tableExists($supplierRmaTable)) {
+			$columns = $this->getColumnTypes($supplierRmaTable);
+			if (!isset($columns['qty']) && $this->db->DDLAddField($supplierRmaTable, 'qty', array('type'=>'decimal', 'value'=>'24,8', 'default'=>'1')) < 0) {
 				return -1;
 			}
 		}
@@ -817,12 +925,43 @@ class modWarrantySvc extends DolibarrModules
 	 */
 	public function init($options = '')
 	{
-		if ($this->upgradeForkSchema() < 0) {
-			return -1;
+		// _load_tables() is intended to bootstrap missing module tables, but it
+		// scans every llx_*.sql file. Re-running it against a complete existing
+		// schema produces duplicate CREATE/INDEX errors and historically also
+		// re-ran destructive legacy migration files. Only bootstrap when at least
+		// one required module table is genuinely missing.
+		$requiredTables = array(
+			MAIN_DB_PREFIX.'svc_request',
+			MAIN_DB_PREFIX.'svc_request_extrafields',
+			MAIN_DB_PREFIX.'svc_request_line',
+			MAIN_DB_PREFIX.'svc_service_log',
+			MAIN_DB_PREFIX.'svc_supplier_return',
+			MAIN_DB_PREFIX.'svc_supplier_return_line',
+			MAIN_DB_PREFIX.'svc_supplier_return_log',
+			MAIN_DB_PREFIX.'svc_supplier_rma',
+			MAIN_DB_PREFIX.'svc_supplier_rma_log',
+			MAIN_DB_PREFIX.'svc_troubleshoot',
+			MAIN_DB_PREFIX.'svc_warranty',
+			MAIN_DB_PREFIX.'svc_warranty_extrafields',
+			MAIN_DB_PREFIX.'svc_warranty_type',
+			MAIN_DB_PREFIX.'warrantysvc_product_default',
+		);
+		$needsBootstrap = false;
+		foreach ($requiredTables as $table) {
+			if (!$this->tableExists($table)) {
+				$needsBootstrap = true;
+				break;
+			}
 		}
 
-		$result = $this->_load_tables('/warrantysvc/sql/');
-		if ($result < 0) {
+		if ($needsBootstrap) {
+			$result = $this->_load_tables('/warrantysvc/sql/');
+			if ($result < 0) {
+				return -1;
+			}
+		}
+
+		if ($this->upgradeForkSchema() < 0) {
 			return -1;
 		}
 		if ($this->syncContactTypeCatalog() < 0) {
