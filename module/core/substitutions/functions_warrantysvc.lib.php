@@ -51,9 +51,10 @@ function warrantysvc_completesubstitutionarray(&$substitutionarray, $outputlangs
 		'__SUPPLIER_RETURN_STATUS__' => $outputlangs->transnoentitiesnoconv('SubstSupplierReturnStatus'),
 		'__SUPPLIER_RETURN_REASON__' => $outputlangs->transnoentitiesnoconv('SubstSupplierReturnReason'),
 		'__SUPPLIER_RETURN_LINES__' => $outputlangs->transnoentitiesnoconv('SubstSupplierReturnLines'),
+		'__WARRANTY_CONFIRMATION_LINES__' => $outputlangs->transnoentitiesnoconv('SubstWarrantyConfirmationLines'),
 	);
 
-	if (!is_object($object) || empty($object->element) || !in_array($object->element, array('svcrequest', 'svcwarranty', 'svcsupplierrma', 'svcsupplierreturn'), true)) {
+	if (!is_object($object) || empty($object->element) || !in_array($object->element, array('svcrequest', 'svcwarranty', 'svcsupplierrma', 'svcsupplierreturn', 'shipping'), true)) {
 		foreach ($descriptions as $key => $description) {
 			if (!array_key_exists($key, $substitutionarray)) {
 				$substitutionarray[$key] = $description;
@@ -92,6 +93,7 @@ function warrantysvc_completesubstitutionarray(&$substitutionarray, $outputlangs
 	$supplierReturnStatus = '';
 	$supplierReturnReason = '';
 	$supplierReturnLines = '';
+	$warrantyConfirmationLines = '';
 
 	$productId = !empty($object->fk_product) ? (int) $object->fk_product : 0;
 	if ($productId > 0) {
@@ -197,6 +199,20 @@ function warrantysvc_completesubstitutionarray(&$substitutionarray, $outputlangs
 			}
 		}
 		$supplierReturnLines = implode("\n", $lineTexts);
+	} elseif ($object->element === 'shipping') {
+		dol_include_once('/warrantysvc/lib/warrantysvc.lib.php');
+		$warrantyConfirmationLines = warrantysvc_render_warranty_confirmation_lines(
+			$object->db,
+			(int) $object->id,
+			$outputlangs
+		);
+
+		if (!is_object($object->thirdparty)) {
+			$object->fetch_thirdparty();
+		}
+		if (is_object($object->thirdparty)) {
+			$customerName = (string) $object->thirdparty->name;
+		}
 	} else {
 		$warranty = $object;
 		$warrantyStatus = isset($object->status) ? (string) $object->status : 'none';
@@ -282,6 +298,7 @@ function warrantysvc_completesubstitutionarray(&$substitutionarray, $outputlangs
 		'__SUPPLIER_RETURN_STATUS__' => $supplierReturnStatus,
 		'__SUPPLIER_RETURN_REASON__' => $supplierReturnReason,
 		'__SUPPLIER_RETURN_LINES__' => $supplierReturnLines,
+		'__WARRANTY_CONFIRMATION_LINES__' => $warrantyConfirmationLines,
 	);
 
 	foreach ($values as $key => $value) {
