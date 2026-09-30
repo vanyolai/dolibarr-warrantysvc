@@ -3,6 +3,7 @@
 ## [Unreleased] - Dolibarr 23 fork
 
 ### Added
+- Added a customer-facing, Shipment-level Warranty Confirmation email flow using Dolibarr's native presend form and editable email templates. One message groups all non-voided warranties from the Shipment by Product and warranty period and lists all serial/LOT numbers together.
 - Nautilus shipment PDF model now belongs to WarrantySvc instead of the retired WarrantyPeriod module. It keeps the compact Espadon-based layout and, in Product-field mode only, renders warranty expiry directly from WarrantySvc's existing Product-month calculation without storing Shipment-line warranty data.
 - Supplier Return stock traceability now integrates with native Dolibarr Product views: shipped returns create Product links, Product Agenda events and a Supplier Returns row/detail list under Related elements.
 - Shipped Supplier Returns can be safely reversed instead of hard-deleted: Dolibarr's native stock-movement reversal creates compensating movements, preserves the original movement history and marks the return Reversed.
@@ -26,6 +27,8 @@
 - PHP syntax-lint workflow for the fork branch.
 
 ### Changed
+- Nautilus now collapses repeated serialized/LOT Shipment rows when Product, warranty expiry and other printable line semantics match; serial/LOT numbers are listed under one Product row, while a different expiry remains a separate row.
+- Warranty creation is no longer exposed through Dolibarr's operator/fixed Notification channel. Customer warranty confirmations are explicitly sent per Shipment with the native sender/profile selector, preventing one automatic email per Warranty row.
 - Warranty List Product references now link to the native Product card, and serial/LOT values link to the corresponding native Product LOT card when the `(fk_product, batch)` record exists.
 - Nautilus shipment PDFs now render weight only. Product/shipment volume is deliberately suppressed for Nautilus, and the shared Espadon column is relabeled with Dolibarr's native `Weight` translation.
 - Warranty status rendering now uses Dolibarr's native status pictograms instead of custom word badges; the Warranty model also exposes the standard `getLibStatut()` entry point.
