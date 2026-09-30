@@ -53,6 +53,8 @@
 - Existing upstream schemas are upgraded explicitly and idempotently before normal module table loading.
 
 ### Fixed
+- Shipment/order automatic warranty creation now uses Dolibarr 23's native `ExpeditionLineBatch::fetchAll()` loader for serial/LOT allocations and treats technical generation failures as trigger failures, so the enclosing shipment/order transaction rolls back instead of silently completing without an expected warranty.
+- Warranty reference numbering now extracts the counter from the real `WTY-YYYYMM-` prefix length; the former hard-coded offset only read the last digit and started reusing reference numbers after `0009`.
 - Hardened Supplier Return against duplicate or partial stock deduction: concurrent shipments are serialized, existing deterministic movements are verified before reuse, stale edits are rejected, and stock-bearing returns cannot be cancelled, deleted or rolled back before Shipped.
 - Supplier Return email substitutions are now populated for the actual `svcsupplierreturn` object, including reference, external reference, status, reason and line summary.
 - Completed the Hungarian Supplier Return and stock-workflow translations; the newly added UI no longer falls back to raw language keys.
