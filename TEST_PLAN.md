@@ -45,6 +45,19 @@
 - [ ] Verify LOT/serial rendering remains compact and ordinary Espadon features (page breaks, header, totals, printable real extra fields) still work
 - [ ] With Product weight and volume both populated, verify Nautilus shows per-line/total weight only, never volume, and the column heading is the native translated Weight label
 - [ ] With volume populated but weight empty, verify Nautilus does not reserve an empty Weight/Volume column
+- [ ] Ship several serial-numbered units of the same Product across multiple Shipment rows; verify Nautilus renders one Product row and lists every serial underneath it
+- [ ] Give otherwise identical Product rows different rendered warranty expiry values; verify Nautilus keeps one row per expiry group
+
+## 0C. SHIPMENT WARRANTY CONFIRMATION EMAIL
+
+- [ ] Validate a Shipment that creates multiple Warranty records for the same customer, including several serials of the same Product
+- [ ] Verify the Shipment card offers the grouped Warranty Confirmation action only when at least one non-voided Warranty is linked
+- [ ] Open the confirmation and verify recipient selection is customer-facing and the standard Dolibarr From/sender-profile selector is available
+- [ ] Re-enable WarrantySvc once after upgrade and verify the default HU/EN `svcwarrantyconfirmation` templates are seeded without overwriting existing templates
+- [ ] Verify `__REF__`, `__SENDEREMAIL_SIGNATURE__` and `__WARRANTY_CONFIRMATION_LINES__` are substituted in subject/body without raw placeholders
+- [ ] Verify one email contains all Shipment warranties, grouped by Product + start/expiry period, with all serial/LOT numbers listed together
+- [ ] Verify the same grouped confirmation can be opened from any linked Warranty card
+- [ ] Verify Warranty creation no longer sends through the operator/fixed Notification channel
 
 
 - [ ] With an existing populated WarrantySvc installation, disable and re-enable the module
