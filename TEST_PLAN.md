@@ -69,6 +69,8 @@
 - [ ] Verify the New Warranty customer placeholder uses the translated native Third Party selector text
 - [ ] After selecting a customer, verify Product / serial prompts show normal Hungarian accents (no literal HTML entities such as `&aacute;`)
 - [ ] In Warranty List, verify status is shown with Dolibarr's native colored status dot, the serial column is translated, and the expiry-range inputs use date-specific start/end labels
+- [ ] Verify each Product reference in Warranty List opens the matching native Product card
+- [ ] Verify each serial/LOT with an existing Product LOT record opens `/product/stock/productlot_card.php?id=<rowid>`; missing LOT metadata must remain plain text instead of creating a broken link
 
 ### 1.2 Auto-Create Warranty on Shipment
 - [ ] Enable automatic warranty creation and select the intended shipment event

@@ -307,9 +307,39 @@ if ($resql) {
 
 	$now = dol_now();
 
+	// Buffer the current page so Product LOT ids can be resolved in one query.
+	// svc_warranty stores the Product FK and serial/LOT text, not llx_product_lot.rowid.
+	// The core Product LOT table has a unique (fk_product, batch) key, so the
+	// canonical productlot_card.php?id=... target can be derived safely.
+	$rows = array();
+	$lot_lookup_conditions = array();
 	while ($i < $num) {
 		$obj = $db->fetch_object($resql);
+		$rows[] = $obj;
 
+		$serial_number = trim((string) $obj->serial_number);
+		if (!empty($obj->fk_product) && $serial_number !== '') {
+			$lot_lookup_conditions[((int) $obj->fk_product).'\\0'.$serial_number] =
+				"(fk_product = ".((int) $obj->fk_product)." AND batch = '".$db->escape($serial_number)."')";
+		}
+		$i++;
+	}
+	$db->free($resql);
+
+	$product_lot_ids = array();
+	if (!empty($lot_lookup_conditions)) {
+		$sql_lots = "SELECT rowid, fk_product, batch FROM ".MAIN_DB_PREFIX."product_lot WHERE ";
+		$sql_lots .= implode(" OR ", array_values($lot_lookup_conditions));
+		$res_lots = $db->query($sql_lots);
+		if ($res_lots) {
+			while ($obj_lot = $db->fetch_object($res_lots)) {
+				$product_lot_ids[((int) $obj_lot->fk_product).'\\0'.(string) $obj_lot->batch] = (int) $obj_lot->rowid;
+			}
+			$db->free($res_lots);
+		}
+	}
+
+	foreach ($rows as $obj) {
 		$cardurl = DOL_URL_ROOT.'/custom/warrantysvc/warranty_card.php?id='.$obj->rowid;
 
 		// Use effective_expiry (stored date, or start_date + type duration) for all status logic
@@ -336,8 +366,30 @@ if ($resql) {
 		print '<tr class="'.$row_class.'">';
 		print '<td><a href="'.$cardurl.'">'.dol_escape_htmltag($obj->ref).'</a></td>';
 		print '<td>'.dol_escape_htmltag($obj->company_name).'</td>';
-		print '<td>'.dol_escape_htmltag($obj->product_ref ? $obj->product_ref : '').'</td>';
-		print '<td>'.dol_escape_htmltag($obj->serial_number).'</td>';
+
+		$product_ref = (string) ($obj->product_ref ? $obj->product_ref : '');
+		print '<td>';
+		if (!empty($obj->fk_product) && $product_ref !== '') {
+			$product_url = DOL_URL_ROOT.'/product/card.php?id='.((int) $obj->fk_product);
+			print '<a href="'.$product_url.'">'.dol_escape_htmltag($product_ref).'</a>';
+		} else {
+			print dol_escape_htmltag($product_ref);
+		}
+		print '</td>';
+
+		$serial_number = trim((string) $obj->serial_number);
+		print '<td>';
+		if ($serial_number !== '') {
+			$lot_key = ((int) $obj->fk_product).'\\0'.$serial_number;
+			$product_lot_id = isset($product_lot_ids[$lot_key]) ? (int) $product_lot_ids[$lot_key] : 0;
+			if ($product_lot_id > 0) {
+				$lot_url = DOL_URL_ROOT.'/product/stock/productlot_card.php?id='.$product_lot_id;
+				print '<a href="'.$lot_url.'">'.dol_escape_htmltag($serial_number).'</a>';
+			} else {
+				print dol_escape_htmltag($serial_number);
+			}
+		}
+		print '</td>';
 		if ($use_warranty_types) {
 			$wtype_label = $obj->warranty_type ? ($wtype_labels[$obj->warranty_type] ?? $obj->warranty_type) : '';
 			print '<td>'.($wtype_label ? dol_escape_htmltag($wtype_label) : '<span class="opacitymedium">&mdash;</span>').'</td>';
@@ -384,9 +436,7 @@ if ($resql) {
 		print '</td>';
 		print '</tr>';
 
-		$i++;
 	}
-	$db->free($resql);
 } else {
 	print '<tr><td colspan="10">'.$db->lasterror().'</td></tr>';
 }

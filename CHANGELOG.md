@@ -26,6 +26,7 @@
 - PHP syntax-lint workflow for the fork branch.
 
 ### Changed
+- Warranty List Product references now link to the native Product card, and serial/LOT values link to the corresponding native Product LOT card when the `(fk_product, batch)` record exists.
 - Nautilus shipment PDFs now render weight only. Product/shipment volume is deliberately suppressed for Nautilus, and the shared Espadon column is relabeled with Dolibarr's native `Weight` translation.
 - Warranty status rendering now uses Dolibarr's native status pictograms instead of custom word badges; the Warranty model also exposes the standard `getLibStatut()` entry point.
 - Reversed Supplier Returns can now be permanently deleted only after every outbound stock movement has a valid compensating movement; Product Agenda and stock-movement audit records are preserved.
