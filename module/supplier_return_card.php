@@ -325,7 +325,10 @@ if ($action === 'authorize') {
 } elseif ($action === 'rollback') {
 	$formconfirm = $form->formconfirm($_SERVER['PHP_SELF'].'?id='.$object->id, $langs->trans('SupplierReturnRollback'), $langs->trans('ConfirmSupplierReturnRollback'), 'confirm_rollback', '', 0, 1);
 } elseif ($action === 'delete') {
-	$formconfirm = $form->formconfirm($_SERVER['PHP_SELF'].'?id='.$object->id, $langs->trans('DeleteSupplierReturn'), $langs->trans('ConfirmDeleteSupplierReturn', $object->ref), 'confirm_delete', '', 0, 1);
+	$confirmDeleteKey = ($object->status === SvcSupplierReturn::STATUS_REVERSED)
+		? 'ConfirmDeleteReversedSupplierReturn'
+		: 'ConfirmDeleteSupplierReturn';
+	$formconfirm = $form->formconfirm($_SERVER['PHP_SELF'].'?id='.$object->id, $langs->trans('DeleteSupplierReturn'), $langs->trans($confirmDeleteKey, $object->ref), 'confirm_delete', '', 0, 1);
 }
 print $formconfirm;
 
@@ -403,7 +406,7 @@ if ($isEdit) {
 	if ($permwrite && !$supplierReturnStockLocked && in_array($object->status, array(SvcSupplierReturn::STATUS_DRAFT, SvcSupplierReturn::STATUS_AUTHORIZED), true)) print '<a class="butActionDelete" href="'.$_SERVER['PHP_SELF'].'?id='.$object->id.'&action=cancel&token='.newToken().'">'.$langs->trans('Cancel').'</a>';
 	if ($permwrite && !$supplierReturnStockLocked && $object->status === SvcSupplierReturn::STATUS_CANCELLED) print '<a class="butAction" href="'.$_SERVER['PHP_SELF'].'?id='.$object->id.'&action=reopen&token='.newToken().'">'.$langs->trans('Reopen').'</a>';
 	if ($permwrite && !$supplierReturnStockLocked && $object->status === SvcSupplierReturn::STATUS_AUTHORIZED) print '<a class="butAction" href="'.$_SERVER['PHP_SELF'].'?id='.$object->id.'&action=rollback&token='.newToken().'">'.$langs->trans('SupplierReturnRollback').'</a>';
-	if ($permdelete && !$supplierReturnStockLocked) print '<a class="butActionDelete" href="'.$_SERVER['PHP_SELF'].'?id='.$object->id.'&action=delete&token='.newToken().'">'.$langs->trans('DeleteSupplierReturn').'</a>';
+	if ($permdelete && (!$supplierReturnStockLocked || $object->status === SvcSupplierReturn::STATUS_REVERSED)) print '<a class="butActionDelete" href="'.$_SERVER['PHP_SELF'].'?id='.$object->id.'&action=delete&token='.newToken().'">'.$langs->trans('DeleteSupplierReturn').'</a>';
 	print '</div>';
 }
 
