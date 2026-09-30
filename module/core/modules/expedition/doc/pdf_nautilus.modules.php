@@ -457,6 +457,11 @@ class pdf_nautilus extends pdf_espadon
             if (isset($target->qty) || isset($line->qty)) {
                 $target->qty = (float) ($target->qty ?? 0) + (float) ($line->qty ?? 0);
             }
+            foreach (array('total_ht', 'total_tva', 'total_ttc', 'multicurrency_total_ht', 'multicurrency_total_tva', 'multicurrency_total_ttc') as $totalField) {
+                if (isset($target->{$totalField}) || isset($line->{$totalField})) {
+                    $target->{$totalField} = (float) ($target->{$totalField} ?? 0) + (float) ($line->{$totalField} ?? 0);
+                }
+            }
 
             $target->detail_batch = $this->mergeBatchDetailsForPdf(
                 !empty($target->detail_batch) && is_array($target->detail_batch) ? $target->detail_batch : array(),
