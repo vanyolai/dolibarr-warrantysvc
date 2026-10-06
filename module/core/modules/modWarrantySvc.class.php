@@ -1081,10 +1081,25 @@ class modWarrantySvc extends DolibarrModules
 		);
 		foreach ($definitions as $suffix => $desc) {
 			$table = MAIN_DB_PREFIX.$suffix;
-			if ($this->tableExists($table)) continue;
-			if ($this->db->DDLCreateTable($table, $desc['fields'], 'rowid', '') < 0) return -1;
+			if (!$this->tableExists($table)) {
+				if ($this->db->DDLCreateTable($table, $desc['fields'], 'rowid', '') < 0) return -1;
+			}
+			// On a retry after a partially completed upgrade, fill only indexes
+			// that do not exist. Fresh installations already have .key.sql indexes.
 			foreach ($desc['indexes'] as $sql) {
-				if (!$this->db->query($sql)) return -1;
+				if (!preg_match('/^CREATE(?: UNIQUE)? INDEX ([a-z0-9_]+) ON /i', $sql, $match)) return -1;
+				$indexName = $match[1];
+				if ($this->db->type === 'pgsql') {
+					$check = 'SELECT indexname FROM pg_indexes WHERE tablename = '."'".$this->db->escape($table)."'";
+					$check .= " AND indexname = '".$this->db->escape($indexName)."'";
+				} else {
+					$check = 'SHOW INDEX FROM '.$table." WHERE Key_name = '".$this->db->escape($indexName)."'";
+				}
+				$res = $this->db->query($check);
+				if (!$res) return -1;
+				$exists = (bool) $this->db->fetch_object($res);
+				$this->db->free($res);
+				if (!$exists && !$this->db->query($sql)) return -1;
 			}
 		}
 		return 1;
