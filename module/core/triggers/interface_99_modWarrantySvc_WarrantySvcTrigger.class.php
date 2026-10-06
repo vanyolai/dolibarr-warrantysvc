@@ -127,6 +127,10 @@ class InterfaceWarrantySvcTrigger extends DolibarrTriggers
 			// Warranty created. Standard Dolibarr Notification handles any email.
 			// ------------------------------------------------------------------
 			case 'SVCWARRANTY_CREATE':
+			case 'SVCWARRANTY_MODIFY':
+				// A changed warranty invalidates the current PDF for future
+				// sends, but never rewrites the immutable historical version.
+				$this->_markLetterStaleIfNeeded($object);
 				return 1;
 
 			// Grouped customer-facing confirmation sent from the Shipment-level
@@ -457,6 +461,28 @@ class InterfaceWarrantySvcTrigger extends DolibarrTriggers
 		$log->save($user);
 	}
 
+
+
+	/**
+	 * Flag any PDF which no longer matches current warranty data.
+	 * This does not alter warranty records or existing document bytes.
+	 */
+	private function _markLetterStaleIfNeeded($warranty)
+	{
+		if (empty($warranty->fk_expedition)) return;
+		require_once DOL_DOCUMENT_ROOT.'/custom/warrantysvc/class/svcwarrantyletter.class.php';
+		$id = SvcWarrantyLetter::findByShipment($this->db, (int) $warranty->fk_expedition);
+		if ($id <= 0) return;
+		$letter = new SvcWarrantyLetter($this->db);
+		if ($letter->fetch($id) <= 0 || $letter->current_version <= 0) return;
+		if (!$letter->isSnapshotCurrent()) {
+			$sql = 'UPDATE '.MAIN_DB_PREFIX."svc_warranty_letter SET status = 'stale'";
+			$sql .= ' WHERE rowid = '.((int) $id);
+			if (!$this->db->query($sql)) {
+				dol_syslog('WarrantySvcTrigger: unable to flag warranty letter as stale: '.$this->db->lasterror(), LOG_ERR);
+			}
+		}
+	}
 
 	/**
 	 * Called after the unchanged warranty-generation policy has finished.

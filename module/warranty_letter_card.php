@@ -75,12 +75,13 @@ if (!$needsCreation) {
     $hidedetails=0; $hidedesc=0; $hideref=0;
     $revision=$object->getVersion();
     $verified=$object->verifyVersion($revision);
-    $canSend=$permwrite && $revision && $verified;
+    $stale=$verified && !$object->isSnapshotCurrent($revision);
+    $canSend=$permwrite && $revision && $verified && !$stale;
 
     // Never allow native CMailFile to send without the exact immutable PDF.
     if (in_array($action,array('send','relance'),true)) {
         if (!$canSend) {
-            setEventMessages($langs->trans('WarrantyLetterPdfHashMismatch'),null,'errors');
+            setEventMessages($langs->trans($stale ? 'WarrantyLetterStaleWarning' : 'WarrantyLetterPdfHashMismatch'),null,'errors');
             $action='';
         } else {
             require_once DOL_DOCUMENT_ROOT.'/core/class/html.formmail.class.php';
@@ -135,6 +136,7 @@ print '<tr><td>'.$langs->trans('WarrantyLetterVersion').'</td><td>'.((int)$objec
 print '<tr><td>'.$langs->trans('WarrantyLetterLastSentVersion').'</td><td>'.((int)$object->last_sent_version).'</td></tr>';
 print '</table>';
 
+if ($stale) print '<div class="warning">'.$langs->trans('WarrantyLetterStaleWarning').'</div>';
 if ($permwrite) {
     print '<div class="tabsAction">';
     print '<form method="POST" action="'.$_SERVER['PHP_SELF'].'?id='.((int)$object->id).'" style="display:inline-block">';

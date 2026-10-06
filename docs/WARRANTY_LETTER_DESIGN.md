@@ -53,3 +53,7 @@ Required sandbox acceptance scenarios before dist:
 
 Note: rolled-back DB transactions after PDF output can leave unreferenced files.
 An orphan reconciliation tool should be added before general deployment.
+
+## Warranty change detection
+
+Warranty creation/modification triggers mark the letter stale when current warranty data differs from the preserved snapshot. Every card view and send request also compares the live snapshot, catching changes or deletions that bypass triggers. A stale letter cannot be emailed until an explicit new revision is generated.

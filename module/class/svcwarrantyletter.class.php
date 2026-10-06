@@ -20,6 +20,7 @@ class SvcWarrantyLetter extends CommonObject
     const STATUS_READY = 'ready';
     const STATUS_SENT = 'sent';
     const STATUS_UPDATED = 'updated';
+    const STATUS_STALE = 'stale';
 
     public $ref = '';
     public $entity = 0;
@@ -201,6 +202,20 @@ class SvcWarrantyLetter extends CommonObject
         );
     }
 
+
+    /** A historical version is never rewritten when a warranty changes. */
+    public function isSnapshotCurrent($revision = null)
+    {
+        $revision = $revision ?: $this->getVersion();
+        if (!$revision) return false;
+        $saved = json_decode((string) $revision->snapshot, true);
+        $live = $this->buildSnapshot();
+        if (!is_array($saved) || !is_array($live)) return false;
+        // Issue date is frozen per revision; compare all business data.
+        unset($saved['issued_at'], $live['issued_at']);
+        return json_encode($saved) === json_encode($live);
+    }
+
     public function getVersions()
     {
         global $conf;
@@ -308,7 +323,14 @@ class SvcWarrantyLetter extends CommonObject
             }
         }
         $status = $this->last_sent_version > 0 ? self::STATUS_UPDATED : self::STATUS_READY;
-        $mainDoc = 'warrantysvc/'.$relative;
+        // Native Dolibarr mail uses DOL_DATA_ROOT / last_main_doc for the
+        // initial PDF attachment. This must also work in multi-entity mode.
+        $dataRoot = rtrim(DOL_DATA_ROOT, '/').'/';
+        if (strpos($path, $dataRoot) !== 0) {
+            $this->error = 'WarrantyLetterOutputOutsideDocumentRoot';
+            return -1;
+        }
+        $mainDoc = substr($path, strlen($dataRoot));
         $sql = 'UPDATE '.MAIN_DB_PREFIX.'svc_warranty_letter SET current_version = '.$number;
         $sql .= ", status = '".$status."', last_main_doc = '".$this->db->escape($mainDoc)."'";
         $sql .= ' WHERE rowid = '.((int) $this->id).' AND entity = '.((int) $conf->entity);
@@ -400,7 +422,7 @@ class SvcWarrantyLetter extends CommonObject
         global $langs;
         $langs->load('warrantysvc@warrantysvc');
         $map = array(self::STATUS_DRAFT=>'WarrantyLetterDraft', self::STATUS_READY=>'WarrantyLetterReady',
-            self::STATUS_SENT=>'WarrantyLetterSent', self::STATUS_UPDATED=>'WarrantyLetterUpdated');
+            self::STATUS_SENT=>'WarrantyLetterSent', self::STATUS_UPDATED=>'WarrantyLetterUpdated', self::STATUS_STALE=>'WarrantyLetterStale');
         $label = $langs->trans($map[$this->status] ?? $this->status);
         return $mode ? $label : '<span class="badge">'.$label.'</span>';
     }

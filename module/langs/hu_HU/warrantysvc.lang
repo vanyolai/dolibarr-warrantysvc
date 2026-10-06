@@ -937,3 +937,7 @@ PermissionWriteWarrantyLetters=Garancialevelek generálása és küldése
 
 WarrantyLetterCreate=Hivatalos garancialevél létrehozása
 WarrantyLetterEmailSubject=Garancialevél - %s
+
+WarrantyLetterStale=A garanciák megváltoztak – a PDF elavult
+WarrantyLetterStaleWarning=A garanciaadatok eltérnek az elmentett PDF-től. Küldés előtt hozzon létre új PDF-verziót.
+WarrantyLetterOutputOutsideDocumentRoot=A dokumentumkönyvtárnak a Dolibarr privát dokumentumgyökerén belül kell lennie.
