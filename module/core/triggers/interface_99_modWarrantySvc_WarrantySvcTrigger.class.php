@@ -134,6 +134,16 @@ class InterfaceWarrantySvcTrigger extends DolibarrTriggers
 			case 'WARRANTYSVC_CONFIRMATION_SENTBYMAIL':
 				return 1;
 
+			case 'SVCWARRANTYLETTER_SENTBYMAIL':
+				if (isset($object->element) && $object->element === 'svcwarrantyletter') {
+					// Mail has already gone out; audit failures must be visible in server logs.
+					if ($object->recordEmail($user) < 0) {
+						dol_syslog('WarrantySvcTrigger: warranty-letter mail audit failed: '.$object->error, LOG_ERR);
+						// Native sending succeeded. Do not report a false email failure.
+					}
+				}
+				return 1;
+
 			// ------------------------------------------------------------------
 			// Supplier RMA email sent through Dolibarr's native
 			// actions_sendmails.inc.php pipeline. The physical message has already
@@ -192,6 +202,7 @@ class InterfaceWarrantySvcTrigger extends DolibarrTriggers
 						if ($autoResult < 0) {
 							return -1;
 						}
+						if ($this->_ensureWarrantyLetterFromShipment($object, $user, $langs) < 0) return -1;
 					}
 				}
 				return 1;
@@ -214,6 +225,7 @@ class InterfaceWarrantySvcTrigger extends DolibarrTriggers
 							if ($autoResult < 0) {
 								return -1;
 							}
+							if ($this->_ensureWarrantyLetterFromShipment($expedition, $user, $langs) < 0) return -1;
 						}
 					}
 				}
@@ -443,6 +455,32 @@ class InterfaceWarrantySvcTrigger extends DolibarrTriggers
 		$log->condition_score    = $log->computeConditionScore();
 
 		$log->save($user);
+	}
+
+
+	/**
+	 * Called after the unchanged warranty-generation policy has finished.
+	 * The parent trigger already runs inside the Dolibarr business transaction.
+	 * Never revise an existing/previously emailed letter automatically.
+	 */
+	private function _ensureWarrantyLetterFromShipment($shipment, $user, $langs)
+	{
+		require_once DOL_DOCUMENT_ROOT.'/custom/warrantysvc/class/svcwarrantyletter.class.php';
+		require_once DOL_DOCUMENT_ROOT.'/custom/warrantysvc/lib/warrantysvc.lib.php';
+		if (warrantysvc_count_shipment_warranties($this->db, (int) $shipment->id) <= 0) return 0;
+		$found = SvcWarrantyLetter::findByShipment($this->db, (int) $shipment->id);
+		if ($found < 0) {
+			$this->error = $this->db->lasterror();
+			return -1;
+		}
+		if ($found > 0) return 1;
+		$letter = new SvcWarrantyLetter($this->db);
+		if ($letter->createFromShipment($shipment, $user) < 0 || $letter->createRevision($user, $langs) < 0) {
+			$this->error = $letter->error;
+			dol_syslog('WarrantySvcTrigger: unable to issue warranty letter for shipment '.$shipment->id.': '.$this->error, LOG_ERR);
+			return -1;
+		}
+		return 1;
 	}
 
 	/**

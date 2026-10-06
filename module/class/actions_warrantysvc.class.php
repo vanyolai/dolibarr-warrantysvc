@@ -91,7 +91,18 @@ class ActionsWarrantySvc
 				'classfile'     => 'svcsupplierrma',
 				'classname'     => 'SvcSupplierRma',
 			);
-		} elseif ($elementType === 'svcsupplierreturn' || $elementType === 'warrantysvc_svcsupplierreturn') {
+		
+		} elseif ($elementType === 'svcwarrantyletter' || $elementType === 'warrantysvc_svcwarrantyletter') {
+			$this->results = array(
+				'module'=>'warrantysvc',
+				'element'=>'svcwarrantyletter',
+				'table_element'=>'svc_warranty_letter',
+				'subelement'=>'svcwarrantyletter',
+				'classpath'=>'custom/warrantysvc/class',
+				'classfile'=>'svcwarrantyletter',
+				'classname'=>'SvcWarrantyLetter'
+			);
+} elseif ($elementType === 'svcsupplierreturn' || $elementType === 'warrantysvc_svcsupplierreturn') {
 			$this->results = array(
 				'module'        => 'warrantysvc',
 				'element'       => 'svcsupplierreturn',
@@ -393,6 +404,16 @@ class ActionsWarrantySvc
 			);
 		}
 
+
+		if ($user->hasRight('warrantysvc', 'warrantyletter', 'read')) {
+			$this->results['warrantysvc_svcwarrantyletter'] = array(
+				'enabled'=>1,
+				'perms'=>1,
+				'label'=>'WarrantyLetter',
+				'sql'=>$this->buildLinkToObjectSQL('svc_warranty_letter', 'svcwarrantyletter', $sanitized)
+			);
+		}
+
 		// When viewing a warranty or service-request card, also offer calls as linkable.
 		// 'pbxcalls_call' key produces tplpath=pbxcalls/call which resolves to
 		// custom/pbxcalls/call/tpl/linkedobjectblock.tpl.php via dol_buildpath.
@@ -482,38 +503,16 @@ class ActionsWarrantySvc
 	public function addMoreActionsButtons($parameters, &$object, &$action, $hookmanager)
 	{
 		global $langs, $user;
-
-		if (!isModEnabled('warrantysvc')
-			|| !isset($object->element)
+		if (!isModEnabled('warrantysvc') || empty($object->id) || !isset($object->element)
 			|| $object->element !== 'shipping'
-			|| empty($object->id)
-			|| !$user->hasRight('warrantysvc', 'svcwarranty', 'write')
-			|| $action === 'presend'
-		) {
-			return 0;
-		}
+			|| !$user->hasRight('warrantysvc', 'warrantyletter', 'read')
+			|| $action === 'presend') return 0;
 
 		dol_include_once('/warrantysvc/lib/warrantysvc.lib.php');
-		if (warrantysvc_count_shipment_warranties($this->db, (int) $object->id) <= 0) {
-			return 0;
-		}
-
+		if (warrantysvc_count_shipment_warranties($this->db, (int) $object->id) <= 0) return 0;
 		$langs->load('warrantysvc@warrantysvc');
-		if (!is_object($object->thirdparty)) {
-			$object->fetch_thirdparty();
-		}
-
-		$url = dolBuildUrl(
-			DOL_URL_ROOT.'/custom/warrantysvc/warranty_confirmation.php',
-			array('id' => (int) $object->id, 'action' => 'presend', 'mode' => 'init'),
-			true
-		);
-		foreach (warrantysvc_default_warranty_confirmation_receivers($object) as $receiverKey) {
-			$url .= '&receiver%5B%5D='.urlencode((string) $receiverKey);
-		}
-		$url .= '#formmailbeforetitle';
-
-		print dolGetButtonAction('', $langs->trans('SendWarrantyConfirmation'), 'email', $url, '');
+		$url = DOL_URL_ROOT.'/custom/warrantysvc/warranty_letter_card.php?shipmentid='.((int) $object->id);
+		print dolGetButtonAction('', $langs->trans('WarrantyLetterOpen'), 'pdf', $url, '');
 		return 0;
 	}
 
@@ -612,7 +611,7 @@ class ActionsWarrantySvc
 			$this->results['svcrequest'] = img_picto('', 'technic', 'class="pictofixedwidth"').dol_escape_htmltag($langs->trans('MailToSvcRequest'));
 		}
 		if ($user->hasRight('warrantysvc', 'svcwarranty', 'read')) {
-			$this->results['svcwarrantyconfirmation'] = img_picto('', 'email', 'class="pictofixedwidth"').dol_escape_htmltag($langs->trans('MailToWarrantyConfirmation'));
+			$this->results['svcwarrantyletter'] = img_picto('', 'pdf', 'class="pictofixedwidth"').dol_escape_htmltag($langs->trans('WarrantyLetterTitle'));
 		}
 		if ($user->hasRight('warrantysvc', 'supplierrma', 'read')) {
 			$this->results['svcsupplierrma'] = img_picto('', 'tools', 'class="pictofixedwidth"').dol_escape_htmltag($langs->trans('MailToSupplierRma'));
@@ -650,7 +649,7 @@ class ActionsWarrantySvc
 			}
 		}
 
-		foreach (array('svcrequest', 'svcwarranty', 'svcsupplierrma', 'svcsupplierreturn') as $element) {
+		foreach (array('svcrequest', 'svcwarranty', 'svcwarrantyletter', 'svcsupplierrma', 'svcsupplierreturn') as $element) {
 			if (!isset($conf->{$element}) || !is_object($conf->{$element})) {
 				$conf->{$element} = new stdClass();
 			}

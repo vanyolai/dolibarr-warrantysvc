@@ -44,7 +44,7 @@ class modWarrantySvc extends DolibarrModules
 		// Module name (no spaces), used if translation string 'ModuleXXXName' not found
 		$this->name = preg_replace('/^mod/i', '', get_class($this));
 		$this->description = 'ModuleWarrantySvcDesc';
-		$this->version = '1.46.9';
+		$this->version = '1.47.0-dev';
 		$this->const_name = 'MAIN_MODULE_'.strtoupper($this->name);
 		$this->picto = 'technic';
 
@@ -62,6 +62,7 @@ class modWarrantySvc extends DolibarrModules
 		// Data dirs created when module enabled
 		$this->dirs = array(
 			"/warrantysvc/temp",
+			"/warrantysvc/letters",
 		);
 
 		// Config page
@@ -231,6 +232,24 @@ class modWarrantySvc extends DolibarrModules
 		$this->rights[$r][3] = 0;
 		$this->rights[$r][4] = 'svcwarranty';
 		$this->rights[$r][5] = 'delete';
+
+
+		// Warranty letter rights, separate from warranty-record edit rights.
+		$r++;
+		$this->rights[$r][0] = 510041;
+		$this->rights[$r][1] = 'PermissionReadWarrantyLetters';
+		$this->rights[$r][2] = 'r';
+		$this->rights[$r][3] = 0;
+		$this->rights[$r][4] = 'warrantyletter';
+		$this->rights[$r][5] = 'read';
+
+		$r++;
+		$this->rights[$r][0] = 510042;
+		$this->rights[$r][1] = 'PermissionWriteWarrantyLetters';
+		$this->rights[$r][2] = 'w';
+		$this->rights[$r][3] = 0;
+		$this->rights[$r][4] = 'warrantyletter';
+		$this->rights[$r][5] = 'write';
 
 		// Main menu entries
 		$this->menu = array();
@@ -992,6 +1011,120 @@ class modWarrantySvc extends DolibarrModules
 	}
 
 
+
+	/**
+	 * Add-only schema migration. Never re-run _load_tables() on an installed schema:
+	 * that would also re-run existing module CREATE TABLE and index files.
+	 * DDLCreateTable uses Dolibarr driver syntax for MariaDB and PostgreSQL.
+	 */
+	private function ensureWarrantyLetterTables()
+	{
+		$definitions = array(
+			'svc_warranty_letter' => array(
+				'fields' => array(
+					'rowid'=>array('type'=>'integer'),
+					'ref'=>array('type'=>'varchar','value'=>'50','null'=>'NOT NULL'),
+					'entity'=>array('type'=>'integer','null'=>'NOT NULL','default'=>'1'),
+					'fk_expedition'=>array('type'=>'integer','null'=>'NOT NULL'),
+					'fk_commande'=>array('type'=>'integer'),
+					'fk_soc'=>array('type'=>'integer','null'=>'NOT NULL'),
+					'status'=>array('type'=>'varchar','value'=>'20','null'=>'NOT NULL','default'=>'draft'),
+					'current_version'=>array('type'=>'integer','null'=>'NOT NULL','default'=>'0'),
+					'last_sent_version'=>array('type'=>'integer','null'=>'NOT NULL','default'=>'0'),
+					'model_pdf'=>array('type'=>'varchar','value'=>'255'),
+					'last_main_doc'=>array('type'=>'varchar','value'=>'255'),
+					'date_creation'=>array('type'=>'datetime','null'=>'NOT NULL'),
+					'fk_user_creat'=>array('type'=>'integer'),
+					'tms'=>array('type'=>'timestamp')
+				),
+				'indexes'=>array(
+					'CREATE UNIQUE INDEX uk_svc_warranty_letter_shipment ON '.MAIN_DB_PREFIX.'svc_warranty_letter (entity, fk_expedition)',
+					'CREATE UNIQUE INDEX uk_svc_warranty_letter_ref ON '.MAIN_DB_PREFIX.'svc_warranty_letter (entity, ref)',
+					'CREATE INDEX idx_svc_warranty_letter_order ON '.MAIN_DB_PREFIX.'svc_warranty_letter (fk_commande)',
+					'CREATE INDEX idx_svc_warranty_letter_soc ON '.MAIN_DB_PREFIX.'svc_warranty_letter (fk_soc)'
+				)
+			),
+			'svc_warranty_letter_version'=>array(
+				'fields'=>array(
+					'rowid'=>array('type'=>'integer'),
+					'entity'=>array('type'=>'integer','null'=>'NOT NULL','default'=>'1'),
+					'fk_letter'=>array('type'=>'integer','null'=>'NOT NULL'),
+					'version'=>array('type'=>'integer','null'=>'NOT NULL'),
+					'snapshot'=>array('type'=>'text','null'=>'NOT NULL'),
+					'file_path'=>array('type'=>'varchar','value'=>'255','null'=>'NOT NULL'),
+					'sha256'=>array('type'=>'varchar','value'=>'64','null'=>'NOT NULL'),
+					'date_creation'=>array('type'=>'datetime','null'=>'NOT NULL'),
+					'fk_user_creat'=>array('type'=>'integer')
+				),
+				'indexes'=>array(
+					'CREATE UNIQUE INDEX uk_svc_warranty_letter_version ON '.MAIN_DB_PREFIX.'svc_warranty_letter_version (fk_letter, version)',
+					'CREATE INDEX idx_svc_warranty_letter_version_entity ON '.MAIN_DB_PREFIX.'svc_warranty_letter_version (entity, fk_letter)'
+				)
+			),
+			'svc_warranty_letter_mail'=>array(
+				'fields'=>array(
+					'rowid'=>array('type'=>'integer'),
+					'entity'=>array('type'=>'integer','null'=>'NOT NULL','default'=>'1'),
+					'fk_letter'=>array('type'=>'integer','null'=>'NOT NULL'),
+					'fk_version'=>array('type'=>'integer','null'=>'NOT NULL'),
+					'date_sent'=>array('type'=>'datetime','null'=>'NOT NULL'),
+					'fk_user'=>array('type'=>'integer'),
+					'recipient'=>array('type'=>'text'),
+					'subject'=>array('type'=>'varchar','value'=>'255'),
+					'message_id'=>array('type'=>'varchar','value'=>'255')
+				),
+				'indexes'=>array(
+					'CREATE INDEX idx_svc_warranty_letter_mail_letter ON '.MAIN_DB_PREFIX.'svc_warranty_letter_mail (fk_letter, date_sent)',
+					'CREATE INDEX idx_svc_warranty_letter_mail_version ON '.MAIN_DB_PREFIX.'svc_warranty_letter_mail (fk_version)'
+				)
+			)
+		);
+		foreach ($definitions as $suffix => $desc) {
+			$table = MAIN_DB_PREFIX.$suffix;
+			if ($this->tableExists($table)) continue;
+			if ($this->db->DDLCreateTable($table, $desc['fields'], 'rowid', '') < 0) return -1;
+			foreach ($desc['indexes'] as $sql) {
+				if (!$this->db->query($sql)) return -1;
+			}
+		}
+		return 1;
+	}
+
+	/** Register a new native Email Templates type without overwriting legacy drafts. */
+	private function syncWarrantyLetterEmailTemplates()
+	{
+		global $conf;
+		$templates = array(
+			'hu_HU'=>array(
+				'label'=>'Garancialevél (PDF)',
+				'topic'=>'Garancialevél – __WARRANTY_LETTER_REF__',
+				'content'=>'Tisztelt Partnerünk!<br><br>A __SHIPMENT_REF__ szállítmányhoz tartozó hivatalos garancialevelet PDF-mellékletként küldjük.<br><br>Garancialevél: __WARRANTY_LETTER_REF__, verzió: __WARRANTY_LETTER_VERSION__<br>Rendelés: __ORDER_REF__<br><br>Üdvözlettel,<br>__SENDEREMAIL_SIGNATURE__'
+			),
+			'en_US'=>array(
+				'label'=>'Warranty letter (PDF)',
+				'topic'=>'Warranty letter – __WARRANTY_LETTER_REF__',
+				'content'=>'Dear Partner,<br><br>Please find the official PDF warranty letter for shipment __SHIPMENT_REF__ attached.<br><br>Letter: __WARRANTY_LETTER_REF__, version: __WARRANTY_LETTER_VERSION__<br>Order: __ORDER_REF__<br><br>Kind regards,<br>__SENDEREMAIL_SIGNATURE__'
+			)
+		);
+		foreach ($templates as $lang => $tpl) {
+			$sql = 'SELECT rowid FROM '.MAIN_DB_PREFIX.'c_email_templates WHERE entity = '.((int) $conf->entity);
+			$sql .= " AND type_template = 'svcwarrantyletter' AND lang = '".$this->db->escape($lang)."'";
+			$sql .= ' AND active = 1'.$this->db->plimit(1);
+			$res = $this->db->query($sql);
+			if (!$res) return -1;
+			$exists = (bool) $this->db->fetch_object($res);
+			$this->db->free($res);
+			if ($exists) continue;
+			$sql = 'INSERT INTO '.MAIN_DB_PREFIX.'c_email_templates';
+			$sql .= ' (entity, module, type_template, lang, private, fk_user, datec, label, position, defaultfortype, enabled, active, topic, joinfiles, content)';
+			$sql .= ' VALUES ('.((int) $conf->entity).", 'warrantysvc', 'svcwarrantyletter', '".$this->db->escape($lang)."'";
+			$sql .= ", 0, NULL, '".$this->db->idate(dol_now())."', '".$this->db->escape($tpl['label'])."'";
+			$sql .= ", 10, 1, '1', 1, '".$this->db->escape($tpl['topic'])."', 1, '".$this->db->escape($tpl['content'])."')";
+			if (!$this->db->query($sql)) return -1;
+		}
+		return 1;
+	}
+
 	/**
 	 * Function called when module is enabled.
 	 * Loads SQL tables from sql/ directory using standard Dolibarr mechanism.
@@ -1046,7 +1179,14 @@ class modWarrantySvc extends DolibarrModules
 		if ($this->syncNotificationEventCatalog() < 0) {
 			return -1;
 		}
-		if ($this->syncWarrantyConfirmationEmailTemplates() < 0) {
+		if ($this->ensureWarrantyLetterTables() < 0) {
+			return -1;
+		}
+		if ($this->syncWarrantyLetterEmailTemplates() < 0) {
+			return -1;
+		}
+		// Historical 1.46.9 confirmation templates stay archived, not reinstalled.
+		if (false && $this->syncWarrantyConfirmationEmailTemplates() < 0) {
 			return -1;
 		}
 		if ($this->syncSupplierReturnEmailTemplates() < 0) {
