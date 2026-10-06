@@ -40,7 +40,7 @@ if ($id>0) {
     recordNotFound('',0); exit;
 }
 
-if ($needsCreation && $action==='create_letter' && $permwrite) {
+if ($needsCreation && $action==='create_letter' && $permwrite && $_SERVER['REQUEST_METHOD']==='POST') {
     $db->begin();
     $ok=$letter->createFromShipment($shipment,$user);
     if ($ok>0) $ok=$letter->createRevision($user,$langs);
@@ -53,7 +53,7 @@ if ($needsCreation && $action==='create_letter' && $permwrite) {
     $db->rollback();
     setEventMessages($langs->trans('WarrantyLetterError').': '.$letter->error,null,'errors');
 }
-if (!$needsCreation && $action==='new_revision' && $permwrite) {
+if (!$needsCreation && $action==='new_revision' && $permwrite && $_SERVER['REQUEST_METHOD']==='POST') {
     $db->begin();
     $ok=$letter->createRevision($user,$langs);
     if ($ok>0) {

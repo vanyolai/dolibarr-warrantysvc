@@ -43,10 +43,21 @@ class pdf_warrantyletter_standard extends ModelePDFWarrantySvc
         $pageWidth = (float) $format['width'];
         $usable = $pageWidth - 24;
         $toText = static function ($v) use ($outputlangs) { return $outputlangs->convToOutputCharset((string) $v); };
+        // Follow the native Dolibarr PDF convention for issuer logos.
+        // The PDF revision remains immutable after this initial rendering.
+        global $mysoc;
+        if (!empty($mysoc->logo) && !getDolGlobalInt('PDF_DISABLE_MYCOMPANY_LOGO')) {
+            $logo = $conf->mycompany->dir_output.'/logos/'.$mysoc->logo;
+            if (is_readable($logo)) {
+                $pdf->Image($logo, 12, 14, 0, min(15, pdf_getHeightForLogo($logo)));
+            }
+        }
         $pdf->SetFont($font, 'B', 17);
-        $pdf->Cell($usable, 11, $toText($outputlangs->transnoentities('WarrantyLetterTitle')), 0, 1, 'C');
+        $pdf->SetX(42);
+        $pdf->Cell($usable - 30, 11, $toText($outputlangs->transnoentities('WarrantyLetterTitle')), 0, 1, 'C');
         $pdf->SetFont($font, '', 9);
-        $pdf->Cell($usable, 6, $toText($data['letter_ref'].' / v'.$revision), 0, 1, 'C');
+        $pdf->SetX(42);
+        $pdf->Cell($usable - 30, 6, $toText($data['letter_ref'].' / v'.$revision), 0, 1, 'C');
         $pdf->Ln(5);
 
         $half = ($usable - 8) / 2;

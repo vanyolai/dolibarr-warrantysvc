@@ -610,7 +610,7 @@ class ActionsWarrantySvc
 		if ($user->hasRight('warrantysvc', 'svcrequest', 'read')) {
 			$this->results['svcrequest'] = img_picto('', 'technic', 'class="pictofixedwidth"').dol_escape_htmltag($langs->trans('MailToSvcRequest'));
 		}
-		if ($user->hasRight('warrantysvc', 'svcwarranty', 'read')) {
+		if ($user->hasRight('warrantysvc', 'warrantyletter', 'read')) {
 			$this->results['svcwarrantyletter'] = img_picto('', 'pdf', 'class="pictofixedwidth"').dol_escape_htmltag($langs->trans('WarrantyLetterTitle'));
 		}
 		if ($user->hasRight('warrantysvc', 'supplierrma', 'read')) {
