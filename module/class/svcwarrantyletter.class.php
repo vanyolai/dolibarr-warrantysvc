@@ -142,8 +142,8 @@ class SvcWarrantyLetter extends CommonObject
         if (!$this->db->query('UPDATE '.MAIN_DB_PREFIX."svc_warranty_letter SET ref = '".$this->db->escape($this->ref)."' WHERE rowid = ".$this->id)) {
             $this->error = $this->db->lasterror(); return -1;
         }
-        if ($this->add_object_linked('shipping', $this->fk_expedition, $user) < 0) return -1;
-        if ($this->fk_commande > 0 && $this->add_object_linked('commande', $this->fk_commande, $user) < 0) return -1;
+        if ($this->add_object_linked('shipping', $this->fk_expedition, $user) <= 0) { $this->error = 'WarrantyLetterLinkFailed'; return -1; }
+        if ($this->fk_commande > 0 && $this->add_object_linked('commande', $this->fk_commande, $user) <= 0) { $this->error = 'WarrantyLetterLinkFailed'; return -1; }
         return 1;
     }
 
@@ -293,8 +293,17 @@ class SvcWarrantyLetter extends CommonObject
         }
         // Native links to the individual warranties, including additions since v1.
         foreach ($snapshot['warranty_ids'] as $warrantyId) {
-            // add_object_linked() handles duplicate links in core.
-            if ($this->add_object_linked('warrantysvc_svcwarranty', $warrantyId, $user) < 0) {
+            // Dolibarr's add_object_linked() does not deduplicate on its own.
+            $sqlCheck = 'SELECT rowid FROM '.MAIN_DB_PREFIX.'element_element';
+            $sqlCheck .= ' WHERE fk_source = '.((int) $warrantyId);
+            $sqlCheck .= " AND sourcetype = 'warrantysvc_svcwarranty'";
+            $sqlCheck .= ' AND fk_target = '.((int) $this->id);
+            $sqlCheck .= " AND targettype = 'warrantysvc_svcwarrantyletter'";
+            $r = $this->db->query($sqlCheck);
+            if (!$r) { $this->error = $this->db->lasterror(); return -1; }
+            $linked = (bool) $this->db->fetch_object($r);
+            $this->db->free($r);
+            if (!$linked && $this->add_object_linked('warrantysvc_svcwarranty', $warrantyId, $user) <= 0) {
                 $this->error = 'WarrantyLetterLinkFailed'; return -1;
             }
         }
@@ -314,25 +323,36 @@ class SvcWarrantyLetter extends CommonObject
     public function recordEmail($user)
     {
         global $conf;
-        $revision = $this->getVersion();
-        if (!$this->verifyVersion($revision)) { $this->error = 'WarrantyLetterPdfHashMismatch'; return -1; }
+        // The attachment is authoritative: another operator may regenerate the
+        // letter while SMTP delivery is running. Log the actual PDF sent, not
+        // the revision that happens to be current after SMTP completes.
         $paths = isset($this->attachedfiles['paths']) ? (array) $this->attachedfiles['paths'] : array();
-        $expected = realpath($this->versionFullPath($revision));
-        $matched = false;
-        foreach ($paths as $path) {
-            if (realpath((string) $path) === $expected) { $matched = true; break; }
+        $matched = null;
+        $versions = $this->getVersions();
+        if ($versions === null) return -1;
+        foreach ($versions as $v) {
+            $expected = realpath($this->versionFullPath($v));
+            foreach ($paths as $path) {
+                if ($expected !== false && realpath((string) $path) === $expected) {
+                    $matched = $v;
+                    break 2;
+                }
+            }
         }
         if (!$matched) { $this->error = 'WarrantyLetterPdfAttachmentMissing'; return -1; }
+        if (!$this->verifyVersion($matched)) { $this->error = 'WarrantyLetterPdfHashMismatch'; return -1; }
+
         $sql = 'INSERT INTO '.MAIN_DB_PREFIX.'svc_warranty_letter_mail';
         $sql .= ' (entity, fk_letter, fk_version, date_sent, fk_user, recipient, subject, message_id) VALUES (';
-        $sql .= ((int) $conf->entity).', '.((int) $this->id).', '.((int) $revision->rowid).", '".$this->db->idate(dol_now())."', ".((int) $user->id);
+        $sql .= ((int) $conf->entity).', '.((int) $this->id).', '.((int) $matched->rowid).", '".$this->db->idate(dol_now())."', ".((int) $user->id);
         $sql .= ", '".$this->db->escape((string) $this->email_to)."', '".$this->db->escape((string) $this->email_subject)."', '".$this->db->escape((string) $this->email_msgid)."')";
         if (!$this->db->query($sql)) { $this->error = $this->db->lasterror(); return -1; }
-        $sql = 'UPDATE '.MAIN_DB_PREFIX.'svc_warranty_letter SET last_sent_version = '.((int) $revision->version).", status = 'sent'";
-        $sql .= ' WHERE rowid = '.((int) $this->id).' AND current_version = '.((int) $revision->version);
+        $sql = 'UPDATE '.MAIN_DB_PREFIX.'svc_warranty_letter SET last_sent_version = '.((int) $matched->version);
+        $sql .= ", status = CASE WHEN current_version = ".((int) $matched->version)." THEN 'sent' ELSE 'updated' END";
+        $sql .= ' WHERE rowid = '.((int) $this->id).' AND entity = '.((int) $conf->entity);
         if (!$this->db->query($sql)) { $this->error = $this->db->lasterror(); return -1; }
-        $this->last_sent_version = (int) $revision->version;
-        $this->status = self::STATUS_SENT;
+        $this->last_sent_version = (int) $matched->version;
+        $this->status = ((int) $matched->version === (int) $this->current_version) ? self::STATUS_SENT : self::STATUS_UPDATED;
         return 1;
     }
 
