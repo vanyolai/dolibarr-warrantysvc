@@ -934,3 +934,6 @@ WarrantyLetterRevisionCreated=Az új PDF-verzió elkészült.
 WarrantyLetterError=Nem sikerült feldolgozni a garancialevelet
 PermissionReadWarrantyLetters=Garancialevelek megtekintése
 PermissionWriteWarrantyLetters=Garancialevelek generálása és küldése
+
+WarrantyLetterCreate=Hivatalos garancialevél létrehozása
+WarrantyLetterEmailSubject=Garancialevél - %s

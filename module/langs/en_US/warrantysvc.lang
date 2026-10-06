@@ -934,3 +934,6 @@ WarrantyLetterRevisionCreated=New PDF version created.
 WarrantyLetterError=Unable to process warranty letter
 PermissionReadWarrantyLetters=Read warranty letters
 PermissionWriteWarrantyLetters=Generate and send warranty letters
+
+WarrantyLetterCreate=Create official warranty letter
+WarrantyLetterEmailSubject=Warranty letter - %s

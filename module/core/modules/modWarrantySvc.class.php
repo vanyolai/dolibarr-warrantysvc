@@ -1185,10 +1185,6 @@ class modWarrantySvc extends DolibarrModules
 		if ($this->syncWarrantyLetterEmailTemplates() < 0) {
 			return -1;
 		}
-		// Historical 1.46.9 confirmation templates stay archived, not reinstalled.
-		if (false && $this->syncWarrantyConfirmationEmailTemplates() < 0) {
-			return -1;
-		}
 		if ($this->syncSupplierReturnEmailTemplates() < 0) {
 			return -1;
 		}
