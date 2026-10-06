@@ -169,15 +169,18 @@ class SvcWarrantyLetter extends CommonObject
         if (!$result) { $this->error = $this->db->lasterror(); return null; }
         $groups = array(); $indices = array(); $warrantyIds = array();
         while ($row = $this->db->fetch_object($result)) {
-            $key = ((int) $row->fk_product).'|'.((string) $row->start_date).'|'.((string) $row->expiry_date);
+            // Warranty grouping is by calendar date, not time-of-day.
+            $startDay = substr((string) $row->start_date, 0, 10);
+            $expiryDay = substr((string) $row->expiry_date, 0, 10);
+            $key = ((int) $row->fk_product).'|'.$startDay.'|'.$expiryDay;
             if (!isset($indices[$key])) {
                 $indices[$key] = count($groups);
                 $groups[] = array(
                     'product_id'=>(int) $row->fk_product,
                     'product_ref'=>(string) $row->product_ref,
                     'product_label'=>(string) $row->product_label,
-                    'start_date'=>(string) $row->start_date,
-                    'expiry_date'=>(string) $row->expiry_date,
+                    'start_date'=>$startDay,
+                    'expiry_date'=>$expiryDay,
                     'qty'=>0, 'serials'=>array()
                 );
             }

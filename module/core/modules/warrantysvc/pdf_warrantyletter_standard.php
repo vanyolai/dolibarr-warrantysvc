@@ -96,8 +96,8 @@ class pdf_warrantyletter_standard extends ModelePDFWarrantySvc
             $pdf->SetFont($font, 'B', 8);
             $pdf->Cell($c1, 8, $toText($outputlangs->transnoentities('Product')), 1, 0, 'L', true);
             $pdf->Cell($c2, 8, $toText($outputlangs->transnoentities('Qty')), 1, 0, 'C', true);
-            $pdf->Cell($c3, 8, $toText($outputlangs->transnoentities('WarrantyStart')), 1, 0, 'C', true);
-            $pdf->Cell($c4, 8, $toText($outputlangs->transnoentities('WarrantyExpiry')), 1, 1, 'C', true);
+            $pdf->Cell($c3, 8, $toText($outputlangs->transnoentities('WarrantyLetterStartDate')), 1, 0, 'C', true);
+            $pdf->Cell($c4, 8, $toText($outputlangs->transnoentities('WarrantyLetterEndDate')), 1, 1, 'C', true);
         };
         $printHeader();
         foreach ($data['groups'] as $item) {

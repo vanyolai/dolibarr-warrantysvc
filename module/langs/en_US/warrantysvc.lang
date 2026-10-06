@@ -941,3 +941,6 @@ WarrantyLetterEmailSubject=Warranty letter - %s
 WarrantyLetterStale=Warranty data changed - PDF out of date
 WarrantyLetterStaleWarning=Warranty information differs from the saved PDF. Generate a new PDF version before sending.
 WarrantyLetterOutputOutsideDocumentRoot=The configured document output directory must be inside the Dolibarr private document root.
+
+WarrantyLetterStartDate=Warranty start date
+WarrantyLetterEndDate=Warranty expiry date
