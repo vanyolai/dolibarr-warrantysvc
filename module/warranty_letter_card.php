@@ -382,13 +382,12 @@ if ($permwrite) {
         print '<input type="hidden" name="id" value="'.((int)$object->id).'">';
         print '<input type="hidden" name="action" value="add_shipments">';
         print '<div class="div-table-responsive"><table class="noborder centpercent">';
-        print '<tr class="liste_titre"><th class="center"></th><th>'.$langs->trans('ShipmentRef').'</th><th>'.$langs->trans('Date').'</th><th class="center">'.$langs->trans('WarrantyRecords').'</th><th class="right">'.$langs->trans('CoveredQuantity').'</th></tr>';
+        print '<tr class="liste_titre"><th class="center"></th><th>'.$langs->trans('ShipmentRef').'</th><th>'.$langs->trans('Date').'</th><th class="right">'.$langs->trans('CoveredQuantity').'</th></tr>';
         foreach ($available as $s) {
             print '<tr class="oddeven">';
             print '<td class="center"><input type="checkbox" name="add_shipmentids[]" value="'.((int)$s->fk_expedition).'"></td>';
             print '<td><a href="'.DOL_URL_ROOT.'/expedition/card.php?id='.((int)$s->fk_expedition).'">'.dol_escape_htmltag($s->ref).'</a></td>';
             print '<td>'.(!empty($s->date_expedition)?dol_print_date($db->jdate($s->date_expedition),'day'):'').'</td>';
-            print '<td class="center">'.((int)$s->warranty_count).'</td>';
             print '<td class="right">'.price((float)$s->covered_qty,0,'',0,0,2).'</td>';
             print '</tr>';
         }
