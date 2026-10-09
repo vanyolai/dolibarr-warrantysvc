@@ -979,3 +979,13 @@ WarrantySvcOpenRequests=Folyamatban lévő garanciális igények
 WarrantySvcShipmentsWithoutLetter=Garancialevél nélküli szállítmányok
 WarrantySvcOpenSupplierReturns=Folyamatban lévő beszállítói visszáruk
 WarrantySvcAttentionNeeded=Figyelmet igényel
+
+WarrantyLetterContents=Garancialevél tartalma
+WarrantyLetterAgendaShipmentsAdded=%s garancialevél szállítmányai módosítva
+WarrantyLetterAgendaShipmentsAddedNote=Hozzáadott szállítmány(ok): %s
+WarrantyLetterAgendaRevisionCreated=%s garancialevél v%s PDF-verziója létrehozva
+WarrantyLetterAgendaRevisionCreatedNote=Létrehozott dokumentum: %s
+WarrantyLetterAgendaRevisionDeleted=%s garancialevél v%s PDF-verziója törölve
+WarrantyLetterAgendaRevisionDeletedNote=Törölt dokumentum: %s
+WarrantyLetterAgendaSentByEmail=%s garancialevél v%s elküldve e-mailben
+WarrantyLetterAgendaSentByEmailNote=Címzett: %s\nTárgy: %s
