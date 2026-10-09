@@ -58,9 +58,25 @@ Each snapshot contains:
 - grouped warranty rows per shipment;
 - all source warranty IDs.
 
-Historical PDF files are append-only. A current warranty change or a change to
-the attached shipment set makes the current revision stale but never alters an
-old PDF.
+Sent PDF revisions are immutable. Unsent revisions may be explicitly deleted
+from the Warranty Letter card; deleting one removes both its registry row and
+physical file transactionally. A current warranty change or a change to the
+attached shipment set makes the current revision stale but never alters an
+already sent PDF.
+
+## Numbering and PDF model
+
+Warranty Letters use a selectable numbering module and PDF model in the
+WarrantySvc setup page. The standard numbering model is:
+
+`WL-YYYY-MMUID`
+
+where `YYYY-MM` is the creation month and `UID` is the letter's continuous
+database identifier padded to at least four digits. The UID never resets at
+month or year boundaries.
+
+The standard PDF follows Dolibarr core document conventions for company logo,
+document identity, sender/recipient frames, footer, margins and pagination.
 
 ## PDF grouping
 
@@ -80,7 +96,9 @@ Email uses Dolibarr's native `card_presend.tpl.php` and
 to the same comma-separated values for compatibility.
 
 The exact immutable PDF attachment is checked before delivery. The post-send
-trigger records the actual PDF version delivered.
+trigger records the actual PDF version delivered. The private mail-audit table
+remains the evidence source, while user-facing history is also written as native
+Dolibarr Agenda events.
 
 ## Migration from the abandoned v1 development model
 
@@ -106,8 +124,12 @@ was never intended for production deployment.
 10. Send through the native mail composer and verify the exact PDF version in
     the mail audit.
 11. Tamper with a PDF: hash mismatch blocks download/send.
-12. Only after sandbox acceptance should a dist/release commit be created.
+12. Delete an unsent revision and verify that both metadata and the physical
+    PDF disappear; sent revisions must remain protected.
+13. Verify the native Dolibarr card header, linked-files block and Agenda event
+    list.
+14. Only after sandbox acceptance should a dist/release commit be created.
 
-Note: PDF output occurs before the surrounding DB transaction commits, so a
-rolled-back transaction may leave an unreferenced file. Orphan reconciliation
-remains a pre-release hardening task.
+PDF generation occurs inside a caller-owned DB transaction. If a later
+revision-registration step fails, the generated file is explicitly cleaned up,
+so rolled-back revisions do not leave orphan PDFs.
