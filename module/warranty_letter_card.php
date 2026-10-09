@@ -280,7 +280,7 @@ if (is_array($liveSnapshot) && !empty($liveSnapshot['shipments'])) {
         print '<tr class="liste_titre">';
         print '<th>'.$langs->trans('Product').'</th>';
         print '<th class="center">'.$langs->trans('Qty').'</th>';
-        print '<th>'.$langs->trans('SerialNumber').'</th>';
+        print '<th>'.$langs->trans('WarrantyLetterSerials').'</th>';
         print '<th>'.$langs->trans('WarrantyLetterStartDate').'</th>';
         print '<th>'.$langs->trans('WarrantyLetterEndDate').'</th>';
         print '</tr>';
