@@ -128,6 +128,13 @@ $revision=null;
 $verified=false;
 $stale=false;
 
+// Native FormMail cancel posts action=send together with cancel=Cancel.
+// Cancel must leave the mail composer before any send-only validation runs.
+if (!$needsCreation && $_SERVER['REQUEST_METHOD']==='POST' && GETPOST('cancel', 'alpha') !== '') {
+    header('Location: '.DOL_URL_ROOT.'/custom/warrantysvc/warranty_letter_card.php?id='.((int) $letter->id));
+    exit;
+}
+
 if (!$needsCreation) {
     $letter->fetch_thirdparty();
     $object=$letter;
