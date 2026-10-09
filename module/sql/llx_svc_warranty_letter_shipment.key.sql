@@ -1,0 +1,3 @@
+ALTER TABLE llx_svc_warranty_letter_shipment ADD UNIQUE INDEX uk_svc_warranty_letter_shipment_letter (fk_letter, fk_expedition);
+ALTER TABLE llx_svc_warranty_letter_shipment ADD UNIQUE INDEX uk_svc_warranty_letter_shipment_expedition (entity, fk_expedition);
+ALTER TABLE llx_svc_warranty_letter_shipment ADD INDEX idx_svc_warranty_letter_shipment_entity_letter (entity, fk_letter);
