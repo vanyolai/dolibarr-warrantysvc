@@ -1146,7 +1146,9 @@ class modWarrantySvc extends DolibarrModules
 				),
 				'indexes'=>array(
 					'CREATE UNIQUE INDEX uk_svc_warranty_letter_ref ON '.MAIN_DB_PREFIX.'svc_warranty_letter (entity, ref)',
-					'CREATE INDEX idx_svc_warranty_letter_soc ON '.MAIN_DB_PREFIX.'svc_warranty_letter (fk_soc)'
+					'CREATE INDEX idx_svc_warranty_letter_soc ON '.MAIN_DB_PREFIX.'svc_warranty_letter (fk_soc)',
+					'CREATE INDEX idx_svc_warranty_letter_status ON '.MAIN_DB_PREFIX.'svc_warranty_letter (entity, status)',
+					'CREATE INDEX idx_svc_warranty_letter_date ON '.MAIN_DB_PREFIX.'svc_warranty_letter (entity, date_creation)'
 				)
 			),
 			'svc_warranty_letter_shipment'=>array(
