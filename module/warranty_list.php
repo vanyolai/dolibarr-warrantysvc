@@ -16,9 +16,9 @@ if (!$res) { die("Include of main fails"); }
 require_once DOL_DOCUMENT_ROOT.'/core/class/html.formcompany.class.php';
 require_once DOL_DOCUMENT_ROOT.'/core/class/html.formprojet.class.php';
 require_once DOL_DOCUMENT_ROOT.'/core/lib/date.lib.php';
-require_once DOL_DOCUMENT_ROOT.'/custom/warrantysvc/class/svcwarranty.class.php';
-require_once DOL_DOCUMENT_ROOT.'/custom/warrantysvc/class/svcwarrantytype.class.php';
-require_once DOL_DOCUMENT_ROOT.'/custom/warrantysvc/lib/warrantysvc.lib.php';
+dol_include_once('/warrantysvc/class/svcwarranty.class.php');
+dol_include_once('/warrantysvc/class/svcwarrantytype.class.php');
+dol_include_once('/warrantysvc/lib/warrantysvc.lib.php');
 
 $langs->loadLangs(array('warrantysvc@warrantysvc', 'companies', 'products', 'sendings'));
 
@@ -136,7 +136,7 @@ if ($search_status && $search_status != '-1') {
 		$sql .= " AND ".$eff_exp." <= '".$db->escape($expiring_to)."'";
 	} elseif ($search_status == 'expired') {
 		$sql .= " AND t.status != '".SvcWarranty::STATUS_VOIDED."' AND ".$eff_exp." < '".$db->escape($today_date)."'";
-	} elseif ($search_status == 'voided') {
+	} elseif ($search_status == SvcWarranty::STATUS_VOIDED) {
 		$sql .= " AND t.status = '".SvcWarranty::STATUS_VOIDED."'";
 	}
 }
@@ -336,7 +336,7 @@ $statuses = array(
 	'active'  => $langs->trans('SvcActive'),
 	'expiring'=> $langs->trans('ExpiringSoon'),
 	'expired' => $langs->trans('SvcExpired'),
-	'voided'  => $langs->trans('SvcVoided'),
+	SvcWarranty::STATUS_VOIDED => $langs->trans('SvcVoided'),
 );
 print '<td class="liste_titre">';
 print Form::selectarray('search_status', $statuses, $search_status, 0, 0, 0, '', 0, 0, 0, '', 'flat maxwidth100');
