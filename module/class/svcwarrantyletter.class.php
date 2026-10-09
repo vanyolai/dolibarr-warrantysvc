@@ -5,6 +5,7 @@
  * Warranty duration, LOT/SN allocation and shipment warranty creation remain untouched.
  */
 require_once DOL_DOCUMENT_ROOT.'/core/class/commonobject.class.php';
+require_once DOL_DOCUMENT_ROOT.'/core/lib/files.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/societe/class/societe.class.php';
 dol_include_once('/warrantysvc/class/svcwarranty.class.php');
 
@@ -257,7 +258,7 @@ class SvcWarrantyLetter extends CommonObject
             $q = 'SELECT COUNT(*) AS nb FROM '.MAIN_DB_PREFIX.'svc_warranty';
             $q .= ' WHERE entity = '.((int) $conf->entity).' AND fk_expedition = '.$shipmentId." AND status <> 'voided'";
             $r = $this->db->query($q);
-            if (!$r) { $this->error = $this->db->lasterror(); return -1; }
+            if (!$r) { $cleanupGeneratedFile($path); $this->error = $this->db->lasterror(); return -1; }
             $count = $this->db->fetch_object($r);
             $this->db->free($r);
             if (!$count || (int) $count->nb <= 0) { $this->error = 'WarrantyLetterNoWarranties'; return -1; }
@@ -541,6 +542,11 @@ class SvcWarrantyLetter extends CommonObject
         $number = $this->current_version + 1;
         $relative = 'letters/'.dol_sanitizeFileName($this->ref).'/'.dol_sanitizeFileName($this->ref).'_v'.$number.'.pdf';
         $path = rtrim($conf->warrantysvc->dir_output, '/').'/'.$relative;
+        $cleanupGeneratedFile = static function ($filePath) {
+            if (is_file($filePath) && !dol_delete_file($filePath, 1, 1, 1, null, false, 0)) {
+                dol_syslog('SvcWarrantyLetter::createRevision failed to remove orphan PDF '.$filePath, LOG_ERR);
+            }
+        };
         if (file_exists($path)) {
             $this->error = 'WarrantyLetterVersionFileExists'; return -1;
         }
@@ -566,13 +572,19 @@ class SvcWarrantyLetter extends CommonObject
         $ok = $generator->write_file($this, $outputlangs);
         unset($this->pending_snapshot, $this->pending_version);
         if ($ok <= 0 || !is_file($path)) {
+            $cleanupGeneratedFile($path);
             $this->error = !empty($generator->error) ? $generator->error : 'WarrantyLetterPdfFailed';
             return -1;
         }
         $hash = hash_file('sha256', $path);
+        if ($hash === false) {
+            $cleanupGeneratedFile($path);
+            $this->error = 'WarrantyLetterPdfHashFailed';
+            return -1;
+        }
         $json = json_encode($snapshot, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
         if ($json === false) {
-            @unlink($path);
+            $cleanupGeneratedFile($path);
             $this->error = 'WarrantyLetterSnapshotFailed'; return -1;
         }
         $sql = 'INSERT INTO '.MAIN_DB_PREFIX.'svc_warranty_letter_version';
@@ -580,7 +592,7 @@ class SvcWarrantyLetter extends CommonObject
         $sql .= ((int) $conf->entity).', '.((int) $this->id).', '.$number;
         $sql .= ", '".$this->db->escape($json)."', '".$this->db->escape($relative)."', '".$this->db->escape($hash)."', '".$this->db->idate(dol_now())."', ".((int) $user->id).')';
         if (!$this->db->query($sql)) {
-            @unlink($path);
+            $cleanupGeneratedFile($path);
             $this->error = $this->db->lasterror(); return -1;
         }
         // Native links to the individual warranties, including additions since v1.
@@ -596,6 +608,7 @@ class SvcWarrantyLetter extends CommonObject
             $linked = (bool) $this->db->fetch_object($r);
             $this->db->free($r);
             if (!$linked && $this->add_object_linked('warrantysvc_svcwarranty', $warrantyId, $user) <= 0) {
+                $cleanupGeneratedFile($path);
                 $this->error = 'WarrantyLetterLinkFailed'; return -1;
             }
         }
@@ -604,6 +617,7 @@ class SvcWarrantyLetter extends CommonObject
         // initial PDF attachment. This must also work in multi-entity mode.
         $dataRoot = rtrim(DOL_DATA_ROOT, '/').'/';
         if (strpos($path, $dataRoot) !== 0) {
+            $cleanupGeneratedFile($path);
             $this->error = 'WarrantyLetterOutputOutsideDocumentRoot';
             return -1;
         }
@@ -611,7 +625,11 @@ class SvcWarrantyLetter extends CommonObject
         $sql = 'UPDATE '.MAIN_DB_PREFIX.'svc_warranty_letter SET current_version = '.$number;
         $sql .= ", status = '".$status."', last_main_doc = '".$this->db->escape($mainDoc)."'";
         $sql .= ' WHERE rowid = '.((int) $this->id).' AND entity = '.((int) $conf->entity);
-        if (!$this->db->query($sql)) { $this->error = $this->db->lasterror(); return -1; }
+        if (!$this->db->query($sql)) {
+            $cleanupGeneratedFile($path);
+            $this->error = $this->db->lasterror();
+            return -1;
+        }
         $this->current_version = $number;
         $this->last_main_doc = $mainDoc;
         $this->status = $status;
@@ -653,10 +671,6 @@ class SvcWarrantyLetter extends CommonObject
         }
 
         $path = $this->versionFullPath($version);
-        if (is_file($path) && !@unlink($path)) {
-            $this->error = 'ErrorFailToDeleteFile';
-            return -1;
-        }
 
         $sql = 'DELETE FROM '.MAIN_DB_PREFIX.'svc_warranty_letter_version';
         $sql .= ' WHERE rowid = '.((int) $version->rowid).' AND fk_letter = '.((int) $this->id).' AND entity = '.((int) $conf->entity);
@@ -696,6 +710,14 @@ class SvcWarrantyLetter extends CommonObject
         $sql .= ' WHERE rowid = '.((int) $this->id).' AND entity = '.((int) $conf->entity);
         if (!$this->db->query($sql)) {
             $this->error = $this->db->lasterror();
+            return -1;
+        }
+
+        // Delete the physical file only after all DB changes succeeded. If this
+        // fails, the caller can roll back the transaction and metadata remains
+        // consistent with the still-existing file.
+        if (is_file($path) && !dol_delete_file($path, 1, 0, 0, $this, false, 1)) {
+            $this->error = 'ErrorFailToDeleteFile';
             return -1;
         }
 
