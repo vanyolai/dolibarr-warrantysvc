@@ -44,7 +44,7 @@ class modWarrantySvc extends DolibarrModules
 		// Module name (no spaces), used if translation string 'ModuleXXXName' not found
 		$this->name = preg_replace('/^mod/i', '', get_class($this));
 		$this->description = 'ModuleWarrantySvcDesc';
-		$this->version = '1.47.0-dev';
+		$this->version = '1.48.0-dev';
 		$this->const_name = 'MAIN_MODULE_'.strtoupper($this->name);
 		$this->picto = 'technic';
 
@@ -85,7 +85,7 @@ class modWarrantySvc extends DolibarrModules
 		// New pages on existing object tabs
 		$this->tabs = array();
 		$this->tabs[] = array('data' => 'project:+warrantysvc_svcrequest:ServiceRequests,technic,/warrantysvc/class/svcrequest.class.php,countForProject:warrantysvc@warrantysvc:$user->hasRight(\'warrantysvc\', \'svcrequest\', \'read\'):/warrantysvc/list.php?projectid=__ID__');
-		$this->tabs[] = array('data' => 'thirdparty:+warrantysvc_warranties:Warranties,bill,/warrantysvc/class/svcwarranty.class.php,countForThirdparty:warrantysvc@warrantysvc:$user->hasRight(\'warrantysvc\', \'svcwarranty\', \'read\'):/warrantysvc/warranty_list.php?socid=__ID__');
+		$this->tabs[] = array('data' => 'thirdparty:+warrantysvc_warranties:Warranties,bill,/warrantysvc/class/svcwarranty.class.php,countForThirdparty:warrantysvc@warrantysvc:$user->hasRight(\'warrantysvc\', \'svcwarranty\', \'read\'):/warrantysvc/warranty_shipment_list.php?socid=__ID__');
 
 		// Dictionaries
 		$this->dictionaries = array();
@@ -318,7 +318,7 @@ class modWarrantySvc extends DolibarrModules
 			'prefix'   => img_picto('', 'bill', 'class="paddingright pictofixedwidth"'),
 			'mainmenu' => 'products',
 			'leftmenu' => 'warrantysvc_warranty_list',
-			'url'      => '/warrantysvc/warranty_list.php?mainmenu=products&leftmenu=warrantysvc_warranty_list',
+			'url'      => '/warrantysvc/warranty_shipment_list.php?mainmenu=products&leftmenu=warrantysvc_warranty_list',
 			'langs'    => 'warrantysvc@warrantysvc',
 			'position' => 930,
 			'enabled'  => 'isModEnabled("warrantysvc")',
@@ -1025,8 +1025,6 @@ class modWarrantySvc extends DolibarrModules
 					'rowid'=>array('type'=>'integer'),
 					'ref'=>array('type'=>'varchar','value'=>'50','null'=>'NOT NULL'),
 					'entity'=>array('type'=>'integer','null'=>'NOT NULL','default'=>'1'),
-					'fk_expedition'=>array('type'=>'integer','null'=>'NOT NULL'),
-					'fk_commande'=>array('type'=>'integer'),
 					'fk_soc'=>array('type'=>'integer','null'=>'NOT NULL'),
 					'status'=>array('type'=>'varchar','value'=>'20','null'=>'NOT NULL','default'=>'draft'),
 					'current_version'=>array('type'=>'integer','null'=>'NOT NULL','default'=>'0'),
@@ -1038,10 +1036,23 @@ class modWarrantySvc extends DolibarrModules
 					'tms'=>array('type'=>'timestamp')
 				),
 				'indexes'=>array(
-					'CREATE UNIQUE INDEX uk_svc_warranty_letter_shipment ON '.MAIN_DB_PREFIX.'svc_warranty_letter (entity, fk_expedition)',
 					'CREATE UNIQUE INDEX uk_svc_warranty_letter_ref ON '.MAIN_DB_PREFIX.'svc_warranty_letter (entity, ref)',
-					'CREATE INDEX idx_svc_warranty_letter_order ON '.MAIN_DB_PREFIX.'svc_warranty_letter (fk_commande)',
 					'CREATE INDEX idx_svc_warranty_letter_soc ON '.MAIN_DB_PREFIX.'svc_warranty_letter (fk_soc)'
+				)
+			),
+			'svc_warranty_letter_shipment'=>array(
+				'fields'=>array(
+					'rowid'=>array('type'=>'integer'),
+					'entity'=>array('type'=>'integer','null'=>'NOT NULL','default'=>'1'),
+					'fk_letter'=>array('type'=>'integer','null'=>'NOT NULL'),
+					'fk_expedition'=>array('type'=>'integer','null'=>'NOT NULL'),
+					'date_creation'=>array('type'=>'datetime','null'=>'NOT NULL'),
+					'fk_user_creat'=>array('type'=>'integer')
+				),
+				'indexes'=>array(
+					'CREATE UNIQUE INDEX uk_svc_warranty_letter_shipment_letter ON '.MAIN_DB_PREFIX.'svc_warranty_letter_shipment (fk_letter, fk_expedition)',
+					'CREATE UNIQUE INDEX uk_svc_warranty_letter_shipment_expedition ON '.MAIN_DB_PREFIX.'svc_warranty_letter_shipment (entity, fk_expedition)',
+					'CREATE INDEX idx_svc_warranty_letter_shipment_entity_letter ON '.MAIN_DB_PREFIX.'svc_warranty_letter_shipment (entity, fk_letter)'
 				)
 			),
 			'svc_warranty_letter_version'=>array(
@@ -1079,13 +1090,12 @@ class modWarrantySvc extends DolibarrModules
 				)
 			)
 		);
+
 		foreach ($definitions as $suffix => $desc) {
 			$table = MAIN_DB_PREFIX.$suffix;
 			if (!$this->tableExists($table)) {
 				if ($this->db->DDLCreateTable($table, $desc['fields'], 'rowid', '') < 0) return -1;
 			}
-			// On a retry after a partially completed upgrade, fill only indexes
-			// that do not exist. Fresh installations already have .key.sql indexes.
 			foreach ($desc['indexes'] as $sql) {
 				if (!preg_match('/^CREATE(?: UNIQUE)? INDEX ([a-z0-9_]+) ON /i', $sql, $match)) return -1;
 				$indexName = $match[1];
@@ -1101,6 +1111,36 @@ class modWarrantySvc extends DolibarrModules
 				$this->db->free($res);
 				if (!$exists && !$this->db->query($sql)) return -1;
 			}
+		}
+
+		// Development migration from the abandoned one-letter-per-shipment schema.
+		$letterTable = MAIN_DB_PREFIX.'svc_warranty_letter';
+		$shipmentTable = MAIN_DB_PREFIX.'svc_warranty_letter_shipment';
+		$columns = $this->getColumnTypes($letterTable);
+		if (isset($columns['fk_expedition'])) {
+			$sql = 'INSERT INTO '.$shipmentTable.' (entity, fk_letter, fk_expedition, date_creation, fk_user_creat)';
+			$sql .= ' SELECT l.entity, l.rowid, l.fk_expedition, l.date_creation, l.fk_user_creat FROM '.$letterTable.' l';
+			$sql .= ' WHERE l.fk_expedition IS NOT NULL AND l.fk_expedition > 0';
+			$sql .= ' AND NOT EXISTS (SELECT 1 FROM '.$shipmentTable.' s WHERE s.entity = l.entity AND s.fk_expedition = l.fk_expedition)';
+			if (!$this->db->query($sql)) return -1;
+
+			foreach (array('uk_svc_warranty_letter_shipment', 'idx_svc_warranty_letter_order') as $oldIndex) {
+				if ($this->db->type === 'pgsql') {
+					$check = "SELECT indexname FROM pg_indexes WHERE tablename = '".$this->db->escape($letterTable)."' AND indexname = '".$this->db->escape($oldIndex)."'";
+				} else {
+					$check = 'SHOW INDEX FROM '.$letterTable." WHERE Key_name = '".$this->db->escape($oldIndex)."'";
+				}
+				$res = $this->db->query($check);
+				if (!$res) return -1;
+				$exists = (bool) $this->db->fetch_object($res);
+				$this->db->free($res);
+				if ($exists) {
+					$drop = $this->db->type === 'pgsql' ? 'DROP INDEX '.$oldIndex : 'ALTER TABLE '.$letterTable.' DROP INDEX '.$oldIndex;
+					if (!$this->db->query($drop)) return -1;
+				}
+			}
+			if ($this->db->DDLDropField($letterTable, 'fk_expedition') < 0) return -1;
+			if (isset($columns['fk_commande']) && $this->db->DDLDropField($letterTable, 'fk_commande') < 0) return -1;
 		}
 		return 1;
 	}
