@@ -72,7 +72,7 @@ foreach ($linkedObjectBlock as $key => $objectlink) {
 	print '</td>';
 
 	// The warranty start date is useful shipment context; amount is not.
-	print '<td class="linkedcol-date center">'.(!empty($objectlink->start_date) ? dol_print_date($objectlink->start_date, 'day') : '').'</td>';
+	print '<td class="linkedcol-date center">'.(!empty($objectlink->start_date) ? dol_print_date($db->jdate((string) $objectlink->start_date), 'day') : '').'</td>';
 	print '<td class="linkedcol-amount right"></td>';
 	print '<td class="linkedcol-statut right">';
 	if (function_exists('svcwarranty_status_badge')) {
