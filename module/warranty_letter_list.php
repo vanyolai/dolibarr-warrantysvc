@@ -21,6 +21,7 @@ $searchCompany = GETPOST('search_company', 'restricthtml');
 $searchStatus = GETPOST('search_status', 'aZ09');
 $sortfield = GETPOST('sortfield', 'aZ09comma') ?: 'l.date_creation';
 $sortorder = GETPOST('sortorder', 'aZ09comma') ?: 'DESC';
+if (!in_array(strtoupper($sortorder), array('ASC','DESC'), true)) $sortorder = 'DESC';
 $limit = $conf->liste_limit;
 $page = GETPOSTISSET('pageplusone') ? GETPOSTINT('pageplusone') - 1 : max(0, GETPOSTINT('page'));
 $offset = $page * $limit;
@@ -68,8 +69,10 @@ $allowedSort = array(
 	'l.last_sent_version' => 'l.last_sent_version',
 	'l.status' => 'l.status',
 );
-$orderField = isset($allowedSort[$sortfield]) ? $allowedSort[$sortfield] : 'l.date_creation';
-$sql .= $db->order($orderField, $sortorder);
+if (!isset($allowedSort[$sortfield])) {
+	$sortfield = 'l.date_creation';
+}
+$sql .= $db->order($allowedSort[$sortfield], $sortorder);
 $sql .= $db->plimit($limit, $offset);
 
 llxHeader('', $langs->trans('WarrantyLetters'));
