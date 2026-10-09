@@ -287,6 +287,33 @@ if ($stale) print '<div class="warning">'.$langs->trans('WarrantyLetterStaleWarn
 // Current live business content. This is the same snapshot that was used for
 // the stale check and will be frozen into the next immutable PDF revision.
 if (is_array($liveSnapshot) && !empty($liveSnapshot['shipments'])) {
+    // Resolve order card links in one query for all shipments. Snapshot data
+    // intentionally stores immutable order refs only, so URL metadata stays UI-only.
+    $orderLinksByShipment=array();
+    $shipmentIds=array();
+    foreach ($liveSnapshot['shipments'] as $snapshotShipment) {
+        $shipmentId=(int)($snapshotShipment['shipment_id'] ?? 0);
+        if ($shipmentId>0) $shipmentIds[$shipmentId]=$shipmentId;
+    }
+    if ($shipmentIds) {
+        $sqlOrders='SELECT DISTINCT w.fk_expedition, c.rowid, c.ref';
+        $sqlOrders.=' FROM '.MAIN_DB_PREFIX.'svc_warranty w';
+        $sqlOrders.=' JOIN '.MAIN_DB_PREFIX.'commande c ON c.rowid=w.fk_commande';
+        $sqlOrders.=' WHERE w.entity='.((int)$conf->entity);
+        $sqlOrders.=' AND w.fk_expedition IN ('.implode(',',array_map('intval',array_values($shipmentIds))).')';
+        $sqlOrders.=' AND w.fk_commande IS NOT NULL AND w.fk_commande>0';
+        $sqlOrders.=' ORDER BY w.fk_expedition, c.ref';
+        $resOrders=$db->query($sqlOrders);
+        if ($resOrders) {
+            while ($orderRow=$db->fetch_object($resOrders)) {
+                $shipmentKey=(int)$orderRow->fk_expedition;
+                if (!isset($orderLinksByShipment[$shipmentKey])) $orderLinksByShipment[$shipmentKey]=array();
+                $orderLinksByShipment[$shipmentKey][]='<a href="'.DOL_URL_ROOT.'/commande/card.php?id='.((int)$orderRow->rowid).'">'.dol_escape_htmltag((string)$orderRow->ref).'</a>';
+            }
+            $db->free($resOrders);
+        }
+    }
+
     print load_fiche_titre($langs->trans('WarrantyLetterContents'),'','product');
     foreach ($liveSnapshot['shipments'] as $contentShipment) {
         print '<div class="div-table-responsive">';
@@ -299,20 +326,8 @@ if (is_array($liveSnapshot) && !empty($liveSnapshot['shipments'])) {
             print ' &mdash; '.$langs->trans('Date').': '.dol_print_date($db->jdate((string)$contentShipment['shipment_date']),'day');
         }
         if (!empty($contentShipment['order_refs'])) {
-            $orderLinks=array();
-            $sqlOrders='SELECT DISTINCT c.rowid, c.ref FROM '.MAIN_DB_PREFIX.'svc_warranty w';
-            $sqlOrders.=' JOIN '.MAIN_DB_PREFIX.'commande c ON c.rowid=w.fk_commande';
-            $sqlOrders.=' WHERE w.entity='.((int)$conf->entity);
-            $sqlOrders.=' AND w.fk_expedition='.((int)$contentShipment['shipment_id']);
-            $sqlOrders.=' AND w.fk_commande IS NOT NULL AND w.fk_commande>0';
-            $sqlOrders.=' ORDER BY c.ref';
-            $resOrders=$db->query($sqlOrders);
-            if ($resOrders) {
-                while ($orderRow=$db->fetch_object($resOrders)) {
-                    $orderLinks[]='<a href="'.DOL_URL_ROOT.'/commande/card.php?id='.((int)$orderRow->rowid).'">'.dol_escape_htmltag((string)$orderRow->ref).'</a>';
-                }
-                $db->free($resOrders);
-            }
+            $shipmentKey=(int)$contentShipment['shipment_id'];
+            $orderLinks=$orderLinksByShipment[$shipmentKey] ?? array();
 
             print ' &mdash; '.$langs->trans('Order').': ';
             if ($orderLinks) {
