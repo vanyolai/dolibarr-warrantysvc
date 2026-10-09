@@ -67,3 +67,26 @@ abstract class ModeleNumRefWarrantySvc extends CommonNumRefGenerator
 	 */
 	abstract public function getExample();
 }
+
+
+/**
+ * Parent class for Warranty Letter numbering models.
+ */
+abstract class ModeleNumRefWarrantyLetter extends CommonNumRefGenerator
+{
+	/**
+	 * Return next free warranty-letter reference.
+	 *
+	 * @param Societe|string            $objsoc Thirdparty object
+	 * @param SvcWarrantyLetter|string  $object Warranty letter
+	 * @return string|int Next value if OK, <=0 if KO
+	 */
+	abstract public function getNextValue($objsoc = '', $object = '');
+
+	/**
+	 * Return an example of numbering.
+	 *
+	 * @return string Example
+	 */
+	abstract public function getExample();
+}
