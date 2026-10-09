@@ -11,6 +11,7 @@ require_once DOL_DOCUMENT_ROOT.'/custom/warrantysvc/class/svcwarrantyletter.clas
 require_once DOL_DOCUMENT_ROOT.'/custom/warrantysvc/lib/warrantysvc.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/core/class/html.form.class.php';
 require_once DOL_DOCUMENT_ROOT.'/core/class/html.formfile.class.php';
+require_once DOL_DOCUMENT_ROOT.'/core/class/html.formactions.class.php';
 require_once DOL_DOCUMENT_ROOT.'/expedition/class/expedition.class.php';
 
 $langs->loadLangs(array('warrantysvc@warrantysvc','main','mails','orders','sendings','products','companies'));
@@ -249,12 +250,68 @@ foreach ($shipments as $s) {
     print '<td><a href="'.DOL_URL_ROOT.'/expedition/card.php?id='.((int)$s->fk_expedition).'">'.dol_escape_htmltag($s->ref).'</a></td>';
     print '<td>'.(!empty($s->date_expedition)?dol_print_date($db->jdate($s->date_expedition),'day'):'').'</td>';
     print '<td>'.($orderRefs?implode(', ',$orderRefs):'<span class="opacitymedium">—</span>').'</td>';
-    print '<td class="right"><a href="'.DOL_URL_ROOT.'/custom/warrantysvc/warranty_list.php?shipmentid='.((int)$s->fk_expedition).'">'.$langs->trans('Details').'</a></td>';
+    print '<td class="right"><a href="'.DOL_URL_ROOT.'/custom/warrantysvc/warranty_list.php?shipmentid='.((int)$s->fk_expedition).'">'.$langs->trans('ShowDetails').'</a></td>';
     print '</tr>';
 }
 print '</table></div>';
 
 if ($stale) print '<div class="warning">'.$langs->trans('WarrantyLetterStaleWarning').'</div>';
+
+// Current live business content. This uses the very same grouping logic that
+// will be frozen into the next immutable PDF revision.
+$liveSnapshot=$object->buildSnapshot();
+if (is_array($liveSnapshot) && !empty($liveSnapshot['shipments'])) {
+    print load_fiche_titre($langs->trans('WarrantyLetterContents'),'','product');
+    foreach ($liveSnapshot['shipments'] as $contentShipment) {
+        print '<div class="div-table-responsive">';
+        print '<table class="noborder centpercent marginbottomonly">';
+        print '<tr class="liste_titre">';
+        print '<th colspan="5">';
+        print $langs->trans('ShipmentRef').': ';
+        print '<a href="'.DOL_URL_ROOT.'/expedition/card.php?id='.((int)$contentShipment['shipment_id']).'">'.dol_escape_htmltag((string)$contentShipment['shipment_ref']).'</a>';
+        if (!empty($contentShipment['shipment_date'])) {
+            print ' &mdash; '.$langs->trans('Date').': '.dol_print_date($db->jdate((string)$contentShipment['shipment_date']),'day');
+        }
+        if (!empty($contentShipment['order_refs'])) {
+            print ' &mdash; '.$langs->trans('Order').': '.dol_escape_htmltag(implode(', ', (array)$contentShipment['order_refs']));
+        }
+        print '</th>';
+        print '</tr>';
+        print '<tr class="liste_titre">';
+        print '<th>'.$langs->trans('Product').'</th>';
+        print '<th class="center">'.$langs->trans('Qty').'</th>';
+        print '<th>'.$langs->trans('SerialNumber').'</th>';
+        print '<th>'.$langs->trans('WarrantyLetterStartDate').'</th>';
+        print '<th>'.$langs->trans('WarrantyLetterEndDate').'</th>';
+        print '</tr>';
+
+        foreach ((array)$contentShipment['groups'] as $group) {
+            $qty=(float)$group['qty'];
+            $qtyDisplay=((float)(int)$qty===$qty) ? (string)(int)$qty : price($qty,0,'',0,0,2);
+
+            print '<tr class="oddeven">';
+            print '<td>';
+            if (!empty($group['product_id'])) {
+                print '<a href="'.DOL_URL_ROOT.'/product/card.php?id='.((int)$group['product_id']).'">'.dol_escape_htmltag((string)$group['product_ref']).'</a>';
+            } else {
+                print dol_escape_htmltag((string)$group['product_ref']);
+            }
+            if (!empty($group['product_label'])) {
+                print ' - '.dol_escape_htmltag((string)$group['product_label']);
+            }
+            print '</td>';
+            print '<td class="center">'.$qtyDisplay.'</td>';
+            print '<td>'.(!empty($group['serials']) ? dol_escape_htmltag(implode(', ', (array)$group['serials'])) : '<span class="opacitymedium">&mdash;</span>').'</td>';
+            print '<td>'.(!empty($group['start_date']) ? dol_print_date($db->jdate((string)$group['start_date']),'day') : '').'</td>';
+            print '<td>'.(!empty($group['expiry_date']) ? dol_print_date($db->jdate((string)$group['expiry_date']),'day') : '').'</td>';
+            print '</tr>';
+        }
+        print '</table>';
+        print '</div>';
+    }
+} else {
+    print '<div class="warning">'.$langs->trans('WarrantyLetterNoWarranties').'</div>';
+}
 
 if ($permwrite) {
     $available=SvcWarrantyLetter::getAvailableShipmentsForCustomer($db,(int)$object->fk_soc,0);
@@ -327,64 +384,74 @@ if ($permwrite) {
     print '</div>';
 }
 
-$versions=$object->getVersions();
-$hasInvalidVersion=false;
-foreach ((array) $versions as $versionRow) {
-    if (!$object->verifyVersion($versionRow)) {
-        $hasInvalidVersion=true;
-        break;
-    }
-}
-if ($hasInvalidVersion) {
-    print '<div class="warning">'.$langs->trans('WarrantyLetterPdfHashMismatch').'</div>';
-}
-
-$formfile=new FormFile($db);
-$letterSubdir='letters/'.dol_sanitizeFileName($object->ref);
-$letterDir=rtrim($conf->warrantysvc->dir_output,'/').'/'.$letterSubdir;
-$documentUrlWasSet=isset($conf->global->DOL_URL_ROOT_DOCUMENT_PHP);
-$previousDocumentUrl=$documentUrlWasSet ? $conf->global->DOL_URL_ROOT_DOCUMENT_PHP : null;
-$conf->global->DOL_URL_ROOT_DOCUMENT_PHP=DOL_URL_ROOT.'/custom/warrantysvc/warranty_letter_download.php';
-
-print $formfile->showdocuments(
-    'warrantysvc',
-    $letterSubdir,
-    $letterDir,
-    $_SERVER['PHP_SELF'].'?id='.((int)$object->id),
-    0,
-    $permwrite ? 1 : 0,
-    '',
-    1,
-    1,
-    0,
-    0,
-    0,
-    'id='.((int)$object->id),
-    $langs->trans('WarrantyLetterVersions'),
-    '',
-    '',
-    '',
-    $object,
-    0,
-    'delete_revision'
-);
-
-if ($documentUrlWasSet) {
-    $conf->global->DOL_URL_ROOT_DOCUMENT_PHP=$previousDocumentUrl;
-} else {
-    unset($conf->global->DOL_URL_ROOT_DOCUMENT_PHP);
-}
-
-print load_fiche_titre($langs->trans('WarrantyLetterHistory'),'','email');
-print '<div class="div-table-responsive"><table class="noborder centpercent">';
-print '<tr class="liste_titre"><th>'.$langs->trans('WarrantyLetterDateSent').'</th><th>'.$langs->trans('WarrantyLetterVersion').'</th><th>'.$langs->trans('WarrantyLetterRecipient').'</th><th>'.$langs->trans('WarrantyLetterSubject').'</th></tr>';
-foreach ($object->getMailHistory() as $entry) {
-    print '<tr class="oddeven"><td>'.dol_print_date($db->jdate($entry->date_sent),'dayhour').'</td><td>v'.((int)$entry->version).'</td>';
-    print '<td>'.dol_escape_htmltag($entry->recipient).'</td><td>'.dol_escape_htmltag($entry->subject).'</td></tr>';
-}
-print '</table></div>';
-
 if (GETPOST('modelselected') && $canSend) $action='presend';
+
+if ($action !== 'presend') {
+    $versions=$object->getVersions();
+    $hasInvalidVersion=false;
+    foreach ((array)$versions as $versionRow) {
+        if (!$object->verifyVersion($versionRow)) {
+            $hasInvalidVersion=true;
+            break;
+        }
+    }
+    if ($hasInvalidVersion) {
+        print '<div class="warning">'.$langs->trans('WarrantyLetterPdfHashMismatch').'</div>';
+    }
+
+    print '<div class="fichecenter"><div class="fichehalfleft">';
+
+    $formfile=new FormFile($db);
+    $letterSubdir='letters/'.dol_sanitizeFileName($object->ref);
+    $letterDir=rtrim($conf->warrantysvc->dir_output,'/').'/'.$letterSubdir;
+    $documentUrlWasSet=isset($conf->global->DOL_URL_ROOT_DOCUMENT_PHP);
+    $previousDocumentUrl=$documentUrlWasSet ? $conf->global->DOL_URL_ROOT_DOCUMENT_PHP : null;
+    $conf->global->DOL_URL_ROOT_DOCUMENT_PHP=DOL_URL_ROOT.'/custom/warrantysvc/warranty_letter_download.php';
+
+    print $formfile->showdocuments(
+        'warrantysvc',
+        $letterSubdir,
+        $letterDir,
+        $_SERVER['PHP_SELF'].'?id='.((int)$object->id),
+        0,
+        $permwrite ? 1 : 0,
+        '',
+        1,
+        1,
+        0,
+        28,
+        0,
+        'id='.((int)$object->id),
+        $langs->trans('LinkedFiles'),
+        '',
+        '',
+        '',
+        $object,
+        0,
+        'delete_revision'
+    );
+
+    if ($documentUrlWasSet) {
+        $conf->global->DOL_URL_ROOT_DOCUMENT_PHP=$previousDocumentUrl;
+    } else {
+        unset($conf->global->DOL_URL_ROOT_DOCUMENT_PHP);
+    }
+
+    print '</div><div class="fichehalfright">';
+
+    $formactions=new FormActions($db);
+    $formactions->showactions(
+        $object,
+        'svcwarrantyletter@warrantysvc',
+        (int)$object->fk_soc,
+        1,
+        '',
+        10
+    );
+
+    print '</div></div>';
+}
+
 if ($action==='presend' && $canSend) {
     $modelmail='svcwarrantyletter';
     $defaulttopic='WarrantyLetterEmailSubject';
