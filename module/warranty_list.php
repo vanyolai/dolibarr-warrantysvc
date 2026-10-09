@@ -326,21 +326,21 @@ print '</tr>';
 
 // Column headers
 print '<tr class="liste_titre">';
-print getTitleFieldOfList('Ref',           0, $_SERVER['PHP_SELF'], 't.ref',          $listparam, '', '',       '', $sortfield, $sortorder);
-print getTitleFieldOfList('Company',       0, $_SERVER['PHP_SELF'], 's.nom',          $listparam, '', '',       '', $sortfield, $sortorder);
-print getTitleFieldOfList('Shipment',      0, $_SERVER['PHP_SELF'], 'e.ref',          $listparam, '', '',       '', $sortfield, $sortorder);
-print getTitleFieldOfList('Product',       0, $_SERVER['PHP_SELF'], 'p.ref',          $listparam, '', '',       '', $sortfield, $sortorder);
-print getTitleFieldOfList('SvcSerialNumber',  0, $_SERVER['PHP_SELF'], 't.serial_number', $listparam, '', '',       '', $sortfield, $sortorder);
+print getTitleFieldOfList('Ref',           0, $_SERVER['PHP_SELF'], 't.ref',          '', $listparam, '', $sortfield, $sortorder);
+print getTitleFieldOfList('Company',       0, $_SERVER['PHP_SELF'], 's.nom',          '', $listparam, '', $sortfield, $sortorder);
+print getTitleFieldOfList('Shipment',      0, $_SERVER['PHP_SELF'], 'e.ref',          '', $listparam, '', $sortfield, $sortorder);
+print getTitleFieldOfList('Product',       0, $_SERVER['PHP_SELF'], 'p.ref',          '', $listparam, '', $sortfield, $sortorder);
+print getTitleFieldOfList('SvcSerialNumber', 0, $_SERVER['PHP_SELF'], 't.serial_number', '', $listparam, '', $sortfield, $sortorder);
 if ($use_warranty_types) {
-	print getTitleFieldOfList('WarrantyType', 0, $_SERVER['PHP_SELF'], 't.warranty_type', $listparam, '', '', '', $sortfield, $sortorder);
+	print getTitleFieldOfList('WarrantyType', 0, $_SERVER['PHP_SELF'], 't.warranty_type', '', $listparam, '', $sortfield, $sortorder);
 } else {
-	print getTitleFieldOfList('WarrantyDuration', 0, $_SERVER['PHP_SELF'], 't.coverage_months', $listparam, '', '', '', $sortfield, $sortorder);
+	print getTitleFieldOfList('WarrantyDuration', 0, $_SERVER['PHP_SELF'], 't.coverage_months', '', $listparam, '', $sortfield, $sortorder);
 }
-print getTitleFieldOfList('Status',        0, $_SERVER['PHP_SELF'], 't.status',       $listparam, '', 'center', '', $sortfield, $sortorder);
-print getTitleFieldOfList('StartDate',     0, $_SERVER['PHP_SELF'], 't.start_date',   $listparam, '', '',       '', $sortfield, $sortorder);
-print getTitleFieldOfList('ExpiryDate',    0, $_SERVER['PHP_SELF'], 't.expiry_date',  $listparam, '', '',       '', $sortfield, $sortorder);
-print getTitleFieldOfList('Claims',        0, $_SERVER['PHP_SELF'], 't.claim_count',  $listparam, '', 'center', '', $sortfield, $sortorder);
-print getTitleFieldOfList('',              0, $_SERVER['PHP_SELF'], '',               '', '', 'maxwidthsearch', '', $sortfield, $sortorder);
+print getTitleFieldOfList('Status',        0, $_SERVER['PHP_SELF'], 't.status',       '', $listparam, 'class="center"', $sortfield, $sortorder);
+print getTitleFieldOfList('StartDate',     0, $_SERVER['PHP_SELF'], 't.start_date',   '', $listparam, '', $sortfield, $sortorder);
+print getTitleFieldOfList('ExpiryDate',    0, $_SERVER['PHP_SELF'], 't.expiry_date',  '', $listparam, '', $sortfield, $sortorder);
+print getTitleFieldOfList('Claims',        0, $_SERVER['PHP_SELF'], 't.claim_count',  '', $listparam, 'class="center"', $sortfield, $sortorder);
+print getTitleFieldOfList('',              0, $_SERVER['PHP_SELF'], '',               '', $listparam, 'class="maxwidthsearch"', $sortfield, $sortorder);
 print '</tr>';
 
 // Data rows
