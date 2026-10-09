@@ -354,9 +354,9 @@ $resql    = $db->query($setupsql);
 if (!$resql) {
 	// table may not exist yet — skip numbering model display until module activated
 } else {
-	require_once DOL_DOCUMENT_ROOT.'/custom/warrantysvc/core/modules/warrantysvc/modules_warrantysvc.php';
+	dol_include_once('/warrantysvc/core/modules/warrantysvc/modules_warrantysvc.php');
 
-	$dir     = DOL_DOCUMENT_ROOT.'/custom/warrantysvc/core/modules/warrantysvc/';
+	$dir     = dol_buildpath('/warrantysvc/core/modules/warrantysvc/', 0, 1);
 	$type    = 'warrantysvc';
 
 	print '<table class="noborder centpercent">';
@@ -406,7 +406,7 @@ if (!$resql) {
 print '<br>';
 print load_fiche_titre($langs->trans('WarrantyLetterNumberingModule'), '', '');
 
-$letterDir = DOL_DOCUMENT_ROOT.'/custom/warrantysvc/core/modules/warrantysvc/';
+$letterDir = dol_buildpath('/warrantysvc/core/modules/warrantysvc/', 0, 1);
 $currentLetterAddon = getDolGlobalString('WARRANTYSVC_WARRANTYLETTER_ADDON', 'mod_warrantyletter_standard');
 
 print '<table class="noborder centpercent">';
@@ -468,7 +468,7 @@ if ($handle) {
 		$active = ($currentPdfModel === $modelName);
 
 		print '<tr class="oddeven"><td>'.dol_escape_htmltag($model->name).'</td>';
-		print '<td>'.$langs->trans($model->description).'</td>';
+		print '<td>'.dol_escape_htmltag((string) $model->description).'</td>';
 		print '<td class="center">';
 		if ($active) {
 			print img_picto($langs->trans('Activated'), 'switch_on');
