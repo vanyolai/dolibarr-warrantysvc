@@ -572,7 +572,7 @@ class SvcWarrantyLetter extends CommonObject
             $this->error = 'WarrantyLetterInvalidPdfModel';
             return -1;
         }
-        $modelFile = dol_buildpath('/warrantysvc/core/modules/warrantysvc/pdf_'.$model.'.php', 0, 1);
+        $modelFile = dol_buildpath('/warrantysvc/core/modules/warrantysvc/pdf_'.$model.'.modules.php', 0, 1);
         $modelClass = 'pdf_'.$model;
         if ($modelFile === '' || !is_readable($modelFile)) {
             $this->error = 'WarrantyLetterPdfModelNotFound';
