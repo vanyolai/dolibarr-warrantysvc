@@ -145,8 +145,8 @@ if ($canReadWarranties) {
 if ($canReadLetters) {
 	print load_fiche_titre($langs->trans('WarrantyLetters'), '', 'pdf');
 	print '<table class="noborder centpercent">';
-	print '<tr class="oddeven"><td><a href="'.dol_buildpath('/warrantysvc/warranty_letter_list.php',1).'?search_status='.urlencode(SvcWarrantyLetter::STATUS_READY).'>'.$langs->trans('WarrantyLetterReady').'</a></td><td class="right"><strong>'.$stats['letters_ready'].'</strong></td></tr>';
-	print '<tr class="oddeven"><td><a href="'.dol_buildpath('/warrantysvc/warranty_letter_list.php',1).'?search_status='.urlencode(SvcWarrantyLetter::STATUS_STALE).'>'.$langs->trans('WarrantyLetterStale').'</a></td><td class="right"><strong>'.$stats['letters_stale'].'</strong></td></tr>';
+	print '<tr class="oddeven"><td><a href="'.dol_buildpath('/warrantysvc/warranty_letter_list.php',1).'?search_status='.urlencode(SvcWarrantyLetter::STATUS_READY).'">'.$langs->trans('WarrantyLetterReady').'</a></td><td class="right"><strong>'.$stats['letters_ready'].'</strong></td></tr>';
+	print '<tr class="oddeven"><td><a href="'.dol_buildpath('/warrantysvc/warranty_letter_list.php',1).'?search_status='.urlencode(SvcWarrantyLetter::STATUS_STALE).'">'.$langs->trans('WarrantyLetterStale').'</a></td><td class="right"><strong>'.$stats['letters_stale'].'</strong></td></tr>';
 	print '</table>';
 }
 
