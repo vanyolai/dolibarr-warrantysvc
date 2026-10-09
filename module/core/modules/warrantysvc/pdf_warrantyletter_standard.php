@@ -200,7 +200,7 @@ class pdf_warrantyletter_standard extends ModelePDFWarrantySvc
 			$pdf->SetFont($font, 'B', $fs - 1);
 			$shipmentTitle = $outputlangs->transnoentities('ShipmentRef').': '.(string) ($shipment['shipment_ref'] ?? '');
 			if (!empty($shipment['shipment_date'])) {
-				$shipmentTitle .= ' — '.$outputlangs->transnoentities('Date').': '.dol_print_date($shipment['shipment_date'], 'day', false, $outputlangs);
+				$shipmentTitle .= ' — '.$outputlangs->transnoentities('Date').': '.dol_print_date($this->db->jdate((string) $shipment['shipment_date']), 'day', false, $outputlangs);
 			}
 			$pdf->Cell($usable, 7, $toText($shipmentTitle), 1, 1, 'L', true);
 
@@ -234,8 +234,8 @@ class pdf_warrantyletter_standard extends ModelePDFWarrantySvc
 				$yRow = $pdf->GetY();
 				$pdf->MultiCell($c1, $rowHeight, $text, 1, 'L', false, 0);
 				$pdf->MultiCell($c2, $rowHeight, $toText((string) $item['qty']), 1, 'C', false, 0);
-				$pdf->MultiCell($c3, $rowHeight, $toText(dol_print_date($item['start_date'], 'day', false, $outputlangs)), 1, 'C', false, 0);
-				$pdf->MultiCell($c4, $rowHeight, $toText(dol_print_date($item['expiry_date'], 'day', false, $outputlangs)), 1, 'C', false, 1);
+				$pdf->MultiCell($c3, $rowHeight, $toText(dol_print_date($this->db->jdate((string) $item['start_date']), 'day', false, $outputlangs)), 1, 'C', false, 0);
+				$pdf->MultiCell($c4, $rowHeight, $toText(dol_print_date($this->db->jdate((string) $item['expiry_date']), 'day', false, $outputlangs)), 1, 'C', false, 1);
 				$pdf->SetY($yRow + $rowHeight);
 			}
 
