@@ -19,6 +19,7 @@ $langs->loadLangs(array('warrantysvc@warrantysvc', 'companies', 'sendings', 'ord
 if (!$user->hasRight('warrantysvc', 'svcwarranty', 'read')) accessforbidden();
 
 $socid = GETPOSTINT('socid');
+$preset = GETPOST('preset', 'aZ09');
 $searchShipment = GETPOST('search_shipment', 'restricthtml');
 $searchCompany = GETPOST('search_company', 'restricthtml');
 $sortfield = GETPOST('sortfield', 'aZ09comma') ?: 'e.date_expedition';
@@ -27,15 +28,17 @@ $limit = $conf->liste_limit;
 $page = GETPOSTISSET('pageplusone') ? GETPOSTINT('pageplusone') - 1 : max(0, GETPOSTINT('page'));
 $offset = $page * $limit;
 
-$listparam = '';
-if ($socid > 0) $listparam .= '&socid='.((int) $socid);
-if ($searchShipment !== '') $listparam .= '&search_shipment='.urlencode($searchShipment);
-if ($searchCompany !== '') $listparam .= '&search_company='.urlencode($searchCompany);
-
 if (GETPOST('button_removefilter_x', 'alpha') || GETPOST('button_removefilter', 'alpha')) {
     $searchShipment = '';
     $searchCompany = '';
+    $preset = '';
 }
+
+$listparam = '';
+if ($socid > 0) $listparam .= '&socid='.((int) $socid);
+if ($preset !== '') $listparam .= '&preset='.urlencode($preset);
+if ($searchShipment !== '') $listparam .= '&search_shipment='.urlencode($searchShipment);
+if ($searchCompany !== '') $listparam .= '&search_company='.urlencode($searchCompany);
 
 $sqlFrom = ' FROM '.MAIN_DB_PREFIX.'svc_warranty w';
 $sqlFrom .= ' JOIN '.MAIN_DB_PREFIX.'expedition e ON e.rowid = w.fk_expedition';
@@ -48,6 +51,7 @@ $sqlWhere .= " AND w.status <> 'voided' AND w.fk_expedition IS NOT NULL AND w.fk
 if ($socid > 0) $sqlWhere .= ' AND w.fk_soc = '.((int) $socid);
 if ($searchShipment !== '') $sqlWhere .= natural_search('e.ref', $searchShipment);
 if ($searchCompany !== '') $sqlWhere .= natural_search('s.nom', $searchCompany);
+if ($preset === 'withoutletter') $sqlWhere .= ' AND ls.fk_letter IS NULL';
 
 $sqlCount = 'SELECT COUNT(*) AS nb FROM (SELECT w.fk_expedition'.$sqlFrom.$sqlWhere.' GROUP BY w.fk_expedition) x';
 $nbtotalofrecords = 0;
@@ -109,7 +113,7 @@ print '<div class="opacitymedium marginbottomonly">'.$langs->trans('WarrantyShip
 $canCreateLetter = $user->hasRight('warrantysvc', 'warrantyletter', 'write');
 
 if ($canCreateLetter) {
-    print '<form method="POST" action="'.DOL_URL_ROOT.'/custom/warrantysvc/warranty_letter_card.php" id="warrantyShipmentCreateForm">';
+    print '<form method="POST" action="'.dol_buildpath('/warrantysvc/warranty_letter_card.php',1).'" id="warrantyShipmentCreateForm">';
     print '<input type="hidden" name="token" value="'.newToken().'">';
     print '<input type="hidden" name="action" value="create_letter">';
     print '</form>';
@@ -117,6 +121,7 @@ if ($canCreateLetter) {
 
 print '<form method="GET" id="shipmentSearchForm" action="'.$_SERVER['PHP_SELF'].'">';
 if ($socid > 0) print '<input type="hidden" name="socid" value="'.((int) $socid).'">';
+if ($preset !== '') print '<input type="hidden" name="preset" value="'.dol_escape_htmltag($preset).'">';
 
 print '<div class="div-table-responsive">';
 print '<table class="noborder centpercent">';
@@ -162,7 +167,7 @@ if (!$resql) {
             print '</td>';
         }
         print '<td><a href="'.DOL_URL_ROOT.'/expedition/card.php?id='.$shipmentId.'">'.dol_escape_htmltag($row->shipment_ref).'</a></td>';
-        print '<td>'.dol_escape_htmltag($row->company_name).'</td>';
+        print '<td><a href="'.DOL_URL_ROOT.'/societe/card.php?socid='.((int) $row->fk_soc).'">'.dol_escape_htmltag($row->company_name).'</a></td>';
         print '<td>'.(!empty($row->date_expedition) ? dol_print_date($db->jdate($row->date_expedition), 'day') : '').'</td>';
         print '<td class="right">'.price((float) $row->covered_qty, 0, '', 0, 0, 2).'</td>';
         print '<td>';
@@ -185,7 +190,7 @@ if (!$resql) {
             print '<span class="opacitymedium">'.$langs->trans('None').'</span>';
         }
         print '</td>';
-        print '<td class="right"><a href="'.DOL_URL_ROOT.'/custom/warrantysvc/warranty_list.php?shipmentid='.$shipmentId.'">'.$langs->trans('ShowDetails').'</a></td>';
+        print '<td class="right"><a href="'.dol_buildpath('/warrantysvc/warranty_list.php',1).'?shipmentid='.$shipmentId.'">'.$langs->trans('ShowDetails').'</a></td>';
         print '</tr>';
     }
     $db->free($resql);
@@ -195,7 +200,19 @@ print '</form>';
 
 if ($canCreateLetter) {
     print '<div class="tabsAction">';
-    print '<button class="butAction" type="submit" form="warrantyShipmentCreateForm">'.$langs->trans('WarrantyLetterCreateFromSelected').'</button>';
+    print dolGetButtonAction(
+        '',
+        $langs->trans('WarrantyLetterCreateFromSelected'),
+        'default',
+        '',
+        '',
+        1,
+        array('attr'=>array(
+            'onclick'=>"document.getElementById('warrantyShipmentCreateForm').submit();",
+            'role'=>'button',
+            'tabindex'=>'0'
+        ))
+    );
     print '</div>';
     print '<script>
     (function(){
