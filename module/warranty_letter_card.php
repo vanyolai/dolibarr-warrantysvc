@@ -1,6 +1,6 @@
 <?php
 /* Copyright (C) 2026 DPG Supply */
-/** Official warranty-letter card, PDF revisions and Dolibarr-native email. */
+/** Multi-shipment warranty-letter card, immutable PDF revisions and native Dolibarr email. */
 $res=0;
 if (!$res && file_exists('../main.inc.php')) $res=@include '../main.inc.php';
 if (!$res && file_exists('../../main.inc.php')) $res=@include '../../main.inc.php';
@@ -11,7 +11,8 @@ require_once DOL_DOCUMENT_ROOT.'/custom/warrantysvc/class/svcwarrantyletter.clas
 require_once DOL_DOCUMENT_ROOT.'/custom/warrantysvc/lib/warrantysvc.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/core/class/html.form.class.php';
 require_once DOL_DOCUMENT_ROOT.'/expedition/class/expedition.class.php';
-$langs->loadLangs(array('warrantysvc@warrantysvc','main','mails','orders','sendings','products'));
+
+$langs->loadLangs(array('warrantysvc@warrantysvc','main','mails','orders','sendings','products','companies'));
 
 $id=GETPOSTINT('id');
 $shipmentid=GETPOSTINT('shipmentid');
@@ -19,6 +20,17 @@ $action=GETPOST('action','aZ09');
 $permread=$user->hasRight('warrantysvc','warrantyletter','read');
 $permwrite=$user->hasRight('warrantysvc','warrantyletter','write');
 if (!$permread || !empty($user->socid)) accessforbidden();
+
+$getIntArray=static function($name) {
+    $raw=isset($_POST[$name]) ? (array) $_POST[$name] : array();
+    $out=array();
+    foreach ($raw as $value) {
+        $id=(int) $value;
+        if ($id>0) $out[$id]=$id;
+    }
+    return array_values($out);
+};
+
 $hookmanager->initHooks(array('warrantysvcwarrantylettercard','globalcard'));
 $letter=new SvcWarrantyLetter($db);
 $shipment=null;
@@ -26,6 +38,22 @@ $needsCreation=false;
 
 if ($id>0) {
     if ($letter->fetch($id)<=0) { recordNotFound('',0); exit; }
+} elseif ($action==='create_letter' && $permwrite && $_SERVER['REQUEST_METHOD']==='POST') {
+    $shipmentIds=$getIntArray('shipmentids');
+    if (!$shipmentIds && $shipmentid>0) $shipmentIds=array($shipmentid);
+    $db->begin();
+    $ok=$letter->createForShipments($shipmentIds,$user);
+    if ($ok>0) $ok=$letter->createRevision($user,$langs);
+    if ($ok>0) {
+        $db->commit();
+        setEventMessages($langs->trans('WarrantyLetterCreated'),null,'mesgs');
+        header('Location: '.DOL_URL_ROOT.'/custom/warrantysvc/warranty_letter_card.php?id='.$letter->id);
+        exit;
+    }
+    $db->rollback();
+    setEventMessages($langs->trans('WarrantyLetterError').': '.$langs->trans($letter->error),null,'errors');
+    header('Location: '.DOL_URL_ROOT.'/custom/warrantysvc/warranty_shipment_list.php');
+    exit;
 } elseif ($shipmentid>0) {
     $shipment=new Expedition($db);
     if ($shipment->fetch($shipmentid)<=0) { recordNotFound('',0); exit; }
@@ -37,22 +65,25 @@ if ($id>0) {
     }
     $needsCreation=true;
 } else {
-    recordNotFound('',0); exit;
+    recordNotFound('',0);
+    exit;
 }
 
-if ($needsCreation && $action==='create_letter' && $permwrite && $_SERVER['REQUEST_METHOD']==='POST') {
+if (!$needsCreation && $action==='add_shipments' && $permwrite && $_SERVER['REQUEST_METHOD']==='POST') {
+    $shipmentIds=$getIntArray('add_shipmentids');
     $db->begin();
-    $ok=$letter->createFromShipment($shipment,$user);
-    if ($ok>0) $ok=$letter->createRevision($user,$langs);
+    $ok=$letter->addShipments($shipmentIds,$user);
     if ($ok>0) {
         $db->commit();
-        setEventMessages($langs->trans('WarrantyLetterCreated'),null,'mesgs');
-        header('Location: '.DOL_URL_ROOT.'/custom/warrantysvc/warranty_letter_card.php?id='.$letter->id);
-        exit;
+        setEventMessages($langs->trans('WarrantyLetterShipmentsAdded'),null,'mesgs');
+    } else {
+        $db->rollback();
+        setEventMessages($langs->trans('WarrantyLetterError').': '.$langs->trans($letter->error),null,'errors');
     }
-    $db->rollback();
-    setEventMessages($langs->trans('WarrantyLetterError').': '.$letter->error,null,'errors');
+    header('Location: '.DOL_URL_ROOT.'/custom/warrantysvc/warranty_letter_card.php?id='.$letter->id);
+    exit;
 }
+
 if (!$needsCreation && $action==='new_revision' && $permwrite && $_SERVER['REQUEST_METHOD']==='POST') {
     $db->begin();
     $ok=$letter->createRevision($user,$langs);
@@ -63,22 +94,27 @@ if (!$needsCreation && $action==='new_revision' && $permwrite && $_SERVER['REQUE
         exit;
     }
     $db->rollback();
-    setEventMessages($langs->trans('WarrantyLetterError').': '.$letter->error,null,'errors');
+    setEventMessages($langs->trans('WarrantyLetterError').': '.$langs->trans($letter->error),null,'errors');
 }
 
 $canSend=false;
+$revision=null;
+$verified=false;
+$stale=false;
+
 if (!$needsCreation) {
     $letter->fetch_thirdparty();
     $object=$letter;
     $id=(int)$object->id;
     $trackid='wsvcl'.$id.'v'.$object->current_version;
-    $hidedetails=0; $hidedesc=0; $hideref=0;
+    $hidedetails=0;
+    $hidedesc=0;
+    $hideref=0;
     $revision=$object->getVersion();
     $verified=$object->verifyVersion($revision);
     $stale=$verified && !$object->isSnapshotCurrent($revision);
     $canSend=$permwrite && $revision && $verified && !$stale;
 
-    // Never allow native CMailFile to send without the exact immutable PDF.
     if (in_array($action,array('send','relance'),true)) {
         if (!$canSend) {
             setEventMessages($langs->trans($stale ? 'WarrantyLetterStaleWarning' : 'WarrantyLetterPdfHashMismatch'),null,'errors');
@@ -99,6 +135,7 @@ if (!$needsCreation) {
             }
         }
     }
+
     if ($canSend) {
         $triggersendname='SVCWARRANTYLETTER_SENTBYMAIL';
         $sendcontext='warrantysvc_warranty_letter';
@@ -110,43 +147,117 @@ if (!$needsCreation) {
 
 llxHeader('',$langs->trans('WarrantyLetterTitle'));
 $form=new Form($db);
+
 if ($needsCreation) {
     print load_fiche_titre($langs->trans('WarrantyLetterTitle'),'','pdf');
-    print '<p>'.dol_escape_htmltag($shipment->ref).'</p>';
+    print '<table class="border centpercent">';
+    print '<tr><td class="titlefield">'.$langs->trans('ShipmentRef').'</td><td>'.dol_escape_htmltag($shipment->ref).'</td></tr>';
+    print '</table>';
+
     if (warrantysvc_count_shipment_warranties($db,$shipmentid)<=0) {
         print '<div class="warning">'.$langs->trans('WarrantyLetterNoWarranties').'</div>';
     } elseif ($permwrite) {
-        print '<form method="POST" action="'.$_SERVER['PHP_SELF'].'">';
+        print '<div class="tabsAction">';
+        print '<form method="POST" action="'.$_SERVER['PHP_SELF'].'" style="display:inline-block">';
         print '<input type="hidden" name="token" value="'.newToken().'">';
-        print '<input type="hidden" name="shipmentid" value="'.((int)$shipmentid).'">';
+        print '<input type="hidden" name="shipmentids[]" value="'.((int)$shipmentid).'">';
         print '<input type="hidden" name="action" value="create_letter">';
-        print '<button class="button" type="submit">'.$langs->trans('WarrantyLetterCreate').'</button></form>';
+        print '<button class="butAction" type="submit">'.$langs->trans('WarrantyLetterCreate').'</button>';
+        print '</form>';
+        print ' <a class="butAction" href="'.DOL_URL_ROOT.'/custom/warrantysvc/warranty_shipment_list.php?socid='.((int)$shipment->socid).'">'.$langs->trans('WarrantyLetterCombineShipments').'</a>';
+        print '</div>';
     }
-    llxFooter(); $db->close(); exit;
+    llxFooter();
+    $db->close();
+    exit;
 }
-$shipmentUrl=DOL_URL_ROOT.'/expedition/card.php?id='.((int)$object->fk_expedition);
-print load_fiche_titre($langs->trans('WarrantyLetterTitle').' '.$object->ref,'<a href="'.$shipmentUrl.'">'.$langs->trans('BackToList').'</a>','pdf');
+
+$shipments=$object->getShipments();
+if ($shipments===null) {
+    dol_print_error($db,$object->error);
+    $shipments=array();
+}
+
+print load_fiche_titre(
+    $langs->trans('WarrantyLetterTitle').' '.$object->ref,
+    '<a href="'.DOL_URL_ROOT.'/custom/warrantysvc/warranty_shipment_list.php">'.$langs->trans('WarrantyShipments').'</a>',
+    'pdf'
+);
+
 print '<table class="border centpercent">';
 print '<tr><td class="titlefield">'.$langs->trans('Ref').'</td><td>'.dol_escape_htmltag($object->ref).'</td></tr>';
 print '<tr><td>'.$langs->trans('Status').'</td><td>'.$object->getLibStatut(1).'</td></tr>';
 print '<tr><td>'.$langs->trans('Customer').'</td><td>'.(is_object($object->thirdparty)?$object->thirdparty->getNomUrl(1):'').'</td></tr>';
-print '<tr><td>'.$langs->trans('ShipmentRef').'</td><td><a href="'.$shipmentUrl.'">#'.((int)$object->fk_expedition).'</a></td></tr>';
-if ($object->fk_commande>0) print '<tr><td>'.$langs->trans('Order').'</td><td><a href="'.DOL_URL_ROOT.'/commande/card.php?id='.((int)$object->fk_commande).'">#'.((int)$object->fk_commande).'</a></td></tr>';
+print '<tr><td>'.$langs->trans('WarrantyLetterShipmentCount').'</td><td>'.count($shipments).'</td></tr>';
 print '<tr><td>'.$langs->trans('WarrantyLetterVersion').'</td><td>'.((int)$object->current_version).'</td></tr>';
 print '<tr><td>'.$langs->trans('WarrantyLetterLastSentVersion').'</td><td>'.((int)$object->last_sent_version).'</td></tr>';
 print '</table>';
 
+print load_fiche_titre($langs->trans('WarrantyLetterShipments'),'','shipment');
+print '<div class="div-table-responsive"><table class="noborder centpercent">';
+print '<tr class="liste_titre"><th>'.$langs->trans('ShipmentRef').'</th><th>'.$langs->trans('Date').'</th><th>'.$langs->trans('Order').'</th><th class="right">'.$langs->trans('WarrantyDetails').'</th></tr>';
+foreach ($shipments as $s) {
+    $orderRefs=array();
+    $sql='SELECT DISTINCT c.rowid, c.ref FROM '.MAIN_DB_PREFIX.'svc_warranty w';
+    $sql.=' JOIN '.MAIN_DB_PREFIX.'commande c ON c.rowid=w.fk_commande';
+    $sql.=' WHERE w.entity='.((int)$conf->entity).' AND w.fk_expedition='.((int)$s->fk_expedition).' AND w.fk_commande>0 ORDER BY c.ref';
+    $r=$db->query($sql);
+    if ($r) {
+        while ($ord=$db->fetch_object($r)) {
+            $orderRefs[]='<a href="'.DOL_URL_ROOT.'/commande/card.php?id='.((int)$ord->rowid).'">'.dol_escape_htmltag($ord->ref).'</a>';
+        }
+        $db->free($r);
+    }
+    print '<tr class="oddeven">';
+    print '<td><a href="'.DOL_URL_ROOT.'/expedition/card.php?id='.((int)$s->fk_expedition).'">'.dol_escape_htmltag($s->ref).'</a></td>';
+    print '<td>'.(!empty($s->date_expedition)?dol_print_date($db->jdate($s->date_expedition),'day'):'').'</td>';
+    print '<td>'.($orderRefs?implode(', ',$orderRefs):'<span class="opacitymedium">—</span>').'</td>';
+    print '<td class="right"><a href="'.DOL_URL_ROOT.'/custom/warrantysvc/warranty_list.php?shipmentid='.((int)$s->fk_expedition).'">'.$langs->trans('Details').'</a></td>';
+    print '</tr>';
+}
+print '</table></div>';
+
 if ($stale) print '<div class="warning">'.$langs->trans('WarrantyLetterStaleWarning').'</div>';
+
 if ($permwrite) {
+    $available=SvcWarrantyLetter::getAvailableShipmentsForCustomer($db,(int)$object->fk_soc,0);
+    if (is_array($available) && count($available)>0) {
+        print load_fiche_titre($langs->trans('WarrantyLetterAddShipments'),'','shipment');
+        print '<form method="POST" action="'.$_SERVER['PHP_SELF'].'?id='.((int)$object->id).'">';
+        print '<input type="hidden" name="token" value="'.newToken().'">';
+        print '<input type="hidden" name="id" value="'.((int)$object->id).'">';
+        print '<input type="hidden" name="action" value="add_shipments">';
+        print '<div class="div-table-responsive"><table class="noborder centpercent">';
+        print '<tr class="liste_titre"><th class="center"></th><th>'.$langs->trans('ShipmentRef').'</th><th>'.$langs->trans('Date').'</th><th class="center">'.$langs->trans('WarrantyRecords').'</th><th class="right">'.$langs->trans('CoveredQuantity').'</th></tr>';
+        foreach ($available as $s) {
+            print '<tr class="oddeven">';
+            print '<td class="center"><input type="checkbox" name="add_shipmentids[]" value="'.((int)$s->fk_expedition).'"></td>';
+            print '<td><a href="'.DOL_URL_ROOT.'/expedition/card.php?id='.((int)$s->fk_expedition).'">'.dol_escape_htmltag($s->ref).'</a></td>';
+            print '<td>'.(!empty($s->date_expedition)?dol_print_date($db->jdate($s->date_expedition),'day'):'').'</td>';
+            print '<td class="center">'.((int)$s->warranty_count).'</td>';
+            print '<td class="right">'.price((float)$s->covered_qty,0,'',0,0,2).'</td>';
+            print '</tr>';
+        }
+        print '</table></div>';
+        print '<div class="tabsAction"><button class="butAction" type="submit">'.$langs->trans('WarrantyLetterAddSelectedShipments').'</button></div>';
+        print '</form>';
+    }
+
     print '<div class="tabsAction">';
     print '<form method="POST" action="'.$_SERVER['PHP_SELF'].'?id='.((int)$object->id).'" style="display:inline-block">';
     print '<input type="hidden" name="token" value="'.newToken().'">';
     print '<input type="hidden" name="id" value="'.((int)$object->id).'">';
     print '<input type="hidden" name="action" value="new_revision">';
-    print '<button class="button" type="submit" title="'.dol_escape_htmltag($langs->trans('WarrantyLetterNewRevisionWarning')).'">'.$langs->trans('WarrantyLetterNewRevision').'</button></form>';
-    if ($verified) print ' <a class="butAction" href="'.$_SERVER['PHP_SELF'].'?id='.((int)$object->id).'&action=presend#formmailbeforetitle">'.$langs->trans('WarrantyLetterSend').'</a>';
+    print '<button class="butAction" type="submit" title="'.dol_escape_htmltag($langs->trans('WarrantyLetterNewRevisionWarning')).'">'.$langs->trans('WarrantyLetterNewRevision').'</button>';
+    print '</form>';
+    if ($verified) {
+        $sendClass=$canSend?'butAction':'butActionRefused classfortooltip';
+        $sendHref=$canSend?$_SERVER['PHP_SELF'].'?id='.((int)$object->id).'&action=presend#formmailbeforetitle':'#';
+        print ' <a class="'.$sendClass.'" href="'.$sendHref.'"'.(!$canSend?' title="'.dol_escape_htmltag($langs->trans('WarrantyLetterStaleWarning')).'"':'').'>'.$langs->trans('WarrantyLetterSend').'</a>';
+    }
     print '</div>';
 }
+
 print load_fiche_titre($langs->trans('WarrantyLetterVersions'),'','pdf');
 print '<div class="div-table-responsive"><table class="noborder centpercent">';
 print '<tr class="liste_titre"><th>'.$langs->trans('WarrantyLetterVersion').'</th><th>'.$langs->trans('DateCreation').'</th><th>'.$langs->trans('Document').'</th><th>'.$langs->trans('Status').'</th></tr>';
@@ -177,5 +288,6 @@ if ($action==='presend' && $canSend) {
     $diroutput=$conf->warrantysvc->dir_output;
     include DOL_DOCUMENT_ROOT.'/core/tpl/card_presend.tpl.php';
 }
+
 llxFooter();
 $db->close();
