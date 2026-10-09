@@ -197,7 +197,7 @@ class SvcWarrantyLetter extends CommonObject
     {
         global $conf;
         $out = array();
-        $sql = 'SELECT w.fk_expedition, e.ref, e.date_expedition, COUNT(w.rowid) AS warranty_count, SUM(w.covered_qty) AS covered_qty';
+        $sql = 'SELECT w.fk_expedition, e.ref, e.date_expedition, SUM(w.covered_qty) AS covered_qty';
         $sql .= ' FROM '.MAIN_DB_PREFIX.'svc_warranty w';
         $sql .= ' JOIN '.MAIN_DB_PREFIX.'expedition e ON e.rowid = w.fk_expedition';
         $sql .= ' LEFT JOIN '.MAIN_DB_PREFIX.'svc_warranty_letter_shipment ls';
