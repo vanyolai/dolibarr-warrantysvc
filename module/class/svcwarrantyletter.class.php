@@ -75,10 +75,9 @@ class SvcWarrantyLetter extends CommonObject
         return 1;
     }
 
-    public function fetch_thirdparty()
+    public function fetch_thirdparty($force_thirdparty_id = 0)
     {
-        $this->thirdparty = new Societe($this->db);
-        return $this->thirdparty->fetch((int) $this->fk_soc);
+        return parent::fetch_thirdparty($force_thirdparty_id);
     }
 
     public function fetchProject() { return 0; }
