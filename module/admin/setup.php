@@ -37,6 +37,16 @@ $action = GETPOST('action', 'aZ09');
 $product_month_fields = warrantysvc_get_product_month_field_options($db, (int) $conf->entity);
 $current_duration_source = warrantysvc_get_duration_source();
 
+if ($action === 'setmod') {
+	$value = GETPOST('value', 'alpha');
+	if (preg_match('/^mod_warrantysvc_[a-zA-Z0-9_]+$/', $value)) {
+		dolibarr_set_const($db, 'WARRANTYSVC_ADDON', $value, 'chaine', 0, '', $conf->entity);
+		setEventMessages($langs->trans('SvcSetupSaved'), null, 'mesgs');
+	}
+	header('Location: '.$_SERVER['PHP_SELF']);
+	exit;
+}
+
 if ($action === 'setmod_warrantyletter') {
 	$value = GETPOST('value', 'alpha');
 	if (preg_match('/^mod_warrantyletter_[a-zA-Z0-9_]+$/', $value)) {
@@ -482,15 +492,6 @@ if ($handle) {
 	closedir($handle);
 }
 print '</table>';
-
-// Handle setmod action
-if ($action == 'setmod') {
-	$value = GETPOST('value', 'alpha');
-	dolibarr_set_const($db, 'WARRANTYSVC_ADDON', $value, 'chaine', 0, '', $conf->entity);
-	setEventMessages($langs->trans('SvcSetupSaved'), null, 'mesgs');
-	header('Location: '.$_SERVER['PHP_SELF']);
-	exit;
-}
 
 llxFooter();
 $db->close();
