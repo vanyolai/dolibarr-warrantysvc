@@ -101,7 +101,6 @@ print '<td><input type="text" class="flat maxwidth150" name="search_company" val
 print '<td></td>';
 print '<td></td>';
 print '<td></td>';
-print '<td></td>';
 print '<td>';
 $statuses = array(
 	'' => '',
@@ -127,7 +126,6 @@ print getTitleFieldOfList('WarrantyLetterShipmentCount', 0, $_SERVER['PHP_SELF']
 print getTitleFieldOfList('WarrantyLetterVersion', 0, $_SERVER['PHP_SELF'], 'l.current_version', '', $listparam, 'class="center"', $sortfield, $sortorder);
 print getTitleFieldOfList('WarrantyLetterLastSentVersion', 0, $_SERVER['PHP_SELF'], 'l.last_sent_version', '', $listparam, 'class="center"', $sortfield, $sortorder);
 print getTitleFieldOfList('Status', 0, $_SERVER['PHP_SELF'], 'l.status', '', $listparam, '', $sortfield, $sortorder);
-print '<th class="right"></th>';
 print '</tr>';
 
 $resql = $db->query($sql);
@@ -135,7 +133,7 @@ if (!$resql) {
 	dol_print_error($db);
 } else {
 	if ($db->num_rows($resql) === 0) {
-		print '<tr class="oddeven"><td colspan="8"><span class="opacitymedium">'.$langs->trans('NoRecordFound').'</span></td></tr>';
+		print '<tr class="oddeven"><td colspan="7"><span class="opacitymedium">'.$langs->trans('NoRecordFound').'</span></td></tr>';
 	}
 	while ($row = $db->fetch_object($resql)) {
 		$letter = new SvcWarrantyLetter($db);
@@ -151,7 +149,6 @@ if (!$resql) {
 		print '<td class="center">'.((int) $row->current_version).'</td>';
 		print '<td class="center">'.((int) $row->last_sent_version).'</td>';
 		print '<td>'.$letter->getLibStatut(2).'</td>';
-		print '<td class="right"><a href="'.DOL_URL_ROOT.'/custom/warrantysvc/warranty_letter_card.php?id='.((int) $row->rowid).'">'.img_picto($langs->trans('View'), 'view').'</a></td>';
 		print '</tr>';
 	}
 	$db->free($resql);
