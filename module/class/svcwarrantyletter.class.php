@@ -26,6 +26,7 @@ class SvcWarrantyLetter extends CommonObject
     public $entity = 0;
     public $fk_soc = 0;
     public $socid = 0;
+    public $fk_project = 0;
     public $status = self::STATUS_DRAFT;
     public $current_version = 0;
     public $last_sent_version = 0;
@@ -81,6 +82,74 @@ class SvcWarrantyLetter extends CommonObject
     }
 
     public function fetchProject() { return 0; }
+
+    /**
+     * Add a native Dolibarr Agenda event linked to this warranty letter.
+     * Audit failure must never invalidate the underlying business operation.
+     *
+     * @param string $label    Event label
+     * @param User   $user     Actor
+     * @param string $note     Private event note
+     * @param string $typeCode Action type code
+     * @param string $code     Action code
+     * @return int 1 on success, -1 on failure
+     */
+    public function logAgendaEvent($label, $user, $note = '', $typeCode = 'AC_OTH_AUTO', $code = 'AC_WARRANTYSVC_WARRANTYLETTER')
+    {
+        if ((int) $this->id <= 0) return -1;
+
+        require_once DOL_DOCUMENT_ROOT.'/comm/action/class/actioncomm.class.php';
+
+        // Email logging may be reached after a successful SMTP send. Avoid a
+        // duplicate native event if a retry happens with the same Message-ID.
+        if ($typeCode === 'AC_EMAIL' && !empty($this->email_msgid)) {
+            $sql = 'SELECT id FROM '.MAIN_DB_PREFIX.'actioncomm';
+            $sql .= ' WHERE fk_element = '.((int) $this->id);
+            $sql .= " AND elementtype = 'svcwarrantyletter@warrantysvc'";
+            $sql .= " AND email_msgid = '".$this->db->escape((string) $this->email_msgid)."'";
+            $sql .= $this->db->plimit(1);
+            $res = $this->db->query($sql);
+            if ($res) {
+                $exists = (bool) $this->db->fetch_object($res);
+                $this->db->free($res);
+                if ($exists) return 1;
+            }
+        }
+
+        $now = dol_now();
+        $event = new ActionComm($this->db);
+        $event->type_code = $typeCode;
+        $event->code = $code;
+        $event->label = (string) $label;
+        $event->note_private = (string) $note;
+        $event->datep = $now;
+        $event->datef = $now;
+        $event->durationp = 0;
+        $event->percentage = -1;
+        $event->socid = (int) $this->fk_soc;
+        $event->authorid = (int) $user->id;
+        $event->userownerid = (int) $user->id;
+        $event->fk_element = (int) $this->id;
+        $event->elementid = (int) $this->id;
+        $event->elementtype = 'svcwarrantyletter@warrantysvc';
+
+        if ($typeCode === 'AC_EMAIL') {
+            $event->email_msgid = !empty($this->email_msgid) ? (string) $this->email_msgid : null;
+            $event->email_from = !empty($this->email_from) ? (string) $this->email_from : null;
+            $event->email_subject = !empty($this->email_subject) ? (string) $this->email_subject : null;
+            $event->email_to = !empty($this->email_to) ? (string) $this->email_to : null;
+            $event->email_tocc = !empty($this->email_tocc) ? (string) $this->email_tocc : null;
+            $event->email_tobcc = !empty($this->email_tobcc) ? (string) $this->email_tobcc : null;
+        }
+
+        $result = $event->create($user, 1);
+        if ($result <= 0) {
+            dol_syslog(__METHOD__.': failed to create ActionComm event: '.$event->error, LOG_WARNING);
+            return -1;
+        }
+
+        return 1;
+    }
 
     public static function findByShipment($db, $shipmentId)
     {
@@ -156,9 +225,10 @@ class SvcWarrantyLetter extends CommonObject
 
     public function addShipments($shipmentIds, $user)
     {
-        global $conf;
+        global $conf, $langs;
         $ids = array_values(array_unique(array_filter(array_map('intval', (array) $shipmentIds))));
         if (!$ids) { $this->error = 'WarrantyLetterNoShipments'; return -1; }
+        $addedShipmentRefs = array();
 
         foreach ($ids as $shipmentId) {
             $sql = 'SELECT rowid, ref, fk_soc FROM '.MAIN_DB_PREFIX.'expedition WHERE rowid = '.$shipmentId;
@@ -192,6 +262,7 @@ class SvcWarrantyLetter extends CommonObject
             $sql .= ' (entity, fk_letter, fk_expedition, date_creation, fk_user_creat) VALUES (';
             $sql .= ((int) $conf->entity).', '.((int) $this->id).', '.$shipmentId.", '".$this->db->idate(dol_now())."', ".((int) $user->id).')';
             if (!$this->db->query($sql)) { $this->error = $this->db->lasterror(); return -1; }
+            $addedShipmentRefs[] = (string) $shipment->ref;
 
             if ($this->ensureNativeLink('shipping', $shipmentId, $user) < 0) return -1;
 
@@ -213,6 +284,14 @@ class SvcWarrantyLetter extends CommonObject
             $sql = 'UPDATE '.MAIN_DB_PREFIX."svc_warranty_letter SET status = 'stale' WHERE rowid = ".((int) $this->id);
             if (!$this->db->query($sql)) { $this->error = $this->db->lasterror(); return -1; }
         }
+
+        if ($addedShipmentRefs) {
+            $langs->load('warrantysvc@warrantysvc');
+            $label = $langs->transnoentities('WarrantyLetterAgendaShipmentsAdded', $this->ref);
+            $note = $langs->transnoentities('WarrantyLetterAgendaShipmentsAddedNote', implode(', ', $addedShipmentRefs));
+            $this->logAgendaEvent($label, $user, $note);
+        }
+
         return 1;
     }
 
@@ -524,6 +603,12 @@ class SvcWarrantyLetter extends CommonObject
         $this->current_version = $number;
         $this->last_main_doc = $mainDoc;
         $this->status = $status;
+
+        $outputlangs->load('warrantysvc@warrantysvc');
+        $label = $outputlangs->transnoentities('WarrantyLetterAgendaRevisionCreated', $this->ref, $number);
+        $note = $outputlangs->transnoentities('WarrantyLetterAgendaRevisionCreatedNote', basename($relative));
+        $this->logAgendaEvent($label, $user, $note);
+
         return 1;
     }
 
@@ -605,6 +690,13 @@ class SvcWarrantyLetter extends CommonObject
         $this->current_version = $newCurrent;
         $this->last_main_doc = $newMainDoc;
         $this->status = $newStatus;
+
+        global $langs;
+        $langs->load('warrantysvc@warrantysvc');
+        $label = $langs->transnoentities('WarrantyLetterAgendaRevisionDeleted', $this->ref, (int) $number);
+        $note = $langs->transnoentities('WarrantyLetterAgendaRevisionDeletedNote', basename((string) $version->file_path));
+        $this->logAgendaEvent($label, $user, $note);
+
         return 1;
     }
 
@@ -642,6 +734,13 @@ class SvcWarrantyLetter extends CommonObject
         if (!$this->db->query($sql)) { $this->error = $this->db->lasterror(); return -1; }
         $this->last_sent_version = (int) $matched->version;
         $this->status = ((int) $matched->version === (int) $this->current_version) ? self::STATUS_SENT : self::STATUS_UPDATED;
+
+        global $langs;
+        $langs->load('warrantysvc@warrantysvc');
+        $label = $langs->transnoentities('WarrantyLetterAgendaSentByEmail', $this->ref, (int) $matched->version);
+        $note = $langs->transnoentities('WarrantyLetterAgendaSentByEmailNote', (string) $this->email_to, (string) $this->email_subject);
+        $this->logAgendaEvent($label, $user, $note, 'AC_EMAIL', 'AC_SVCWARRANTYLETTER_SENTBYMAIL');
+
         return 1;
     }
 
