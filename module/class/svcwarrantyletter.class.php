@@ -1,11 +1,10 @@
 <?php
 /* Copyright (C) 2026 DPG Supply */
 /**
- * Immutable, shipment-scoped warranty letter and PDF revision registry.
- * Warranty duration, LOT/SN allocation and shipment creation remain untouched.
+ * Customer-scoped, multi-shipment warranty letter and immutable PDF revision registry.
+ * Warranty duration, LOT/SN allocation and shipment warranty creation remain untouched.
  */
 require_once DOL_DOCUMENT_ROOT.'/core/class/commonobject.class.php';
-require_once DOL_DOCUMENT_ROOT.'/expedition/class/expedition.class.php';
 require_once DOL_DOCUMENT_ROOT.'/societe/class/societe.class.php';
 
 class SvcWarrantyLetter extends CommonObject
@@ -16,6 +15,7 @@ class SvcWarrantyLetter extends CommonObject
     public $picto = 'pdf';
     public $TRIGGER_PREFIX = 'SVCWARRANTYLETTER';
     protected $table_ref_field = 'ref';
+
     const STATUS_DRAFT = 'draft';
     const STATUS_READY = 'ready';
     const STATUS_SENT = 'sent';
@@ -24,8 +24,6 @@ class SvcWarrantyLetter extends CommonObject
 
     public $ref = '';
     public $entity = 0;
-    public $fk_expedition = 0;
-    public $fk_commande = 0;
     public $fk_soc = 0;
     public $socid = 0;
     public $status = self::STATUS_DRAFT;
@@ -43,8 +41,6 @@ class SvcWarrantyLetter extends CommonObject
         'rowid' => array('type'=>'integer', 'label'=>'TechnicalID', 'enabled'=>1, 'visible'=>-1),
         'ref' => array('type'=>'varchar(50)', 'label'=>'Ref', 'enabled'=>1, 'visible'=>1),
         'entity' => array('type'=>'integer', 'label'=>'Entity', 'enabled'=>1, 'visible'=>-2),
-        'fk_expedition' => array('type'=>'integer', 'label'=>'ShipmentRef', 'enabled'=>1, 'visible'=>1),
-        'fk_commande' => array('type'=>'integer', 'label'=>'Order', 'enabled'=>1, 'visible'=>1),
         'fk_soc' => array('type'=>'integer', 'label'=>'Customer', 'enabled'=>1, 'visible'=>1),
         'status' => array('type'=>'varchar(20)', 'label'=>'Status', 'enabled'=>1, 'visible'=>1),
         'current_version' => array('type'=>'integer', 'label'=>'WarrantyLetterVersion', 'enabled'=>1),
@@ -67,7 +63,7 @@ class SvcWarrantyLetter extends CommonObject
         $row = $this->db->fetch_object($res);
         $this->db->free($res);
         if (!$row) return 0;
-        foreach (array('rowid', 'entity', 'fk_expedition', 'fk_commande', 'fk_soc', 'current_version', 'last_sent_version') as $field) {
+        foreach (array('rowid', 'entity', 'fk_soc', 'current_version', 'last_sent_version') as $field) {
             $this->{$field === 'rowid' ? 'id' : $field} = (int) $row->{$field};
         }
         foreach (array('ref', 'status', 'model_pdf', 'last_main_doc') as $field) {
@@ -90,117 +86,264 @@ class SvcWarrantyLetter extends CommonObject
     public static function findByShipment($db, $shipmentId)
     {
         global $conf;
-        $sql = 'SELECT rowid FROM '.MAIN_DB_PREFIX.'svc_warranty_letter';
+        $sql = 'SELECT fk_letter FROM '.MAIN_DB_PREFIX.'svc_warranty_letter_shipment';
         $sql .= ' WHERE fk_expedition = '.((int) $shipmentId).' AND entity = '.((int) $conf->entity);
+        $sql .= $db->plimit(1);
         $res = $db->query($sql);
         if (!$res) return -1;
         $row = $db->fetch_object($res);
         $db->free($res);
-        return $row ? (int) $row->rowid : 0;
+        return $row ? (int) $row->fk_letter : 0;
     }
 
-    /**
-     * Called in the shipment trigger transaction. Never creates a second letter
-     * for the same shipment. The caller must generate the first revision.
-     */
-    public function createFromShipment($shipment, $user)
+    public function getShipments()
     {
         global $conf;
-        $found = self::findByShipment($this->db, $shipment->id);
-        if ($found < 0) { $this->error = $this->db->lasterror(); return -1; }
-        if ($found > 0) return $this->fetch($found);
+        $out = array();
+        $sql = 'SELECT ls.fk_expedition, e.ref, e.fk_soc, e.date_expedition';
+        $sql .= ' FROM '.MAIN_DB_PREFIX.'svc_warranty_letter_shipment ls';
+        $sql .= ' JOIN '.MAIN_DB_PREFIX.'expedition e ON e.rowid = ls.fk_expedition';
+        $sql .= ' WHERE ls.fk_letter = '.((int) $this->id).' AND ls.entity = '.((int) $conf->entity);
+        $sql .= ' ORDER BY e.date_expedition, e.ref, e.rowid';
+        $res = $this->db->query($sql);
+        if (!$res) { $this->error = $this->db->lasterror(); return null; }
+        while ($row = $this->db->fetch_object($res)) $out[] = $row;
+        $this->db->free($res);
+        return $out;
+    }
 
-        $orderId = 0;
-        $origin = !empty($shipment->origin_type) ? $shipment->origin_type : (!empty($shipment->origin) ? $shipment->origin : '');
-        if ($origin === 'commande' && !empty($shipment->origin_id)) $orderId = (int) $shipment->origin_id;
-        if (!$orderId) {
-            $q = 'SELECT fk_commande FROM '.MAIN_DB_PREFIX.'svc_warranty WHERE fk_expedition = '.((int) $shipment->id);
-            $q .= ' AND entity = '.((int) $conf->entity).' AND fk_commande > 0 ORDER BY rowid LIMIT 1';
-            $r = $this->db->query($q);
-            if ($r && ($w = $this->db->fetch_object($r))) $orderId = (int) $w->fk_commande;
+    public static function getAvailableShipmentsForCustomer($db, $socid, $letterId = 0)
+    {
+        global $conf;
+        $out = array();
+        $sql = 'SELECT w.fk_expedition, e.ref, e.date_expedition, COUNT(w.rowid) AS warranty_count, SUM(w.covered_qty) AS covered_qty';
+        $sql .= ' FROM '.MAIN_DB_PREFIX.'svc_warranty w';
+        $sql .= ' JOIN '.MAIN_DB_PREFIX.'expedition e ON e.rowid = w.fk_expedition';
+        $sql .= ' LEFT JOIN '.MAIN_DB_PREFIX.'svc_warranty_letter_shipment ls';
+        $sql .= ' ON ls.entity = w.entity AND ls.fk_expedition = w.fk_expedition';
+        $sql .= ' WHERE w.entity = '.((int) $conf->entity).' AND w.fk_soc = '.((int) $socid);
+        $sql .= " AND w.status <> 'voided' AND w.fk_expedition IS NOT NULL AND w.fk_expedition > 0";
+        if ($letterId > 0) {
+            $sql .= ' AND (ls.fk_letter IS NULL OR ls.fk_letter = '.((int) $letterId).')';
+        } else {
+            $sql .= ' AND ls.fk_letter IS NULL';
         }
-        $socid = !empty($shipment->socid) ? (int) $shipment->socid : 0;
-        if ($socid <= 0) { $this->error = 'ErrorAutoWarrantyMissingCustomer'; return -1; }
+        $sql .= ' GROUP BY w.fk_expedition, e.ref, e.date_expedition';
+        $sql .= ' ORDER BY e.date_expedition DESC, e.ref DESC';
+        $res = $db->query($sql);
+        if (!$res) return null;
+        while ($row = $db->fetch_object($res)) $out[] = $row;
+        $db->free($res);
+        return $out;
+    }
+
+    private function ensureNativeLink($type, $sourceId, $user)
+    {
+        $sql = 'SELECT rowid FROM '.MAIN_DB_PREFIX.'element_element';
+        $sql .= ' WHERE fk_source = '.((int) $sourceId)." AND sourcetype = '".$this->db->escape($type)."'";
+        $sql .= ' AND fk_target = '.((int) $this->id)." AND targettype = 'warrantysvc_svcwarrantyletter'";
+        $sql .= $this->db->plimit(1);
+        $res = $this->db->query($sql);
+        if (!$res) { $this->error = $this->db->lasterror(); return -1; }
+        $exists = (bool) $this->db->fetch_object($res);
+        $this->db->free($res);
+        if ($exists) return 1;
+        if ($this->add_object_linked($type, (int) $sourceId, $user) <= 0) {
+            $this->error = 'WarrantyLetterLinkFailed';
+            return -1;
+        }
+        return 1;
+    }
+
+    public function addShipments($shipmentIds, $user)
+    {
+        global $conf;
+        $ids = array_values(array_unique(array_filter(array_map('intval', (array) $shipmentIds))));
+        if (!$ids) { $this->error = 'WarrantyLetterNoShipments'; return -1; }
+
+        foreach ($ids as $shipmentId) {
+            $sql = 'SELECT rowid, ref, fk_soc FROM '.MAIN_DB_PREFIX.'expedition WHERE rowid = '.$shipmentId;
+            $res = $this->db->query($sql);
+            if (!$res) { $this->error = $this->db->lasterror(); return -1; }
+            $shipment = $this->db->fetch_object($res);
+            $this->db->free($res);
+            if (!$shipment) { $this->error = 'ShipmentNotFound'; return -1; }
+            if ((int) $shipment->fk_soc !== (int) $this->fk_soc) {
+                $this->error = 'WarrantyLetterCustomerMismatch';
+                return -1;
+            }
+
+            $q = 'SELECT COUNT(*) AS nb FROM '.MAIN_DB_PREFIX.'svc_warranty';
+            $q .= ' WHERE entity = '.((int) $conf->entity).' AND fk_expedition = '.$shipmentId." AND status <> 'voided'";
+            $r = $this->db->query($q);
+            if (!$r) { $this->error = $this->db->lasterror(); return -1; }
+            $count = $this->db->fetch_object($r);
+            $this->db->free($r);
+            if (!$count || (int) $count->nb <= 0) { $this->error = 'WarrantyLetterNoWarranties'; return -1; }
+
+            $existing = self::findByShipment($this->db, $shipmentId);
+            if ($existing < 0) { $this->error = $this->db->lasterror(); return -1; }
+            if ($existing > 0 && $existing !== (int) $this->id) {
+                $this->error = 'WarrantyLetterShipmentAlreadyAssigned';
+                return -1;
+            }
+            if ($existing === (int) $this->id) continue;
+
+            $sql = 'INSERT INTO '.MAIN_DB_PREFIX.'svc_warranty_letter_shipment';
+            $sql .= ' (entity, fk_letter, fk_expedition, date_creation, fk_user_creat) VALUES (';
+            $sql .= ((int) $conf->entity).', '.((int) $this->id).', '.$shipmentId.", '".$this->db->idate(dol_now())."', ".((int) $user->id).')';
+            if (!$this->db->query($sql)) { $this->error = $this->db->lasterror(); return -1; }
+
+            if ($this->ensureNativeLink('shipping', $shipmentId, $user) < 0) return -1;
+
+            $orders = 'SELECT DISTINCT fk_commande FROM '.MAIN_DB_PREFIX.'svc_warranty';
+            $orders .= ' WHERE entity = '.((int) $conf->entity).' AND fk_expedition = '.$shipmentId.' AND fk_commande IS NOT NULL AND fk_commande > 0';
+            $or = $this->db->query($orders);
+            if (!$or) { $this->error = $this->db->lasterror(); return -1; }
+            while ($order = $this->db->fetch_object($or)) {
+                if ($this->ensureNativeLink('commande', (int) $order->fk_commande, $user) < 0) {
+                    $this->db->free($or);
+                    return -1;
+                }
+            }
+            $this->db->free($or);
+        }
+
+        if ((int) $this->current_version > 0) {
+            $this->status = self::STATUS_STALE;
+            $sql = 'UPDATE '.MAIN_DB_PREFIX."svc_warranty_letter SET status = 'stale' WHERE rowid = ".((int) $this->id);
+            if (!$this->db->query($sql)) { $this->error = $this->db->lasterror(); return -1; }
+        }
+        return 1;
+    }
+
+    public function createForShipments($shipmentIds, $user)
+    {
+        global $conf;
+        $ids = array_values(array_unique(array_filter(array_map('intval', (array) $shipmentIds))));
+        if (!$ids) { $this->error = 'WarrantyLetterNoShipments'; return -1; }
+
+        $socid = 0;
+        foreach ($ids as $shipmentId) {
+            $sql = 'SELECT fk_soc FROM '.MAIN_DB_PREFIX.'expedition WHERE rowid = '.$shipmentId;
+            $res = $this->db->query($sql);
+            if (!$res) { $this->error = $this->db->lasterror(); return -1; }
+            $row = $this->db->fetch_object($res);
+            $this->db->free($res);
+            if (!$row) { $this->error = 'ShipmentNotFound'; return -1; }
+            if ($socid === 0) $socid = (int) $row->fk_soc;
+            if ($socid <= 0 || (int) $row->fk_soc !== $socid) {
+                $this->error = 'WarrantyLetterCustomerMismatch';
+                return -1;
+            }
+        }
+
         $this->entity = (int) $conf->entity;
-        $this->fk_expedition = (int) $shipment->id;
-        $this->fk_commande = $orderId;
         $this->fk_soc = $socid;
         $this->socid = $socid;
         $tempref = 'PROV-WL-'.str_replace('.', '', uniqid('', true));
         $sql = 'INSERT INTO '.MAIN_DB_PREFIX.'svc_warranty_letter';
-        $sql .= ' (ref, entity, fk_expedition, fk_commande, fk_soc, status, current_version, last_sent_version, model_pdf, date_creation, fk_user_creat)';
-        $sql .= " VALUES ('".$this->db->escape($tempref)."', ".$this->entity.", ".$this->fk_expedition.", ";
-        $sql .= ($orderId ? $orderId : 'NULL').', '.$socid.", 'draft', 0, 0, 'warrantyletter_standard', '".$this->db->idate(dol_now())."', ".((int) $user->id).')';
-        if (!$this->db->query($sql)) {
-            // A concurrent trigger may have created the unique shipment row.
-            $existing = self::findByShipment($this->db, $shipment->id);
-            if ($existing > 0) return $this->fetch($existing);
-            $this->error = $this->db->lasterror();
-            return -1;
-        }
+        $sql .= ' (ref, entity, fk_soc, status, current_version, last_sent_version, model_pdf, date_creation, fk_user_creat)';
+        $sql .= " VALUES ('".$this->db->escape($tempref)."', ".$this->entity.', '.$socid.", 'draft', 0, 0, 'warrantyletter_standard', '".$this->db->idate(dol_now())."', ".((int) $user->id).')';
+        if (!$this->db->query($sql)) { $this->error = $this->db->lasterror(); return -1; }
+
         $this->id = (int) $this->db->last_insert_id(MAIN_DB_PREFIX.'svc_warranty_letter');
         $this->ref = 'GL-'.date('Y', dol_now()).'-'.str_pad((string) $this->id, 6, '0', STR_PAD_LEFT);
         if (!$this->db->query('UPDATE '.MAIN_DB_PREFIX."svc_warranty_letter SET ref = '".$this->db->escape($this->ref)."' WHERE rowid = ".$this->id)) {
-            $this->error = $this->db->lasterror(); return -1;
+            $this->error = $this->db->lasterror();
+            return -1;
         }
-        if ($this->add_object_linked('shipping', $this->fk_expedition, $user) <= 0) { $this->error = 'WarrantyLetterLinkFailed'; return -1; }
-        if ($this->fk_commande > 0 && $this->add_object_linked('commande', $this->fk_commande, $user) <= 0) { $this->error = 'WarrantyLetterLinkFailed'; return -1; }
-        return 1;
+
+        return $this->addShipments($ids, $user);
     }
 
-    /** Current warranty records are copied into an immutable PDF snapshot. */
+    public function createFromShipment($shipment, $user)
+    {
+        return $this->createForShipments(array((int) $shipment->id), $user);
+    }
+
+    /** Current warranty records of all attached shipments are copied into an immutable PDF snapshot. */
     public function buildSnapshot()
     {
         global $conf, $mysoc;
-        $shipment = new Expedition($this->db);
-        if ($shipment->fetch((int) $this->fk_expedition) <= 0) { $this->error = 'ShipmentNotFound'; return null; }
         if ($this->fetch_thirdparty() <= 0) { $this->error = 'CustomerNotFound'; return null; }
-        $orderRef = '';
-        if ($this->fk_commande > 0) {
-            $r = $this->db->query('SELECT ref FROM '.MAIN_DB_PREFIX.'commande WHERE rowid = '.((int) $this->fk_commande));
-            if ($r && ($o = $this->db->fetch_object($r))) $orderRef = (string) $o->ref;
+        $shipments = $this->getShipments();
+        if ($shipments === null || !$shipments) { $this->error = 'WarrantyLetterNoShipments'; return null; }
+
+        $snapshotShipments = array();
+        $warrantyIds = array();
+        $allOrderRefs = array();
+        $allShipmentRefs = array();
+
+        foreach ($shipments as $shipment) {
+            $groups = array();
+            $indices = array();
+            $orderRefs = array();
+
+            $orders = 'SELECT DISTINCT c.ref FROM '.MAIN_DB_PREFIX.'svc_warranty w';
+            $orders .= ' JOIN '.MAIN_DB_PREFIX.'commande c ON c.rowid = w.fk_commande';
+            $orders .= ' WHERE w.entity = '.((int) $conf->entity).' AND w.fk_expedition = '.((int) $shipment->fk_expedition);
+            $orders .= ' AND w.fk_commande IS NOT NULL AND w.fk_commande > 0 ORDER BY c.ref';
+            $or = $this->db->query($orders);
+            if (!$or) { $this->error = $this->db->lasterror(); return null; }
+            while ($order = $this->db->fetch_object($or)) {
+                $orderRefs[] = (string) $order->ref;
+                $allOrderRefs[(string) $order->ref] = true;
+            }
+            $this->db->free($or);
+
+            $sql = 'SELECT w.rowid, w.fk_product, w.serial_number, w.covered_qty, w.start_date, w.expiry_date, p.ref AS product_ref, p.label AS product_label';
+            $sql .= ' FROM '.MAIN_DB_PREFIX.'svc_warranty w LEFT JOIN '.MAIN_DB_PREFIX.'product p ON p.rowid = w.fk_product';
+            $sql .= ' WHERE w.fk_expedition = '.((int) $shipment->fk_expedition).' AND w.entity = '.((int) $conf->entity);
+            $sql .= " AND w.status <> 'voided' ORDER BY p.ref, w.start_date, w.expiry_date, w.serial_number, w.rowid";
+            $result = $this->db->query($sql);
+            if (!$result) { $this->error = $this->db->lasterror(); return null; }
+            while ($row = $this->db->fetch_object($result)) {
+                $startDay = substr((string) $row->start_date, 0, 10);
+                $expiryDay = substr((string) $row->expiry_date, 0, 10);
+                $key = ((int) $row->fk_product).'|'.$startDay.'|'.$expiryDay;
+                if (!isset($indices[$key])) {
+                    $indices[$key] = count($groups);
+                    $groups[] = array(
+                        'product_id'=>(int) $row->fk_product,
+                        'product_ref'=>(string) $row->product_ref,
+                        'product_label'=>(string) $row->product_label,
+                        'start_date'=>$startDay,
+                        'expiry_date'=>$expiryDay,
+                        'qty'=>0,
+                        'serials'=>array()
+                    );
+                }
+                $i = $indices[$key];
+                $groups[$i]['qty'] += (float) $row->covered_qty;
+                if ((string) $row->serial_number !== '') $groups[$i]['serials'][] = (string) $row->serial_number;
+                $warrantyIds[] = (int) $row->rowid;
+            }
+            $this->db->free($result);
+
+            $ref = (string) $shipment->ref;
+            $allShipmentRefs[] = $ref;
+            $snapshotShipments[] = array(
+                'shipment_id'=>(int) $shipment->fk_expedition,
+                'shipment_ref'=>$ref,
+                'shipment_date'=>!empty($shipment->date_expedition) ? substr((string) $shipment->date_expedition, 0, 10) : '',
+                'order_refs'=>$orderRefs,
+                'groups'=>$groups
+            );
         }
 
-        $sql = 'SELECT w.rowid, w.fk_product, w.serial_number, w.covered_qty, w.start_date, w.expiry_date, p.ref AS product_ref, p.label AS product_label';
-        $sql .= ' FROM '.MAIN_DB_PREFIX.'svc_warranty w LEFT JOIN '.MAIN_DB_PREFIX.'product p ON p.rowid = w.fk_product';
-        $sql .= ' WHERE w.fk_expedition = '.((int) $this->fk_expedition).' AND w.entity = '.((int) $conf->entity);
-        $sql .= " AND w.status <> 'voided' ORDER BY p.ref, w.start_date, w.expiry_date, w.serial_number, w.rowid";
-        $result = $this->db->query($sql);
-        if (!$result) { $this->error = $this->db->lasterror(); return null; }
-        $groups = array(); $indices = array(); $warrantyIds = array();
-        while ($row = $this->db->fetch_object($result)) {
-            // Warranty grouping is by calendar date, not time-of-day.
-            $startDay = substr((string) $row->start_date, 0, 10);
-            $expiryDay = substr((string) $row->expiry_date, 0, 10);
-            $key = ((int) $row->fk_product).'|'.$startDay.'|'.$expiryDay;
-            if (!isset($indices[$key])) {
-                $indices[$key] = count($groups);
-                $groups[] = array(
-                    'product_id'=>(int) $row->fk_product,
-                    'product_ref'=>(string) $row->product_ref,
-                    'product_label'=>(string) $row->product_label,
-                    'start_date'=>$startDay,
-                    'expiry_date'=>$expiryDay,
-                    'qty'=>0, 'serials'=>array()
-                );
-            }
-            $i = $indices[$key];
-            $groups[$i]['qty'] += (float) $row->covered_qty;
-            if ((string) $row->serial_number !== '') $groups[$i]['serials'][] = (string) $row->serial_number;
-            $warrantyIds[] = (int) $row->rowid;
-        }
-        $this->db->free($result);
         if (!$warrantyIds) { $this->error = 'WarrantyLetterNoWarranties'; return null; }
         $myCompany = trim((string) $mysoc->name."\n".(string) $mysoc->address."\n".(string) $mysoc->zip.' '.(string) $mysoc->town);
         $buyer = trim((string) $this->thirdparty->name."\n".(string) $this->thirdparty->address."\n".(string) $this->thirdparty->zip.' '.(string) $this->thirdparty->town);
+
         return array(
             'letter_ref'=>$this->ref,
             'issued_at'=>date('Y-m-d H:i:s', dol_now()),
             'issuer'=>$myCompany,
             'buyer'=>$buyer,
-            'order_ref'=>$orderRef,
-            'shipment_ref'=>(string) $shipment->ref,
-            'groups'=>$groups,
+            'shipment_refs'=>$allShipmentRefs,
+            'order_refs'=>array_keys($allOrderRefs),
+            'shipments'=>$snapshotShipments,
             'warranty_ids'=>$warrantyIds
         );
     }
@@ -399,9 +542,11 @@ class SvcWarrantyLetter extends CommonObject
     {
         $version = $this->getVersion();
         $data = $version ? json_decode($version->snapshot, true) : array();
+        $shipmentRefs = isset($data['shipment_refs']) && is_array($data['shipment_refs']) ? implode(', ', $data['shipment_refs']) : '';
+        $orderRefs = isset($data['order_refs']) && is_array($data['order_refs']) ? implode(', ', $data['order_refs']) : '';
         return str_replace(
-            array('__WARRANTY_LETTER_REF__','__WARRANTY_LETTER_VERSION__','__SHIPMENT_REF__','__ORDER_REF__'),
-            array($this->ref, (string) $this->current_version, (string) ($data['shipment_ref'] ?? ''), (string) ($data['order_ref'] ?? '')),
+            array('__WARRANTY_LETTER_REF__','__WARRANTY_LETTER_VERSION__','__SHIPMENT_REF__','__SHIPMENT_REFS__','__ORDER_REF__','__ORDER_REFS__'),
+            array($this->ref, (string) $this->current_version, $shipmentRefs, $shipmentRefs, $orderRefs, $orderRefs),
             (string) $text
         );
     }
