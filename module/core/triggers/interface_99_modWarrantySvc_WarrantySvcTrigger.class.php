@@ -468,14 +468,14 @@ class InterfaceWarrantySvcTrigger extends DolibarrTriggers
 	private function _markLetterStaleIfNeeded($warranty)
 	{
 		if (empty($warranty->fk_expedition)) return;
-		require_once DOL_DOCUMENT_ROOT.'/custom/warrantysvc/class/svcwarrantyletter.class.php';
+		dol_include_once('/warrantysvc/class/svcwarrantyletter.class.php');
 		$id = SvcWarrantyLetter::findByShipment($this->db, (int) $warranty->fk_expedition);
 		if ($id <= 0) return;
 		$letter = new SvcWarrantyLetter($this->db);
 		if ($letter->fetch($id) <= 0 || $letter->current_version <= 0) return;
 		if (!$letter->isSnapshotCurrent()) {
-			$sql = 'UPDATE '.MAIN_DB_PREFIX."svc_warranty_letter SET status = 'stale'";
-			$sql .= ' WHERE rowid = '.((int) $id);
+			$sql = 'UPDATE '.MAIN_DB_PREFIX."svc_warranty_letter SET status = '".$this->db->escape(SvcWarrantyLetter::STATUS_STALE)."'";
+			$sql .= ' WHERE rowid = '.((int) $id).' AND entity = '.((int) $letter->entity);
 			if (!$this->db->query($sql)) {
 				dol_syslog('WarrantySvcTrigger: unable to flag warranty letter as stale: '.$this->db->lasterror(), LOG_ERR);
 			}
