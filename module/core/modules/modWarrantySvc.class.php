@@ -332,6 +332,7 @@ class modWarrantySvc extends DolibarrModules
 			array('AwaitingReturn', 3, 917),
 			array('SvcResolved', 4, 918),
 			array('SvcClosed', 5, 919),
+			array('SvcCancelled', 9, 920),
 		);
 		foreach ($requestStatusMenus as $requestStatusMenu) {
 			$this->menu[$r] = array(
@@ -343,7 +344,7 @@ class modWarrantySvc extends DolibarrModules
 				'url'      => '/warrantysvc/list.php?mainmenu=products&leftmenu=warrantysvc_request_status_'.$requestStatusMenu[1].'&search_status='.$requestStatusMenu[1],
 				'langs'    => 'warrantysvc@warrantysvc',
 				'position' => $requestStatusMenu[2],
-				'enabled'  => 'isModEnabled("warrantysvc")',
+				'enabled'  => 'isModEnabled("warrantysvc") && (GETPOST("leftmenu", "aZ09") == "warrantysvc_request_list" || strpos(GETPOST("leftmenu", "aZ09"), "warrantysvc_request_status_") === 0)',
 				'perms'    => '$user->hasRight("warrantysvc", "svcrequest", "read")',
 				'target'   => '',
 				'user'     => 0,
@@ -359,7 +360,7 @@ class modWarrantySvc extends DolibarrModules
 			'prefix'   => img_picto('', 'bill', 'class="paddingright pictofixedwidth"'),
 			'mainmenu' => 'products',
 			'leftmenu' => 'warrantysvc_warranties',
-			'url'      => '/warrantysvc/warranty_list.php?mainmenu=products&leftmenu=warrantysvc_warranties',
+			'url'      => '',
 			'langs'    => 'warrantysvc@warrantysvc',
 			'position' => 930,
 			'enabled'  => 'isModEnabled("warrantysvc")',
