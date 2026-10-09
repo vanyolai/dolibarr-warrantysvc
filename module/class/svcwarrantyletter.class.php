@@ -467,13 +467,13 @@ class SvcWarrantyLetter extends CommonObject
 
 
     /** A historical version is never rewritten when a warranty changes. */
-    public function isSnapshotCurrent($revision = null, $liveSnapshot = null)
+    public function isSnapshotCurrent($revision = null, $liveSnapshot = false)
     {
         $revision = $revision ?: $this->getVersion();
         if (!$revision) return false;
 
         $saved = json_decode((string) $revision->snapshot, true);
-        $live = is_array($liveSnapshot) ? $liveSnapshot : $this->buildSnapshot();
+        $live = ($liveSnapshot === false) ? $this->buildSnapshot() : $liveSnapshot;
         if (!is_array($saved) || !is_array($live)) return false;
 
         // Issue date is frozen per revision; compare all business data.
