@@ -6,10 +6,12 @@
  */
 require_once DOL_DOCUMENT_ROOT.'/core/class/commonobject.class.php';
 require_once DOL_DOCUMENT_ROOT.'/societe/class/societe.class.php';
+dol_include_once('/warrantysvc/class/svcwarranty.class.php');
 
 class SvcWarrantyLetter extends CommonObject
 {
     public $module = 'warrantysvc';
+    public $ismultientitymanaged = 1;
     public $element = 'svcwarrantyletter';
     public $table_element = 'svc_warranty_letter';
     public $picto = 'pdf';
@@ -37,6 +39,16 @@ class SvcWarrantyLetter extends CommonObject
     public $pending_version;
     public $thirdparty;
     public $context = array();
+
+    // Native FormMail / trigger context. Declare these explicitly so PHP 8.4
+    // never has to fall back to CommonObject dynamic-property handling.
+    public $email_msgid = '';
+    public $email_from = '';
+    public $email_subject = '';
+    public $email_to = '';
+    public $email_tocc = '';
+    public $email_tobcc = '';
+    public $attachedfiles = array();
 
     public $fields = array(
         'rowid' => array('type'=>'integer', 'label'=>'TechnicalID', 'enabled'=>1, 'visible'=>-1),
@@ -281,7 +293,7 @@ class SvcWarrantyLetter extends CommonObject
 
         if ((int) $this->current_version > 0) {
             $this->status = self::STATUS_STALE;
-            $sql = 'UPDATE '.MAIN_DB_PREFIX."svc_warranty_letter SET status = 'stale' WHERE rowid = ".((int) $this->id);
+            $sql = 'UPDATE '.MAIN_DB_PREFIX."svc_warranty_letter SET status = '".self::STATUS_STALE."' WHERE rowid = ".((int) $this->id);
             if (!$this->db->query($sql)) { $this->error = $this->db->lasterror(); return -1; }
         }
 
@@ -508,8 +520,8 @@ class SvcWarrantyLetter extends CommonObject
     }
 
     /**
-     * Version rows and PDFs are append-only. Caller owns the DB transaction.
-     * PDF generation never changes existing revisions, including unsent ones.
+     * New revisions are append-only. Caller owns the DB transaction.
+     * Existing sent revisions are immutable; unsent revisions may be explicitly deleted.
      */
     public function createRevision($user, $outputlangs)
     {
@@ -729,7 +741,7 @@ class SvcWarrantyLetter extends CommonObject
         $sql .= ", '".$this->db->escape((string) $this->email_to)."', '".$this->db->escape((string) $this->email_subject)."', '".$this->db->escape((string) $this->email_msgid)."')";
         if (!$this->db->query($sql)) { $this->error = $this->db->lasterror(); return -1; }
         $sql = 'UPDATE '.MAIN_DB_PREFIX.'svc_warranty_letter SET last_sent_version = '.((int) $matched->version);
-        $sql .= ", status = CASE WHEN current_version = ".((int) $matched->version)." THEN 'sent' ELSE 'updated' END";
+        $sql .= ", status = CASE WHEN current_version = ".((int) $matched->version)." THEN '".self::STATUS_SENT."' ELSE '".self::STATUS_UPDATED."' END";
         $sql .= ' WHERE rowid = '.((int) $this->id).' AND entity = '.((int) $conf->entity);
         if (!$this->db->query($sql)) { $this->error = $this->db->lasterror(); return -1; }
         $this->last_sent_version = (int) $matched->version;
@@ -782,16 +794,26 @@ class SvcWarrantyLetter extends CommonObject
     {
         $label = dol_escape_htmltag($this->ref);
         if ($withpicto) $label = img_picto('', 'pdf', 'class="pictofixedwidth"').$label;
-        return '<a href="'.DOL_URL_ROOT.'/custom/warrantysvc/warranty_letter_card.php?id='.((int) $this->id).'">'.$label.'</a>';
+        return '<a href="'.dol_buildpath('/warrantysvc/warranty_letter_card.php', 1).'?id='.((int) $this->id).'">'.$label.'</a>';
     }
 
     public function getLibStatut($mode = 0)
     {
         global $langs;
+
         $langs->load('warrantysvc@warrantysvc');
-        $map = array(self::STATUS_DRAFT=>'WarrantyLetterDraft', self::STATUS_READY=>'WarrantyLetterReady',
-            self::STATUS_SENT=>'WarrantyLetterSent', self::STATUS_UPDATED=>'WarrantyLetterUpdated', self::STATUS_STALE=>'WarrantyLetterStale');
-        $label = $langs->trans($map[$this->status] ?? $this->status);
-        return $mode ? $label : '<span class="badge">'.$label.'</span>';
+
+        $map = array(
+            self::STATUS_DRAFT => array('WarrantyLetterDraft', 'status0'),
+            self::STATUS_READY => array('WarrantyLetterReady', 'status1'),
+            self::STATUS_SENT => array('WarrantyLetterSent', 'status6'),
+            self::STATUS_UPDATED => array('WarrantyLetterUpdated', 'status4'),
+            self::STATUS_STALE => array('WarrantyLetterStale', 'status8'),
+        );
+
+        $item = isset($map[$this->status]) ? $map[$this->status] : array($this->status, 'status0');
+        $label = $langs->trans($item[0]);
+
+        return dolGetStatus($label, $label, '', $item[1], (int) $mode);
     }
 }
