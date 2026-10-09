@@ -27,6 +27,11 @@ $limit = $conf->liste_limit;
 $page = GETPOSTISSET('pageplusone') ? GETPOSTINT('pageplusone') - 1 : max(0, GETPOSTINT('page'));
 $offset = $page * $limit;
 
+$listparam = '';
+if ($socid > 0) $listparam .= '&socid='.((int) $socid);
+if ($searchShipment !== '') $listparam .= '&search_shipment='.urlencode($searchShipment);
+if ($searchCompany !== '') $listparam .= '&search_company='.urlencode($searchCompany);
+
 if (GETPOST('button_removefilter_x', 'alpha') || GETPOST('button_removefilter', 'alpha')) {
     $searchShipment = '';
     $searchCompany = '';
@@ -86,7 +91,7 @@ print_barre_liste(
     $langs->trans('WarrantyShipments'),
     $page,
     $_SERVER['PHP_SELF'],
-    '',
+    $listparam,
     $sortfield,
     $sortorder,
     '',
@@ -128,11 +133,11 @@ print '</td></tr>';
 
 print '<tr class="liste_titre">';
 if ($canCreateLetter) print '<th class="center"></th>';
-print getTitleFieldOfList('ShipmentRef', 0, $_SERVER['PHP_SELF'], 'e.ref', '', '', '', '', $sortfield, $sortorder);
-print getTitleFieldOfList('Company', 0, $_SERVER['PHP_SELF'], 's.nom', '', '', '', '', $sortfield, $sortorder);
-print getTitleFieldOfList('Date', 0, $_SERVER['PHP_SELF'], 'e.date_expedition', '', '', '', '', $sortfield, $sortorder);
-print getTitleFieldOfList('CoveredQuantity', 0, $_SERVER['PHP_SELF'], 'covered_qty', '', '', 'right', '', $sortfield, $sortorder);
-print getTitleFieldOfList('WarrantyExpiryRange', 0, $_SERVER['PHP_SELF'], 'warranty_expiry_max', '', '', '', '', $sortfield, $sortorder);
+print getTitleFieldOfList('ShipmentRef', 0, $_SERVER['PHP_SELF'], 'e.ref', '', $listparam, '', $sortfield, $sortorder);
+print getTitleFieldOfList('Company', 0, $_SERVER['PHP_SELF'], 's.nom', '', $listparam, '', $sortfield, $sortorder);
+print getTitleFieldOfList('Date', 0, $_SERVER['PHP_SELF'], 'e.date_expedition', '', $listparam, '', $sortfield, $sortorder);
+print getTitleFieldOfList('CoveredQuantity', 0, $_SERVER['PHP_SELF'], 'covered_qty', '', $listparam, 'class="right"', $sortfield, $sortorder);
+print getTitleFieldOfList('WarrantyExpiryRange', 0, $_SERVER['PHP_SELF'], 'warranty_expiry_max', '', $listparam, '', $sortfield, $sortorder);
 print '<th>'.$langs->trans('WarrantyLetter').'</th>';
 print '<th class="right">'.$langs->trans('ShowDetails').'</th>';
 print '</tr>';
