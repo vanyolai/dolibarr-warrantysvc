@@ -47,7 +47,7 @@ $sqlFrom .= ' LEFT JOIN '.MAIN_DB_PREFIX.'svc_warranty_letter_shipment ls';
 $sqlFrom .= ' ON ls.entity = w.entity AND ls.fk_expedition = w.fk_expedition';
 $sqlFrom .= ' LEFT JOIN '.MAIN_DB_PREFIX.'svc_warranty_letter l ON l.rowid = ls.fk_letter AND l.entity = ls.entity';
 $sqlWhere = ' WHERE w.entity = '.((int) $conf->entity);
-$sqlWhere .= " AND w.status <> 'voided' AND w.fk_expedition IS NOT NULL AND w.fk_expedition > 0";
+$sqlWhere .= " AND w.status <> '".SvcWarranty::STATUS_VOIDED."' AND w.fk_expedition IS NOT NULL AND w.fk_expedition > 0";
 if ($socid > 0) $sqlWhere .= ' AND w.fk_soc = '.((int) $socid);
 if ($searchShipment !== '') $sqlWhere .= natural_search('e.ref', $searchShipment);
 if ($searchCompany !== '') $sqlWhere .= natural_search('s.nom', $searchCompany);
@@ -72,8 +72,10 @@ $allowedSort = array(
     'covered_qty'=>'covered_qty',
     'warranty_expiry_max'=>'warranty_expiry_max'
 );
-$orderField = isset($allowedSort[$sortfield]) ? $allowedSort[$sortfield] : 'e.date_expedition';
-$sql .= $db->order($orderField, $sortorder);
+if (!isset($allowedSort[$sortfield])) {
+    $sortfield = 'e.date_expedition';
+}
+$sql .= $db->order($allowedSort[$sortfield], $sortorder);
 $sql .= $db->plimit($limit, $offset);
 
 llxHeader('', $langs->trans('WarrantyShipments'));
@@ -185,7 +187,7 @@ if (!$resql) {
         print '</td>';
         print '<td>';
         if (!empty($row->fk_letter)) {
-            print '<a href="'.DOL_URL_ROOT.'/custom/warrantysvc/warranty_letter_card.php?id='.((int) $row->fk_letter).'">'.dol_escape_htmltag($row->letter_ref).'</a>';
+            print '<a href="'.dol_buildpath('/warrantysvc/warranty_letter_card.php',1).'?id='.((int) $row->fk_letter).'">'.dol_escape_htmltag($row->letter_ref).'</a>';
         } else {
             print '<span class="opacitymedium">'.$langs->trans('None').'</span>';
         }
