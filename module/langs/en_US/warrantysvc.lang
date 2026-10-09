@@ -964,3 +964,11 @@ WarrantyLetterCustomerMismatch=A warranty letter can contain only shipments belo
 WarrantyLetterShipmentAlreadyAssigned=The selected shipment already belongs to another warranty letter.
 
 WarrantyExpiryRange=Warranty expiry
+
+WarrantyLetterNumberingModule=Warranty letter numbering module
+WarrantyLetterNumberingStandardDesc=Standard warranty letter numbering: WL-YYYY-MMUID with a continuous UID sequence
+WarrantyLetterPdfModel=Warranty letter PDF template
+WarrantyLetterSentVersionCannotBeDeleted=A sent warranty letter revision cannot be deleted.
+WarrantyLetterVersionDeleted=Warranty letter PDF revision deleted.
+WarrantyLetterVersionNotFound=Warranty letter revision not found.
+WarrantyLetterDeleteUnsentVersion=Delete unsent PDF revision
