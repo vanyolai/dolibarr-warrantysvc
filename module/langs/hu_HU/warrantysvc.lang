@@ -962,3 +962,5 @@ WarrantyLetterCombineShipments=Több szállítmány összevonása
 WarrantyLetterNoShipments=Nincs szállítmány kiválasztva
 WarrantyLetterCustomerMismatch=Egy garancialevél csak ugyanahhoz a vevőhöz tartozó szállítmányokat tartalmazhat.
 WarrantyLetterShipmentAlreadyAssigned=A kiválasztott szállítmány már egy másik garancialevélhez tartozik.
+
+WarrantyExpiryRange=Garancia lejárata
