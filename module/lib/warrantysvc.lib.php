@@ -92,6 +92,36 @@ function warrantysvc_prepare_head($object)
 
 
 /**
+ * Return tabs for a Warranty Letter card.
+ *
+ * Keep this helper even while the object has a single core tab: it gives
+ * Dolibarr and third-party modules the standard complete_head_from_modules()
+ * extension point and keeps the card layout consistent with other objects.
+ *
+ * @param SvcWarrantyLetter $object Warranty Letter
+ * @return array
+ */
+function warrantysvc_warrantyletter_prepare_head($object)
+{
+	global $conf, $langs;
+
+	$langs->load('warrantysvc@warrantysvc');
+
+	$head = array();
+	$h = 0;
+
+	$head[$h][0] = dol_buildpath('/warrantysvc/warranty_letter_card.php', 1).'?id='.((int) $object->id);
+	$head[$h][1] = $langs->trans('WarrantyLetterTitle');
+	$head[$h][2] = 'card';
+	$h++;
+
+	complete_head_from_modules($conf, $langs, $object, $head, $h, 'svcwarrantyletter@warrantysvc');
+
+	return $head;
+}
+
+
+/**
  * Return default recipient keys for a customer-facing Service Request email.
  *
  * Priority:
