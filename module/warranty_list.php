@@ -20,7 +20,7 @@ require_once DOL_DOCUMENT_ROOT.'/custom/warrantysvc/class/svcwarranty.class.php'
 require_once DOL_DOCUMENT_ROOT.'/custom/warrantysvc/class/svcwarrantytype.class.php';
 require_once DOL_DOCUMENT_ROOT.'/custom/warrantysvc/lib/warrantysvc.lib.php';
 
-$langs->loadLangs(array('warrantysvc@warrantysvc', 'companies', 'products'));
+$langs->loadLangs(array('warrantysvc@warrantysvc', 'companies', 'products', 'sendings'));
 
 if (!$user->hasRight('warrantysvc', 'svcwarranty', 'read')) {
 	accessforbidden();
@@ -37,6 +37,7 @@ $use_warranty_types = ($duration_source === 'warranty_type');
 // Search filters
 $search_ref         = GETPOST('search_ref', 'alpha');
 $search_company     = GETPOST('search_company', 'alpha');
+$search_shipment    = GETPOST('search_shipment', 'alpha');
 $search_product     = GETPOST('search_product', 'alpha');
 $search_serial      = GETPOST('search_serial', 'alpha');
 $search_wtype       = GETPOST('search_wtype', 'alpha');
@@ -60,7 +61,7 @@ if ($preset == 'expired') {
 
 // Reset filters
 if (GETPOST('button_removefilter_x', 'alpha') || GETPOST('button_removefilter', 'alpha')) {
-	$search_ref = $search_company = $search_product = $search_serial = '';
+	$search_ref = $search_company = $search_product = $search_serial = $search_shipment = '';
 	$search_wtype = $search_status = '';
 	$search_expiry_from = $search_expiry_to = '';
 	$preset = '';
@@ -80,11 +81,12 @@ $eff_exp = $use_warranty_types
 	: "t.expiry_date";
 
 // Build query
-$sql  = "SELECT t.rowid, t.ref, t.fk_soc, t.fk_product, t.serial_number,";
+$sql  = "SELECT t.rowid, t.ref, t.fk_soc, t.fk_product, t.fk_expedition, t.serial_number,";
 $sql .= " t.warranty_type, t.start_date, t.expiry_date, t.coverage_months, t.status,";
 $sql .= " (SELECT COUNT(*) FROM ".MAIN_DB_PREFIX."svc_request sr WHERE sr.fk_warranty = t.rowid) AS claim_count,";
 $sql .= " t.total_claimed_value,";
 $sql .= " s.nom as company_name,";
+$sql .= " e.ref as shipment_ref,";
 $sql .= " p.ref as product_ref, p.label as product_label,";
 if ($use_warranty_types) {
 	$sql .= " wt.default_coverage_days,";
@@ -92,6 +94,7 @@ if ($use_warranty_types) {
 $sql .= " ".$eff_exp." AS effective_expiry";
 $sql .= " FROM ".MAIN_DB_PREFIX."svc_warranty as t";
 $sql .= " LEFT JOIN ".MAIN_DB_PREFIX."societe as s ON s.rowid = t.fk_soc";
+$sql .= " LEFT JOIN ".MAIN_DB_PREFIX."expedition as e ON e.rowid = t.fk_expedition";
 $sql .= " LEFT JOIN ".MAIN_DB_PREFIX."product as p ON p.rowid = t.fk_product";
 if ($use_warranty_types) {
 	$sql .= " LEFT JOIN ".MAIN_DB_PREFIX."svc_warranty_type as wt ON wt.code = t.warranty_type";
@@ -110,6 +113,9 @@ if ($search_ref) {
 }
 if ($search_company) {
 	$sql .= natural_search('s.nom', $search_company);
+}
+if ($search_shipment) {
+	$sql .= natural_search('e.ref', $search_shipment);
 }
 if ($search_product) {
 	$sql .= natural_search('p.ref', $search_product);
@@ -158,7 +164,22 @@ $sql .= $db->plimit($limit, $offset);
 /*
  * View
  */
-llxHeader('', $langs->trans('Warranties'), '');
+$shipment_context = null;
+if ($shipmentid > 0) {
+	$sql_shipment = "SELECT rowid, ref, fk_soc FROM ".MAIN_DB_PREFIX."expedition WHERE rowid = ".((int) $shipmentid);
+	$res_shipment = $db->query($sql_shipment);
+	if ($res_shipment) {
+		$shipment_context = $db->fetch_object($res_shipment);
+		$db->free($res_shipment);
+	}
+}
+
+$list_title = $langs->trans('Warranties');
+if ($shipment_context) {
+	$list_title .= ' - '.(string) $shipment_context->ref;
+}
+
+llxHeader('', $list_title, '');
 
 // When accessed from a third party tab, show the third party header + tabs
 if ($socid > 0) {
@@ -174,8 +195,18 @@ if ($socid > 0) {
 }
 
 $newcardbutton = '';
+if ($shipment_context) {
+	$backurl = DOL_URL_ROOT.'/custom/warrantysvc/warranty_shipment_list.php';
+	if ($socid > 0) $backurl .= '?socid='.((int) $socid);
+	$newcardbutton .= dolGetButtonTitle(
+		$langs->trans('BackToList'),
+		'',
+		'fa fa-arrow-left',
+		$backurl
+	);
+}
 if ($user->hasRight('warrantysvc', 'svcwarranty', 'write')) {
-	$newcardbutton = dolGetButtonTitle(
+	$newcardbutton .= dolGetButtonTitle(
 		$langs->trans('NewWarranty'),
 		'',
 		'fa fa-plus-circle',
@@ -184,7 +215,7 @@ if ($user->hasRight('warrantysvc', 'svcwarranty', 'write')) {
 }
 
 print_barre_liste(
-	$langs->trans('Warranties'),
+	$list_title,
 	$page,
 	$_SERVER['PHP_SELF'],
 	'',
@@ -216,6 +247,7 @@ print '<style>.warranty-row-expired { background-color: rgba(220,53,69,0.07) !im
 // Quick filter presets
 print '<div class="divsearchfield">';
 $socparam = ($socid > 0) ? '&socid='.((int) $socid) : '';
+if ($shipmentid > 0) $socparam .= '&shipmentid='.((int) $shipmentid);
 print '<a class="btnTitle'.($preset == 'active' ? ' btnTitleSelected' : '').'" href="'.$_SERVER['PHP_SELF'].'?preset=active'.$socparam.'">'.$langs->trans('SvcActive').'</a> &nbsp;';
 print '<a class="btnTitle'.($preset == 'expiring' ? ' btnTitleSelected' : '').'" href="'.$_SERVER['PHP_SELF'].'?preset=expiring'.$socparam.'">'.$langs->trans('ExpiringSoon').'</a> &nbsp;';
 print '<a class="btnTitle'.($preset == 'expired' ? ' btnTitleSelected' : '').'" href="'.$_SERVER['PHP_SELF'].'?preset=expired'.$socparam.'">'.$langs->trans('SvcExpired').'</a>';
@@ -239,6 +271,11 @@ print '<table class="tabl noborder liste '.($optioncss == 'print' ? 'listwithout
 print '<tr class="liste_titre_filter">';
 print '<td class="liste_titre"><input type="text" class="flat maxwidth75imp" name="search_ref" value="'.dol_escape_htmltag($search_ref).'"></td>';
 print '<td class="liste_titre"><input type="text" class="flat maxwidth100imp" name="search_company" value="'.dol_escape_htmltag($search_company).'"></td>';
+if ($shipmentid > 0 && $shipment_context) {
+	print '<td class="liste_titre"><span class="opacitymedium">'.dol_escape_htmltag($shipment_context->ref).'</span></td>';
+} else {
+	print '<td class="liste_titre"><input type="text" class="flat maxwidth100imp" name="search_shipment" value="'.dol_escape_htmltag($search_shipment).'"></td>';
+}
 print '<td class="liste_titre"><input type="text" class="flat maxwidth100imp" name="search_product" value="'.dol_escape_htmltag($search_product).'"></td>';
 print '<td class="liste_titre"><input type="text" class="flat maxwidth75imp" name="search_serial" value="'.dol_escape_htmltag($search_serial).'"></td>';
 
@@ -287,6 +324,7 @@ print '</tr>';
 print '<tr class="liste_titre">';
 print getTitleFieldOfList('Ref',           0, $_SERVER['PHP_SELF'], 't.ref',          '', '', '',       '', $sortfield, $sortorder);
 print getTitleFieldOfList('Company',       0, $_SERVER['PHP_SELF'], 's.nom',          '', '', '',       '', $sortfield, $sortorder);
+print getTitleFieldOfList('Shipment',      0, $_SERVER['PHP_SELF'], 'e.ref',          '', '', '',       '', $sortfield, $sortorder);
 print getTitleFieldOfList('Product',       0, $_SERVER['PHP_SELF'], 'p.ref',          '', '', '',       '', $sortfield, $sortorder);
 print getTitleFieldOfList('SvcSerialNumber',  0, $_SERVER['PHP_SELF'], 't.serial_number', '', '', '',       '', $sortfield, $sortorder);
 if ($use_warranty_types) {
@@ -308,7 +346,7 @@ if ($resql) {
 	$i   = 0;
 
 	if ($num == 0) {
-		$column_count = 10;
+		$column_count = 11;
 		print '<tr class="oddeven"><td colspan="'.$column_count.'"><span class="opacitymedium">'.$langs->trans('NoRecordFound').'</span></td></tr>';
 	}
 
@@ -373,6 +411,13 @@ if ($resql) {
 		print '<tr class="'.$row_class.'">';
 		print '<td><a href="'.$cardurl.'">'.dol_escape_htmltag($obj->ref).'</a></td>';
 		print '<td>'.dol_escape_htmltag($obj->company_name).'</td>';
+		print '<td>';
+		if (!empty($obj->fk_expedition) && !empty($obj->shipment_ref)) {
+			print '<a href="'.DOL_URL_ROOT.'/expedition/card.php?id='.((int) $obj->fk_expedition).'">'.dol_escape_htmltag($obj->shipment_ref).'</a>';
+		} else {
+			print '<span class="opacitymedium">&mdash;</span>';
+		}
+		print '</td>';
 
 		$product_ref = (string) ($obj->product_ref ? $obj->product_ref : '');
 		print '<td>';
@@ -445,7 +490,7 @@ if ($resql) {
 
 	}
 } else {
-	print '<tr><td colspan="10">'.$db->lasterror().'</td></tr>';
+	print '<tr><td colspan="11">'.$db->lasterror().'</td></tr>';
 }
 
 print '</table>';
