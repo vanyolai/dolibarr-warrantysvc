@@ -24,6 +24,7 @@ $searchShipment = GETPOST('search_shipment', 'restricthtml');
 $searchCompany = GETPOST('search_company', 'restricthtml');
 $sortfield = GETPOST('sortfield', 'aZ09comma') ?: 'e.date_expedition';
 $sortorder = GETPOST('sortorder', 'aZ09comma') ?: 'DESC';
+if (!in_array(strtoupper($sortorder), array('ASC','DESC'), true)) $sortorder = 'DESC';
 $limit = $conf->liste_limit;
 $page = GETPOSTISSET('pageplusone') ? GETPOSTINT('pageplusone') - 1 : max(0, GETPOSTINT('page'));
 $offset = $page * $limit;
