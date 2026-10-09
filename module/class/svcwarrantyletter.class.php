@@ -506,10 +506,25 @@ class SvcWarrantyLetter extends CommonObject
         return $row ?: null;
     }
 
-    public function versionFullPath($versionRow)
+    /**
+     * Return the WarrantySvc document root for this entity.
+     *
+     * @return string
+     */
+    public function getOutputRoot()
     {
         global $conf;
-        return rtrim($conf->warrantysvc->dir_output, '/').'/'.(string) $versionRow->file_path;
+
+        if (!empty($conf->warrantysvc->multidir_output[$this->entity])) {
+            return rtrim($conf->warrantysvc->multidir_output[$this->entity], '/');
+        }
+
+        return rtrim($conf->warrantysvc->dir_output, '/');
+    }
+
+    public function versionFullPath($versionRow)
+    {
+        return $this->getOutputRoot().'/'.(string) $versionRow->file_path;
     }
 
     public function verifyVersion($versionRow)
@@ -541,7 +556,7 @@ class SvcWarrantyLetter extends CommonObject
 
         $number = $this->current_version + 1;
         $relative = 'letters/'.dol_sanitizeFileName($this->ref).'/'.dol_sanitizeFileName($this->ref).'_v'.$number.'.pdf';
-        $path = rtrim($conf->warrantysvc->dir_output, '/').'/'.$relative;
+        $path = $this->getOutputRoot().'/'.$relative;
         $cleanupGeneratedFile = static function ($filePath) {
             if (is_file($filePath) && !dol_delete_file($filePath, 1, 1, 1, null, false, 0)) {
                 dol_syslog('SvcWarrantyLetter::createRevision failed to remove orphan PDF '.$filePath, LOG_ERR);
