@@ -926,7 +926,7 @@ WarrantyLetterPdfFailed=Unable to generate warranty letter PDF
 WarrantyLetterVersionFileExists=The version PDF already exists; no file was replaced
 WarrantyLetterPdfHashMismatch=PDF integrity check failed. Email sending was blocked.
 WarrantyLetterPdfAttachmentMissing=The official PDF must be attached before sending.
-WarrantyLetterNoWarranties=No eligible warranties exist for this shipment
+WarrantyLetterNoWarranties=No eligible warranties exist for the selected shipment
 WarrantyLetterUseExplicitNewRevision=Use the Generate New Version action.
 WarrantyLetterVersionAlreadySent=The current version has already been emailed. Generate a new version before sending again.
 WarrantyLetterCreated=Warranty letter created.
@@ -944,3 +944,21 @@ WarrantyLetterOutputOutsideDocumentRoot=The configured document output directory
 
 WarrantyLetterStartDate=Warranty start date
 WarrantyLetterEndDate=Warranty expiry date
+
+# Multi-shipment warranty letters
+
+WarrantyShipments=Warranties by Shipment
+WarrantyShipmentViewHelp=Warranty records are grouped by shipment. Multiple shipments for the same customer can be combined into one warranty letter.
+WarrantyRecords=Warranty records
+CoveredQuantity=Covered quantity
+WarrantyDetails=Warranty details
+WarrantyLetterCreateFromSelected=Create warranty letter from selected shipments
+WarrantyLetterShipmentCount=Number of shipments
+WarrantyLetterShipments=Shipments included in warranty letter
+WarrantyLetterAddShipments=Add more shipments
+WarrantyLetterAddSelectedShipments=Add selected shipments
+WarrantyLetterShipmentsAdded=Shipments added. Generate a new PDF version before sending.
+WarrantyLetterCombineShipments=Combine multiple shipments
+WarrantyLetterNoShipments=No shipments selected
+WarrantyLetterCustomerMismatch=A warranty letter can contain only shipments belonging to the same customer.
+WarrantyLetterShipmentAlreadyAssigned=The selected shipment already belongs to another warranty letter.
