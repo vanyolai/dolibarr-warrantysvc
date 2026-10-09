@@ -1170,12 +1170,12 @@ class modWarrantySvc extends DolibarrModules
 			'hu_HU'=>array(
 				'label'=>'Garancialevél (PDF)',
 				'topic'=>'Garancialevél – __WARRANTY_LETTER_REF__',
-				'content'=>'Tisztelt Partnerünk!<br><br>A __SHIPMENT_REF__ szállítmányhoz tartozó hivatalos garancialevelet PDF-mellékletként küldjük.<br><br>Garancialevél: __WARRANTY_LETTER_REF__, verzió: __WARRANTY_LETTER_VERSION__<br>Rendelés: __ORDER_REF__<br><br>Üdvözlettel,<br>__SENDEREMAIL_SIGNATURE__'
+				'content'=>'Tisztelt Partnerünk!<br><br>A következő szállítmányokhoz tartozó garancialevelet PDF-mellékletként küldjük: __SHIPMENT_REFS__.<br><br>Garancialevél: __WARRANTY_LETTER_REF__, verzió: __WARRANTY_LETTER_VERSION__<br>Kapcsolódó rendelés(ek): __ORDER_REFS__<br><br>Üdvözlettel,<br>__SENDEREMAIL_SIGNATURE__'
 			),
 			'en_US'=>array(
 				'label'=>'Warranty letter (PDF)',
 				'topic'=>'Warranty letter – __WARRANTY_LETTER_REF__',
-				'content'=>'Dear Partner,<br><br>Please find the official PDF warranty letter for shipment __SHIPMENT_REF__ attached.<br><br>Letter: __WARRANTY_LETTER_REF__, version: __WARRANTY_LETTER_VERSION__<br>Order: __ORDER_REF__<br><br>Kind regards,<br>__SENDEREMAIL_SIGNATURE__'
+				'content'=>'Dear Partner,<br><br>Please find attached the warranty letter covering shipment(s): __SHIPMENT_REFS__.<br><br>Letter: __WARRANTY_LETTER_REF__, version: __WARRANTY_LETTER_VERSION__<br>Related order(s): __ORDER_REFS__<br><br>Kind regards,<br>__SENDEREMAIL_SIGNATURE__'
 			)
 		);
 		foreach ($templates as $lang => $tpl) {
