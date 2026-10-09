@@ -185,10 +185,23 @@ llxHeader('',$langs->trans('WarrantyLetterTitle'));
 $form=new Form($db);
 
 if ($needsCreation) {
-    print load_fiche_titre($langs->trans('WarrantyLetterTitle'),'','pdf');
-    print '<table class="border centpercent">';
-    print '<tr><td class="titlefield">'.$langs->trans('ShipmentRef').'</td><td>'.dol_escape_htmltag($shipment->ref).'</td></tr>';
+    print dol_get_fiche_head(array(), '', $langs->trans('WarrantyLetterTitle'), -1, 'pdf');
+
+    print '<table class="border centpercent tableforfieldcreate">';
+    print '<tr><td class="titlefield">'.$langs->trans('ShipmentRef').'</td><td>';
+    print '<a href="'.DOL_URL_ROOT.'/expedition/card.php?id='.((int) $shipment->id).'">'.dol_escape_htmltag($shipment->ref).'</a>';
+    print '</td></tr>';
+
+    if (!empty($shipment->socid)) {
+        require_once DOL_DOCUMENT_ROOT.'/societe/class/societe.class.php';
+        $shipmentThirdparty=new Societe($db);
+        if ($shipmentThirdparty->fetch((int) $shipment->socid)>0) {
+            print '<tr><td>'.$langs->trans('Customer').'</td><td>'.$shipmentThirdparty->getNomUrl(1).'</td></tr>';
+        }
+    }
     print '</table>';
+
+    print dol_get_fiche_end();
 
     if (warrantysvc_count_shipment_warranties($db,$shipmentid)<=0) {
         print '<div class="warning">'.$langs->trans('WarrantyLetterNoWarranties').'</div>';
@@ -198,23 +211,30 @@ if ($needsCreation) {
         print '<input type="hidden" name="shipmentids[]" value="'.((int)$shipmentid).'">';
         print '<input type="hidden" name="action" value="create_letter">';
         print '</form>';
+
         print '<div class="tabsAction">';
         print dolGetButtonAction(
-			'',
-			$langs->trans('WarrantyLetterCreate'),
-			'default',
-			'',
-			'',
-			1,
-			array('attr'=>array(
-				'onclick'=>"document.getElementById('warrantyLetterCreateForm').submit();",
-				'role'=>'button',
-				'tabindex'=>'0'
-			))
-		);
-        print dolGetButtonAction('', $langs->trans('WarrantyLetterCombineShipments'), 'default', dol_buildpath('/warrantysvc/warranty_shipment_list.php',1).'?socid='.((int)$shipment->socid));
+            '',
+            $langs->trans('WarrantyLetterCreate'),
+            'default',
+            '',
+            '',
+            1,
+            array('attr'=>array(
+                'onclick'=>"document.getElementById('warrantyLetterCreateForm').submit();",
+                'role'=>'button',
+                'tabindex'=>'0'
+            ))
+        );
+        print dolGetButtonAction(
+            '',
+            $langs->trans('WarrantyLetterCombineShipments'),
+            'default',
+            dol_buildpath('/warrantysvc/warranty_shipment_list.php',1).'?socid='.((int)$shipment->socid)
+        );
         print '</div>';
     }
+
     llxFooter();
     $db->close();
     exit;
