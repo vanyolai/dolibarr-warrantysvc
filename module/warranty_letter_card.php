@@ -10,6 +10,7 @@ if (!$res) die('Include of main fails');
 require_once DOL_DOCUMENT_ROOT.'/custom/warrantysvc/class/svcwarrantyletter.class.php';
 require_once DOL_DOCUMENT_ROOT.'/custom/warrantysvc/lib/warrantysvc.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/core/class/html.form.class.php';
+require_once DOL_DOCUMENT_ROOT.'/core/class/html.formfile.class.php';
 require_once DOL_DOCUMENT_ROOT.'/expedition/class/expedition.class.php';
 
 $langs->loadLangs(array('warrantysvc@warrantysvc','main','mails','orders','sendings','products','companies'));
@@ -157,14 +158,14 @@ if ($needsCreation) {
     if (warrantysvc_count_shipment_warranties($db,$shipmentid)<=0) {
         print '<div class="warning">'.$langs->trans('WarrantyLetterNoWarranties').'</div>';
     } elseif ($permwrite) {
-        print '<div class="tabsAction">';
-        print '<form method="POST" action="'.$_SERVER['PHP_SELF'].'" style="display:inline-block">';
+        print '<form method="POST" action="'.$_SERVER['PHP_SELF'].'" id="warrantyLetterCreateForm" class="hidden">';
         print '<input type="hidden" name="token" value="'.newToken().'">';
         print '<input type="hidden" name="shipmentids[]" value="'.((int)$shipmentid).'">';
         print '<input type="hidden" name="action" value="create_letter">';
-        print '<button class="butAction" type="submit">'.$langs->trans('WarrantyLetterCreate').'</button>';
         print '</form>';
-        print ' <a class="butAction" href="'.DOL_URL_ROOT.'/custom/warrantysvc/warranty_shipment_list.php?socid='.((int)$shipment->socid).'">'.$langs->trans('WarrantyLetterCombineShipments').'</a>';
+        print '<div class="tabsAction">';
+        print dolGetButtonAction('', $langs->trans('WarrantyLetterCreate'), 'default', 'javascript:document.getElementById(\'warrantyLetterCreateForm\').submit();');
+        print dolGetButtonAction('', $langs->trans('WarrantyLetterCombineShipments'), 'default', DOL_URL_ROOT.'/custom/warrantysvc/warranty_shipment_list.php?socid='.((int)$shipment->socid));
         print '</div>';
     }
     llxFooter();
@@ -195,7 +196,7 @@ print '</table>';
 
 print load_fiche_titre($langs->trans('WarrantyLetterShipments'),'','shipment');
 print '<div class="div-table-responsive"><table class="noborder centpercent">';
-print '<tr class="liste_titre"><th>'.$langs->trans('ShipmentRef').'</th><th>'.$langs->trans('Date').'</th><th>'.$langs->trans('Order').'</th><th class="right">'.$langs->trans('WarrantyDetails').'</th></tr>';
+print '<tr class="liste_titre"><th>'.$langs->trans('ShipmentRef').'</th><th>'.$langs->trans('Date').'</th><th>'.$langs->trans('Order').'</th><th class="right">'.$langs->trans('ShowDetails').'</th></tr>';
 foreach ($shipments as $s) {
     $orderRefs=array();
     $sql='SELECT DISTINCT c.rowid, c.ref FROM '.MAIN_DB_PREFIX.'svc_warranty w';
@@ -223,7 +224,7 @@ if ($permwrite) {
     $available=SvcWarrantyLetter::getAvailableShipmentsForCustomer($db,(int)$object->fk_soc,0);
     if (is_array($available) && count($available)>0) {
         print load_fiche_titre($langs->trans('WarrantyLetterAddShipments'),'','shipment');
-        print '<form method="POST" action="'.$_SERVER['PHP_SELF'].'?id='.((int)$object->id).'">';
+        print '<form method="POST" action="'.$_SERVER['PHP_SELF'].'?id='.((int)$object->id).'" id="warrantyLetterAddShipmentsForm">';
         print '<input type="hidden" name="token" value="'.newToken().'">';
         print '<input type="hidden" name="id" value="'.((int)$object->id).'">';
         print '<input type="hidden" name="action" value="add_shipments">';
@@ -239,37 +240,83 @@ if ($permwrite) {
             print '</tr>';
         }
         print '</table></div>';
-        print '<div class="tabsAction"><button class="butAction" type="submit">'.$langs->trans('WarrantyLetterAddSelectedShipments').'</button></div>';
         print '</form>';
+        print '<div class="tabsAction">';
+        print dolGetButtonAction('', $langs->trans('WarrantyLetterAddSelectedShipments'), 'default', 'javascript:document.getElementById(\'warrantyLetterAddShipmentsForm\').submit();');
+        print '</div>';
     }
 
-    print '<div class="tabsAction">';
-    print '<form method="POST" action="'.$_SERVER['PHP_SELF'].'?id='.((int)$object->id).'" style="display:inline-block">';
+    print '<form method="POST" action="'.$_SERVER['PHP_SELF'].'?id='.((int)$object->id).'" id="warrantyLetterRevisionForm" class="hidden">';
     print '<input type="hidden" name="token" value="'.newToken().'">';
     print '<input type="hidden" name="id" value="'.((int)$object->id).'">';
     print '<input type="hidden" name="action" value="new_revision">';
-    print '<button class="butAction" type="submit" title="'.dol_escape_htmltag($langs->trans('WarrantyLetterNewRevisionWarning')).'">'.$langs->trans('WarrantyLetterNewRevision').'</button>';
     print '</form>';
+    print '<div class="tabsAction">';
+    print dolGetButtonAction(
+        $langs->trans('WarrantyLetterNewRevisionWarning'),
+        $langs->trans('WarrantyLetterNewRevision'),
+        'default',
+        'javascript:document.getElementById(\'warrantyLetterRevisionForm\').submit();'
+    );
     if ($verified) {
-        $sendClass=$canSend?'butAction':'butActionRefused classfortooltip';
         $sendHref=$canSend?$_SERVER['PHP_SELF'].'?id='.((int)$object->id).'&action=presend#formmailbeforetitle':'#';
-        print ' <a class="'.$sendClass.'" href="'.$sendHref.'"'.(!$canSend?' title="'.dol_escape_htmltag($langs->trans('WarrantyLetterStaleWarning')).'"':'').'>'.$langs->trans('WarrantyLetterSend').'</a>';
+        print dolGetButtonAction(
+            $canSend ? '' : $langs->trans('WarrantyLetterStaleWarning'),
+            $langs->trans('WarrantyLetterSend'),
+            'email',
+            $sendHref,
+            '',
+            $canSend
+        );
     }
     print '</div>';
 }
 
-print load_fiche_titre($langs->trans('WarrantyLetterVersions'),'','pdf');
-print '<div class="div-table-responsive"><table class="noborder centpercent">';
-print '<tr class="liste_titre"><th>'.$langs->trans('WarrantyLetterVersion').'</th><th>'.$langs->trans('DateCreation').'</th><th>'.$langs->trans('Document').'</th><th>'.$langs->trans('Status').'</th></tr>';
-foreach ((array)$object->getVersions() as $v) {
-    $url=DOL_URL_ROOT.'/custom/warrantysvc/warranty_letter_download.php?id='.((int)$object->id).'&v='.((int)$v->version);
-    $ok=$object->verifyVersion($v);
-    print '<tr class="oddeven"><td>v'.((int)$v->version).'</td>';
-    print '<td>'.dol_print_date($db->jdate($v->date_creation),'dayhour').'</td>';
-    print '<td>'.($ok?'<a href="'.$url.'" target="_blank" rel="noopener">'.dol_escape_htmltag(basename($v->file_path)).'</a>':dol_escape_htmltag(basename($v->file_path))).'</td>';
-    print '<td>'.($ok?$langs->trans('Available'):$langs->trans('WarrantyLetterPdfHashMismatch')).'</td></tr>';
+$versions=$object->getVersions();
+$hasInvalidVersion=false;
+foreach ((array) $versions as $versionRow) {
+    if (!$object->verifyVersion($versionRow)) {
+        $hasInvalidVersion=true;
+        break;
+    }
 }
-print '</table></div>';
+if ($hasInvalidVersion) {
+    print '<div class="warning">'.$langs->trans('WarrantyLetterPdfHashMismatch').'</div>';
+}
+
+$formfile=new FormFile($db);
+$letterSubdir='letters/'.dol_sanitizeFileName($object->ref);
+$letterDir=rtrim($conf->warrantysvc->dir_output,'/').'/'.$letterSubdir;
+$documentUrlWasSet=isset($conf->global->DOL_URL_ROOT_DOCUMENT_PHP);
+$previousDocumentUrl=$documentUrlWasSet ? $conf->global->DOL_URL_ROOT_DOCUMENT_PHP : null;
+$conf->global->DOL_URL_ROOT_DOCUMENT_PHP=DOL_URL_ROOT.'/custom/warrantysvc/warranty_letter_download.php';
+
+print $formfile->showdocuments(
+    'warrantysvc',
+    $letterSubdir,
+    $letterDir,
+    $_SERVER['PHP_SELF'].'?id='.((int)$object->id),
+    0,
+    0,
+    '',
+    1,
+    1,
+    0,
+    0,
+    0,
+    'id='.((int)$object->id),
+    $langs->trans('WarrantyLetterVersions'),
+    '',
+    '',
+    '',
+    $object
+);
+
+if ($documentUrlWasSet) {
+    $conf->global->DOL_URL_ROOT_DOCUMENT_PHP=$previousDocumentUrl;
+} else {
+    unset($conf->global->DOL_URL_ROOT_DOCUMENT_PHP);
+}
 
 print load_fiche_titre($langs->trans('WarrantyLetterHistory'),'','email');
 print '<div class="div-table-responsive"><table class="noborder centpercent">';
