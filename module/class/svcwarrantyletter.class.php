@@ -780,11 +780,31 @@ class SvcWarrantyLetter extends CommonObject
         $sql .= ' (entity, fk_letter, fk_version, date_sent, fk_user, recipient, subject, message_id) VALUES (';
         $sql .= ((int) $conf->entity).', '.((int) $this->id).', '.((int) $matched->rowid).", '".$this->db->idate(dol_now())."', ".((int) $user->id);
         $sql .= ", '".$this->db->escape((string) $this->email_to)."', '".$this->db->escape((string) $this->email_subject)."', '".$this->db->escape((string) $this->email_msgid)."')";
-        if (!$this->db->query($sql)) { $this->error = $this->db->lasterror(); return -1; }
+        if (!$this->db->query($sql)) {
+            $this->error = $this->db->lasterror();
+            return -1;
+        }
+        $mailAuditId = (int) $this->db->last_insert_id(MAIN_DB_PREFIX.'svc_warranty_letter_mail');
+
         $sql = 'UPDATE '.MAIN_DB_PREFIX.'svc_warranty_letter SET last_sent_version = '.((int) $matched->version);
         $sql .= ", status = CASE WHEN current_version = ".((int) $matched->version)." THEN '".self::STATUS_SENT."' ELSE '".self::STATUS_UPDATED."' END";
         $sql .= ' WHERE rowid = '.((int) $this->id).' AND entity = '.((int) $conf->entity);
-        if (!$this->db->query($sql)) { $this->error = $this->db->lasterror(); return -1; }
+        if (!$this->db->query($sql)) {
+            $this->error = $this->db->lasterror();
+
+            // actions_sendmails.inc.php already owns the surrounding post-send
+            // transaction. Compensate locally instead of starting a nested
+            // transaction or surfacing a misleading "email failed" message
+            // after SMTP delivery has already succeeded.
+            if ($mailAuditId > 0) {
+                $cleanupSql = 'DELETE FROM '.MAIN_DB_PREFIX.'svc_warranty_letter_mail';
+                $cleanupSql .= ' WHERE rowid = '.$mailAuditId.' AND fk_letter = '.((int) $this->id);
+                if (!$this->db->query($cleanupSql)) {
+                    dol_syslog(__METHOD__.': failed to remove partial mail audit row '.$mailAuditId, LOG_ERR);
+                }
+            }
+            return -1;
+        }
         $this->last_sent_version = (int) $matched->version;
         $this->status = ((int) $matched->version === (int) $this->current_version) ? self::STATUS_SENT : self::STATUS_UPDATED;
 
