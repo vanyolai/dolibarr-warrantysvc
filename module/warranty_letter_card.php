@@ -7,8 +7,8 @@ if (!$res && file_exists('../../main.inc.php')) $res=@include '../../main.inc.ph
 if (!$res && file_exists('../../../main.inc.php')) $res=@include '../../../main.inc.php';
 if (!$res) die('Include of main fails');
 
-require_once DOL_DOCUMENT_ROOT.'/custom/warrantysvc/class/svcwarrantyletter.class.php';
-require_once DOL_DOCUMENT_ROOT.'/custom/warrantysvc/lib/warrantysvc.lib.php';
+dol_include_once('/warrantysvc/class/svcwarrantyletter.class.php');
+dol_include_once('/warrantysvc/lib/warrantysvc.lib.php');
 require_once DOL_DOCUMENT_ROOT.'/core/class/html.form.class.php';
 require_once DOL_DOCUMENT_ROOT.'/core/class/html.formfile.class.php';
 require_once DOL_DOCUMENT_ROOT.'/core/class/html.formactions.class.php';
