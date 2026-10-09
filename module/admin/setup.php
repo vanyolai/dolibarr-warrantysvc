@@ -37,6 +37,26 @@ $action = GETPOST('action', 'aZ09');
 $product_month_fields = warrantysvc_get_product_month_field_options($db, (int) $conf->entity);
 $current_duration_source = warrantysvc_get_duration_source();
 
+if ($action === 'setmod_warrantyletter') {
+	$value = GETPOST('value', 'alpha');
+	if (preg_match('/^mod_warrantyletter_[a-zA-Z0-9_]+$/', $value)) {
+		dolibarr_set_const($db, 'WARRANTYSVC_WARRANTYLETTER_ADDON', $value, 'chaine', 0, '', $conf->entity);
+		setEventMessages($langs->trans('SvcSetupSaved'), null, 'mesgs');
+	}
+	header('Location: '.$_SERVER['PHP_SELF']);
+	exit;
+}
+
+if ($action === 'setpdf_warrantyletter') {
+	$value = GETPOST('value', 'alpha');
+	if (preg_match('/^warrantyletter_[a-zA-Z0-9_]+$/', $value)) {
+		dolibarr_set_const($db, 'WARRANTYSVC_WARRANTYLETTER_PDF_MODEL', $value, 'chaine', 0, '', $conf->entity);
+		setEventMessages($langs->trans('SvcSetupSaved'), null, 'mesgs');
+	}
+	header('Location: '.$_SERVER['PHP_SELF']);
+	exit;
+}
+
 // Save settings
 if ($action == 'update') {
 	$posted_duration_source = GETPOST('WARRANTYSVC_DURATION_SOURCE', 'alpha');
@@ -350,7 +370,7 @@ if (!$resql) {
 	$handle = opendir($dir);
 	if ($handle) {
 		while (($file = readdir($handle)) !== false) {
-			if (substr($file, 0, 4) != 'mod_' || substr($file, -4) != '.php') {
+			if (strpos($file, 'mod_warrantysvc_') !== 0 || substr($file, -4) != '.php') {
 				continue;
 			}
 			require_once $dir.$file;
@@ -380,6 +400,88 @@ if (!$resql) {
 	}
 	print '</table>';
 }
+
+
+// Warranty Letter numbering model
+print '<br>';
+print load_fiche_titre($langs->trans('WarrantyLetterNumberingModule'), '', '');
+
+$letterDir = DOL_DOCUMENT_ROOT.'/custom/warrantysvc/core/modules/warrantysvc/';
+$currentLetterAddon = getDolGlobalString('WARRANTYSVC_WARRANTYLETTER_ADDON', 'mod_warrantyletter_standard');
+
+print '<table class="noborder centpercent">';
+print '<tr class="liste_titre">';
+print '<td>'.$langs->trans('Name').'</td>';
+print '<td>'.$langs->trans('Description').'</td>';
+print '<td class="center">'.$langs->trans('Status').'</td>';
+print '<td class="center">'.$langs->trans('Example').'</td>';
+print '</tr>';
+
+$handle = opendir($letterDir);
+if ($handle) {
+	while (($file = readdir($handle)) !== false) {
+		if (strpos($file, 'mod_warrantyletter_') !== 0 || substr($file, -4) !== '.php') continue;
+		require_once $letterDir.$file;
+		$classname = substr($file, 0, -4);
+		if (!class_exists($classname)) continue;
+		$mod = new $classname();
+		$active = ($currentLetterAddon === $classname);
+
+		print '<tr class="oddeven"><td>'.dol_escape_htmltag($mod->name).'</td>';
+		print '<td>'.$mod->info($langs).'</td>';
+		print '<td class="center">';
+		if ($active) {
+			print img_picto($langs->trans('Activated'), 'switch_on');
+		} else {
+			print '<a href="'.$_SERVER['PHP_SELF'].'?action=setmod_warrantyletter&token='.newToken().'&value='.urlencode($classname).'">';
+			print img_picto($langs->trans('Disabled'), 'switch_off');
+			print '</a>';
+		}
+		print '</td>';
+		print '<td class="center"><code>'.dol_escape_htmltag($mod->getExample()).'</code></td></tr>';
+	}
+	closedir($handle);
+}
+print '</table>';
+
+// Warranty Letter PDF model
+print '<br>';
+print load_fiche_titre($langs->trans('WarrantyLetterPdfModel'), '', '');
+
+$currentPdfModel = getDolGlobalString('WARRANTYSVC_WARRANTYLETTER_PDF_MODEL', 'warrantyletter_standard');
+print '<table class="noborder centpercent">';
+print '<tr class="liste_titre">';
+print '<td>'.$langs->trans('Name').'</td>';
+print '<td>'.$langs->trans('Description').'</td>';
+print '<td class="center">'.$langs->trans('Status').'</td>';
+print '</tr>';
+
+$handle = opendir($letterDir);
+if ($handle) {
+	while (($file = readdir($handle)) !== false) {
+		if (strpos($file, 'pdf_warrantyletter_') !== 0 || substr($file, -4) !== '.php' || substr($file, -12) === '.modules.php') continue;
+		require_once $letterDir.$file;
+		$classname = substr($file, 0, -4);
+		if (!class_exists($classname)) continue;
+		$model = new $classname($db);
+		$modelName = preg_replace('/^pdf_/', '', $classname);
+		$active = ($currentPdfModel === $modelName);
+
+		print '<tr class="oddeven"><td>'.dol_escape_htmltag($model->name).'</td>';
+		print '<td>'.$langs->trans($model->description).'</td>';
+		print '<td class="center">';
+		if ($active) {
+			print img_picto($langs->trans('Activated'), 'switch_on');
+		} else {
+			print '<a href="'.$_SERVER['PHP_SELF'].'?action=setpdf_warrantyletter&token='.newToken().'&value='.urlencode($modelName).'">';
+			print img_picto($langs->trans('Disabled'), 'switch_off');
+			print '</a>';
+		}
+		print '</td></tr>';
+	}
+	closedir($handle);
+}
+print '</table>';
 
 // Handle setmod action
 if ($action == 'setmod') {
