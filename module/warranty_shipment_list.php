@@ -42,7 +42,7 @@ if ($searchShipment !== '') $listparam .= '&search_shipment='.urlencode($searchS
 if ($searchCompany !== '') $listparam .= '&search_company='.urlencode($searchCompany);
 
 $sqlFrom = ' FROM '.MAIN_DB_PREFIX.'svc_warranty w';
-$sqlFrom .= ' JOIN '.MAIN_DB_PREFIX.'expedition e ON e.rowid = w.fk_expedition';
+$sqlFrom .= ' JOIN '.MAIN_DB_PREFIX.'expedition e ON e.rowid = w.fk_expedition AND e.entity = w.entity AND e.fk_soc = w.fk_soc';
 $sqlFrom .= ' JOIN '.MAIN_DB_PREFIX.'societe s ON s.rowid = w.fk_soc';
 $sqlFrom .= ' LEFT JOIN '.MAIN_DB_PREFIX.'svc_warranty_letter_shipment ls';
 $sqlFrom .= ' ON ls.entity = w.entity AND ls.fk_expedition = w.fk_expedition';
