@@ -333,7 +333,6 @@ print $formfile->showdocuments(
     '',
     '',
     '',
-    '',
     $object,
     0,
     'delete_revision'
