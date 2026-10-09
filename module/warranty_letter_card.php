@@ -85,6 +85,30 @@ if (!$needsCreation && $action==='add_shipments' && $permwrite && $_SERVER['REQU
     exit;
 }
 
+if (!$needsCreation && $action==='delete_revision' && $permwrite) {
+    $fileToDelete=GETPOST('file','restricthtml');
+    $revisionNumber=0;
+    if (preg_match('/_v([0-9]+)\.pdf$/', basename((string) $fileToDelete), $match)) {
+        $revisionNumber=(int) $match[1];
+    }
+
+    if ($revisionNumber<=0) {
+        setEventMessages($langs->trans('WarrantyLetterVersionNotFound'),null,'errors');
+    } else {
+        $db->begin();
+        $ok=$letter->deleteVersion($revisionNumber,$user);
+        if ($ok>0) {
+            $db->commit();
+            setEventMessages($langs->trans('WarrantyLetterVersionDeleted'),null,'mesgs');
+        } else {
+            $db->rollback();
+            setEventMessages($langs->trans($letter->error),null,'errors');
+        }
+    }
+    header('Location: '.DOL_URL_ROOT.'/custom/warrantysvc/warranty_letter_card.php?id='.$letter->id);
+    exit;
+}
+
 if (!$needsCreation && $action==='new_revision' && $permwrite && $_SERVER['REQUEST_METHOD']==='POST') {
     $db->begin();
     $ok=$letter->createRevision($user,$langs);
@@ -297,7 +321,7 @@ print $formfile->showdocuments(
     $letterDir,
     $_SERVER['PHP_SELF'].'?id='.((int)$object->id),
     0,
-    0,
+    $permwrite ? 1 : 0,
     '',
     1,
     1,
@@ -309,7 +333,10 @@ print $formfile->showdocuments(
     '',
     '',
     '',
-    $object
+    '',
+    $object,
+    0,
+    'delete_revision'
 );
 
 if ($documentUrlWasSet) {
