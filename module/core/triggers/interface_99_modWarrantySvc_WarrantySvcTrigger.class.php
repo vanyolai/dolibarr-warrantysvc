@@ -436,7 +436,7 @@ class InterfaceWarrantySvcTrigger extends DolibarrTriggers
 			return;
 		}
 
-		require_once DOL_DOCUMENT_ROOT.'/custom/warrantysvc/class/svcservicelog.class.php';
+		dol_include_once('/warrantysvc/class/svcservicelog.class.php');
 
 		$log = new SvcServiceLog($this->db);
 		$log->fetchBySerial($obj->serial_number);
