@@ -71,11 +71,16 @@ foreach ($linkedObjectBlock as $key => $objectlink) {
 	}
 	print '</td>';
 
-	// Date/amount/status are intentionally left empty here: on a shipment card,
-	// product identity and serial/LOT are the useful warranty context.
+	// Date and amount are not useful in this shipment context.
 	print '<td class="linkedcol-date center"></td>';
 	print '<td class="linkedcol-amount right"></td>';
-	print '<td class="linkedcol-statut right"></td>';
+	print '<td class="linkedcol-statut right">';
+	if (function_exists('svcwarranty_status_badge')) {
+		print svcwarranty_status_badge($objectlink->status);
+	} else {
+		print $objectlink->getLibStatut(3);
+	}
+	print '</td>';
 
 	print '<td class="linkedcol-action right"><a class="reposition" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'&action=dellink&token='.newToken().'&dellinkid='.$key.'">'.img_picto($langs->transnoentitiesnoconv("RemoveLink"), 'unlink').'</a></td>';
 	print "</tr>\n";
