@@ -375,9 +375,11 @@ if ($permwrite) {
 		);
         print '</div>';
     }
+}
 
-    print dol_get_fiche_end();
+print dol_get_fiche_end();
 
+if ($permwrite) {
     print '<form method="POST" action="'.$_SERVER['PHP_SELF'].'?id='.((int)$object->id).'" id="warrantyLetterRevisionForm" class="hidden">';
     print '<input type="hidden" name="token" value="'.newToken().'">';
     print '<input type="hidden" name="id" value="'.((int)$object->id).'">';
