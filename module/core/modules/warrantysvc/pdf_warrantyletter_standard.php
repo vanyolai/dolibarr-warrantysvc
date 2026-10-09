@@ -79,7 +79,7 @@ class pdf_warrantyletter_standard extends ModelePDFWarrantySvc
 			$object->fetch_thirdparty();
 		}
 
-		$base = rtrim($conf->warrantysvc->dir_output, '/').'/letters/'.dol_sanitizeFileName($object->ref);
+		$base = $object->getOutputRoot().'/letters/'.dol_sanitizeFileName($object->ref);
 		if (!is_dir($base) && dol_mkdir($base) < 0) {
 			$this->error = 'ErrorCanNotCreateDir';
 			return -1;
