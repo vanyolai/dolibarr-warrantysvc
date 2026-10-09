@@ -24,12 +24,15 @@ $permwrite=$user->hasRight('warrantysvc','warrantyletter','write');
 if (!$permread || !empty($user->socid)) accessforbidden();
 
 $getIntArray=static function($name) {
-    $raw=isset($_POST[$name]) ? (array) $_POST[$name] : array();
+    $raw=GETPOST($name, 'array:int');
+    if (!is_array($raw)) $raw=array();
+
     $out=array();
     foreach ($raw as $value) {
         $id=(int) $value;
         if ($id>0) $out[$id]=$id;
     }
+
     return array_values($out);
 };
 
@@ -49,12 +52,12 @@ if ($id>0) {
     if ($ok>0) {
         $db->commit();
         setEventMessages($langs->trans('WarrantyLetterCreated'),null,'mesgs');
-        header('Location: '.DOL_URL_ROOT.'/custom/warrantysvc/warranty_letter_card.php?id='.$letter->id);
+        header('Location: '.dol_buildpath('/warrantysvc/warranty_letter_card.php',1).'?id='.$letter->id);
         exit;
     }
     $db->rollback();
     setEventMessages($langs->trans('WarrantyLetterError').': '.$langs->trans($letter->error),null,'errors');
-    header('Location: '.DOL_URL_ROOT.'/custom/warrantysvc/warranty_shipment_list.php');
+    header('Location: '.dol_buildpath('/warrantysvc/warranty_shipment_list.php',1).'');
     exit;
 } elseif ($shipmentid>0) {
     $shipment=new Expedition($db);
@@ -62,7 +65,7 @@ if ($id>0) {
     $found=SvcWarrantyLetter::findByShipment($db,$shipmentid);
     if ($found<0) { dol_print_error($db); exit; }
     if ($found>0) {
-        header('Location: '.DOL_URL_ROOT.'/custom/warrantysvc/warranty_letter_card.php?id='.$found);
+        header('Location: '.dol_buildpath('/warrantysvc/warranty_letter_card.php',1).'?id='.$found);
         exit;
     }
     $needsCreation=true;
@@ -82,7 +85,7 @@ if (!$needsCreation && $action==='add_shipments' && $permwrite && $_SERVER['REQU
         $db->rollback();
         setEventMessages($langs->trans('WarrantyLetterError').': '.$langs->trans($letter->error),null,'errors');
     }
-    header('Location: '.DOL_URL_ROOT.'/custom/warrantysvc/warranty_letter_card.php?id='.$letter->id);
+    header('Location: '.dol_buildpath('/warrantysvc/warranty_letter_card.php',1).'?id='.$letter->id);
     exit;
 }
 
@@ -106,7 +109,7 @@ if (!$needsCreation && $action==='delete_revision' && $permwrite) {
             setEventMessages($langs->trans($letter->error),null,'errors');
         }
     }
-    header('Location: '.DOL_URL_ROOT.'/custom/warrantysvc/warranty_letter_card.php?id='.$letter->id);
+    header('Location: '.dol_buildpath('/warrantysvc/warranty_letter_card.php',1).'?id='.$letter->id);
     exit;
 }
 
@@ -116,7 +119,7 @@ if (!$needsCreation && $action==='new_revision' && $permwrite && $_SERVER['REQUE
     if ($ok>0) {
         $db->commit();
         setEventMessages($langs->trans('WarrantyLetterRevisionCreated'),null,'mesgs');
-        header('Location: '.DOL_URL_ROOT.'/custom/warrantysvc/warranty_letter_card.php?id='.$letter->id);
+        header('Location: '.dol_buildpath('/warrantysvc/warranty_letter_card.php',1).'?id='.$letter->id);
         exit;
     }
     $db->rollback();
@@ -131,7 +134,7 @@ $stale=false;
 // Native FormMail cancel posts action=send together with cancel=Cancel.
 // Cancel must leave the mail composer before any send-only validation runs.
 if (!$needsCreation && $_SERVER['REQUEST_METHOD']==='POST' && GETPOST('cancel', 'alpha') !== '') {
-    header('Location: '.DOL_URL_ROOT.'/custom/warrantysvc/warranty_letter_card.php?id='.((int) $letter->id));
+    header('Location: '.dol_buildpath('/warrantysvc/warranty_letter_card.php',1).'?id='.((int) $letter->id));
     exit;
 }
 
@@ -209,7 +212,7 @@ if ($needsCreation) {
 				'tabindex'=>'0'
 			))
 		);
-        print dolGetButtonAction('', $langs->trans('WarrantyLetterCombineShipments'), 'default', DOL_URL_ROOT.'/custom/warrantysvc/warranty_shipment_list.php?socid='.((int)$shipment->socid));
+        print dolGetButtonAction('', $langs->trans('WarrantyLetterCombineShipments'), 'default', dol_buildpath('/warrantysvc/warranty_shipment_list.php',1).'?socid='.((int)$shipment->socid));
         print '</div>';
     }
     llxFooter();
@@ -223,20 +226,39 @@ if ($shipments===null) {
     $shipments=array();
 }
 
-print load_fiche_titre(
-    $langs->trans('WarrantyLetterTitle').' '.$object->ref,
-    '<a href="'.DOL_URL_ROOT.'/custom/warrantysvc/warranty_shipment_list.php">'.$langs->trans('WarrantyShipments').'</a>',
-    'pdf'
-);
+$head=warrantysvc_warrantyletter_prepare_head($object);
+print dol_get_fiche_head($head,'card',$langs->trans('WarrantyLetterTitle'),-1,$object->picto);
 
-print '<table class="border centpercent">';
-print '<tr><td class="titlefield">'.$langs->trans('Ref').'</td><td>'.dol_escape_htmltag($object->ref).'</td></tr>';
-print '<tr><td>'.$langs->trans('Status').'</td><td>'.$object->getLibStatut(1).'</td></tr>';
-print '<tr><td>'.$langs->trans('Customer').'</td><td>'.(is_object($object->thirdparty)?$object->thirdparty->getNomUrl(1):'').'</td></tr>';
+$linkback='<a href="'.dol_buildpath('/warrantysvc/warranty_letter_list.php',1).'">'
+    .img_picto($langs->trans('BackToList'),'back','class="pictofixedwidth"')
+    .$langs->trans('BackToList').'</a>';
+
+$morehtmlref='';
+if (is_object($object->thirdparty)) {
+    $morehtmlref='<br>'.$object->thirdparty->getNomUrl(1);
+}
+
+dol_banner_tab($object,'id',$linkback,1,'rowid','ref',$morehtmlref);
+
+print '<div class="fichecenter">';
+print '<div class="fichehalfleft">';
+print '<div class="underbanner clearboth"></div>';
+print '<table class="border tableforfield centpercent">';
+print '<tr><td class="titlefield">'.$langs->trans('Customer').'</td><td>'.(is_object($object->thirdparty)?$object->thirdparty->getNomUrl(1):'').'</td></tr>';
 print '<tr><td>'.$langs->trans('WarrantyLetterShipmentCount').'</td><td>'.count($shipments).'</td></tr>';
-print '<tr><td>'.$langs->trans('WarrantyLetterVersion').'</td><td>'.((int)$object->current_version).'</td></tr>';
-print '<tr><td>'.$langs->trans('WarrantyLetterLastSentVersion').'</td><td>'.((int)$object->last_sent_version).'</td></tr>';
 print '</table>';
+print '</div>';
+
+print '<div class="fichehalfright">';
+print '<div class="underbanner clearboth"></div>';
+print '<table class="border tableforfield centpercent">';
+print '<tr><td class="titlefieldmiddle">'.$langs->trans('WarrantyLetterVersion').'</td><td>'.((int)$object->current_version).'</td></tr>';
+print '<tr><td>'.$langs->trans('WarrantyLetterLastSentVersion').'</td><td>'.((int)$object->last_sent_version).'</td></tr>';
+print '<tr><td>'.$langs->trans('DateCreation').'</td><td>'.dol_print_date($object->date_creation,'dayhour').'</td></tr>';
+print '</table>';
+print '</div>';
+print '</div>';
+print '<div class="clearboth"></div><br>';
 
 if ($stale) print '<div class="warning">'.$langs->trans('WarrantyLetterStaleWarning').'</div>';
 
@@ -354,6 +376,8 @@ if ($permwrite) {
         print '</div>';
     }
 
+    print dol_get_fiche_end();
+
     print '<form method="POST" action="'.$_SERVER['PHP_SELF'].'?id='.((int)$object->id).'" id="warrantyLetterRevisionForm" class="hidden">';
     print '<input type="hidden" name="token" value="'.newToken().'">';
     print '<input type="hidden" name="id" value="'.((int)$object->id).'">';
@@ -409,7 +433,7 @@ if ($action !== 'presend') {
     $letterDir=rtrim($conf->warrantysvc->dir_output,'/').'/'.$letterSubdir;
     $documentUrlWasSet=isset($conf->global->DOL_URL_ROOT_DOCUMENT_PHP);
     $previousDocumentUrl=$documentUrlWasSet ? $conf->global->DOL_URL_ROOT_DOCUMENT_PHP : null;
-    $conf->global->DOL_URL_ROOT_DOCUMENT_PHP=DOL_URL_ROOT.'/custom/warrantysvc/warranty_letter_download.php';
+    $conf->global->DOL_URL_ROOT_DOCUMENT_PHP=dol_buildpath('/warrantysvc/warranty_letter_download.php',1).'';
 
     print $formfile->showdocuments(
         'warrantysvc',
