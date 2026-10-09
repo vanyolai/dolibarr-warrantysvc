@@ -51,8 +51,8 @@ if ($resCount && ($obj = $db->fetch_object($resCount))) $nbtotalofrecords = (int
 if ($resCount) $db->free($resCount);
 
 $sql = 'SELECT e.rowid AS shipment_id, e.ref AS shipment_ref, e.date_expedition, w.fk_soc, s.nom AS company_name,';
-$sql .= ' COUNT(w.rowid) AS warranty_count, SUM(w.covered_qty) AS covered_qty,';
-$sql .= ' MIN(w.start_date) AS warranty_start, MAX(w.expiry_date) AS warranty_expiry,';
+$sql .= ' SUM(w.covered_qty) AS covered_qty,';
+$sql .= ' MIN(w.expiry_date) AS warranty_expiry_min, MAX(w.expiry_date) AS warranty_expiry_max,';
 $sql .= ' ls.fk_letter, l.ref AS letter_ref, l.status AS letter_status';
 $sql .= $sqlFrom.$sqlWhere;
 $sql .= ' GROUP BY e.rowid, e.ref, e.date_expedition, w.fk_soc, s.nom, ls.fk_letter, l.ref, l.status';
@@ -60,8 +60,8 @@ $allowedSort = array(
     'e.date_expedition'=>'e.date_expedition',
     'e.ref'=>'e.ref',
     's.nom'=>'s.nom',
-    'warranty_count'=>'warranty_count',
-    'warranty_expiry'=>'warranty_expiry'
+    'covered_qty'=>'covered_qty',
+    'warranty_expiry_max'=>'warranty_expiry_max'
 );
 $orderField = isset($allowedSort[$sortfield]) ? $allowedSort[$sortfield] : 'e.date_expedition';
 $sql .= $db->order($orderField, $sortorder);
@@ -120,7 +120,7 @@ print '<tr class="liste_titre_filter">';
 if ($canCreateLetter) print '<td class="center"></td>';
 print '<td><input class="flat maxwidth100" type="text" name="search_shipment" value="'.dol_escape_htmltag($searchShipment).'"></td>';
 print '<td><input class="flat maxwidth150" type="text" name="search_company" value="'.dol_escape_htmltag($searchCompany).'" form="shipmentSearchForm"></td>';
-print '<td></td><td></td><td></td><td></td><td></td>';
+print '<td></td><td></td><td></td><td></td>';
 print '<td class="right">';
 print '<input class="button small" type="submit" name="button_search_x" value="'.$langs->trans('Search').'">';
 print ' <input class="button small" type="submit" name="button_removefilter_x" value="'.$langs->trans('Reset').'">';
@@ -131,11 +131,10 @@ if ($canCreateLetter) print '<th class="center"></th>';
 print getTitleFieldOfList('ShipmentRef', 0, $_SERVER['PHP_SELF'], 'e.ref', '', '', '', '', $sortfield, $sortorder);
 print getTitleFieldOfList('Company', 0, $_SERVER['PHP_SELF'], 's.nom', '', '', '', '', $sortfield, $sortorder);
 print getTitleFieldOfList('Date', 0, $_SERVER['PHP_SELF'], 'e.date_expedition', '', '', '', '', $sortfield, $sortorder);
-print getTitleFieldOfList('WarrantyRecords', 0, $_SERVER['PHP_SELF'], 'warranty_count', '', '', 'center', '', $sortfield, $sortorder);
-print '<th class="right">'.$langs->trans('CoveredQuantity').'</th>';
-print '<th>'.$langs->trans('ExpiryDate').'</th>';
+print getTitleFieldOfList('CoveredQuantity', 0, $_SERVER['PHP_SELF'], 'covered_qty', '', '', 'right', '', $sortfield, $sortorder);
+print getTitleFieldOfList('WarrantyExpiryRange', 0, $_SERVER['PHP_SELF'], 'warranty_expiry_max', '', '', '', '', $sortfield, $sortorder);
 print '<th>'.$langs->trans('WarrantyLetter').'</th>';
-print '<th class="right">'.$langs->trans('WarrantyDetails').'</th>';
+print '<th class="right">'.$langs->trans('ShowDetails').'</th>';
 print '</tr>';
 
 $resql = $db->query($sql);
@@ -143,7 +142,7 @@ if (!$resql) {
     dol_print_error($db);
 } else {
     if ($db->num_rows($resql) === 0) {
-        print '<tr class="oddeven"><td colspan="'.($canCreateLetter ? 9 : 8).'"><span class="opacitymedium">'.$langs->trans('NoRecordFound').'</span></td></tr>';
+        print '<tr class="oddeven"><td colspan="'.($canCreateLetter ? 8 : 7).'"><span class="opacitymedium">'.$langs->trans('NoRecordFound').'</span></td></tr>';
     }
     while ($row = $db->fetch_object($resql)) {
         $shipmentId = (int) $row->shipment_id;
@@ -160,9 +159,20 @@ if (!$resql) {
         print '<td><a href="'.DOL_URL_ROOT.'/expedition/card.php?id='.$shipmentId.'">'.dol_escape_htmltag($row->shipment_ref).'</a></td>';
         print '<td>'.dol_escape_htmltag($row->company_name).'</td>';
         print '<td>'.(!empty($row->date_expedition) ? dol_print_date($db->jdate($row->date_expedition), 'day') : '').'</td>';
-        print '<td class="center">'.((int) $row->warranty_count).'</td>';
         print '<td class="right">'.price((float) $row->covered_qty, 0, '', 0, 0, 2).'</td>';
-        print '<td>'.(!empty($row->warranty_expiry) ? dol_print_date($db->jdate($row->warranty_expiry), 'day') : '').'</td>';
+        print '<td>';
+        if (!empty($row->warranty_expiry_min) || !empty($row->warranty_expiry_max)) {
+            $expiryMin = !empty($row->warranty_expiry_min) ? dol_print_date($db->jdate($row->warranty_expiry_min), 'day') : '';
+            $expiryMax = !empty($row->warranty_expiry_max) ? dol_print_date($db->jdate($row->warranty_expiry_max), 'day') : '';
+            if ($expiryMin !== '' && $expiryMax !== '' && $expiryMin !== $expiryMax) {
+                print $expiryMin.' &ndash; '.$expiryMax;
+            } else {
+                print $expiryMax !== '' ? $expiryMax : $expiryMin;
+            }
+        } else {
+            print '<span class="opacitymedium">&mdash;</span>';
+        }
+        print '</td>';
         print '<td>';
         if (!empty($row->fk_letter)) {
             print '<a href="'.DOL_URL_ROOT.'/custom/warrantysvc/warranty_letter_card.php?id='.((int) $row->fk_letter).'">'.dol_escape_htmltag($row->letter_ref).'</a>';
@@ -170,7 +180,7 @@ if (!$resql) {
             print '<span class="opacitymedium">'.$langs->trans('None').'</span>';
         }
         print '</td>';
-        print '<td class="right"><a href="'.DOL_URL_ROOT.'/custom/warrantysvc/warranty_list.php?shipmentid='.$shipmentId.'">'.$langs->trans('Details').'</a></td>';
+        print '<td class="right"><a href="'.DOL_URL_ROOT.'/custom/warrantysvc/warranty_list.php?shipmentid='.$shipmentId.'">'.$langs->trans('ShowDetails').'</a></td>';
         print '</tr>';
     }
     $db->free($resql);
