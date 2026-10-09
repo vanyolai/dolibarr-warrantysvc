@@ -972,3 +972,10 @@ WarrantyLetterSentVersionCannotBeDeleted=A sent warranty letter revision cannot 
 WarrantyLetterVersionDeleted=Warranty letter PDF revision deleted.
 WarrantyLetterVersionNotFound=Warranty letter revision not found.
 WarrantyLetterDeleteUnsentVersion=Delete unsent PDF revision
+
+WarrantyLetters=Warranty Letters
+WarrantySvcOverview=Warranty & Service Overview
+WarrantySvcOpenRequests=Open warranty/service requests
+WarrantySvcShipmentsWithoutLetter=Shipments without warranty letter
+WarrantySvcOpenSupplierReturns=Open supplier returns
+WarrantySvcAttentionNeeded=Needs attention
