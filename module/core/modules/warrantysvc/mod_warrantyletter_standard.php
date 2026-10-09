@@ -10,7 +10,7 @@
  * sequence, padded to at least four digits.
  */
 
-require_once DOL_DOCUMENT_ROOT.'/custom/warrantysvc/core/modules/warrantysvc/modules_warrantysvc.php';
+dol_include_once('/warrantysvc/core/modules/warrantysvc/modules_warrantysvc.php');
 
 class mod_warrantyletter_standard extends ModeleNumRefWarrantyLetter
 {
