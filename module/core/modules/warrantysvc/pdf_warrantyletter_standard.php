@@ -1,8 +1,8 @@
 <?php
 /* Copyright (C) 2026 DPG Supply */
 /**
- * Native TCPDF/CommmonDocGenerator model for one frozen warranty letter version.
- * Does not read live warranty records: rendering always uses the saved snapshot.
+ * Native TCPDF/CommonDocGenerator model for one frozen warranty letter version.
+ * Rendering always uses the saved multi-shipment snapshot, never live warranty data.
  */
 require_once DOL_DOCUMENT_ROOT.'/core/lib/pdf.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/custom/warrantysvc/core/modules/warrantysvc/modules_warrantysvc.php';
@@ -12,7 +12,7 @@ class pdf_warrantyletter_standard extends ModelePDFWarrantySvc
     public $name = 'warrantyletter_standard';
     public $description = 'WarrantyLetterPdfStandardDesc';
     public $type = 'pdf';
-    public $version = 1;
+    public $version = 2;
     public $db;
     public $error = '';
 
@@ -20,10 +20,15 @@ class pdf_warrantyletter_standard extends ModelePDFWarrantySvc
 
     public function write_file($object, $outputlangs, $srctemplatepath = '', $hidedetails = 0, $hidedesc = 0, $hideref = 0)
     {
-        global $conf;
+        global $conf, $mysoc;
+
         $data = $object->pending_snapshot;
         $revision = (int) $object->pending_version;
-        if (!is_array($data) || $revision < 1) { $this->error = 'WarrantyLetterSnapshotMissing'; return -1; }
+        if (!is_array($data) || $revision < 1 || empty($data['shipments']) || !is_array($data['shipments'])) {
+            $this->error = 'WarrantyLetterSnapshotMissing';
+            return -1;
+        }
+
         $base = rtrim($conf->warrantysvc->dir_output, '/').'/letters/'.dol_sanitizeFileName($object->ref);
         if (!is_dir($base) && dol_mkdir($base) < 0) { $this->error = 'ErrorCanNotCreateDir'; return -1; }
         $path = $base.'/'.dol_sanitizeFileName($object->ref).'_v'.$revision.'.pdf';
@@ -40,18 +45,21 @@ class pdf_warrantyletter_standard extends ModelePDFWarrantySvc
         $pdf->SetMargins(12, 14, 12);
         $pdf->SetAutoPageBreak(true, 16);
         $pdf->AddPage();
+
         $pageWidth = (float) $format['width'];
+        $pageHeight = (float) $format['height'];
         $usable = $pageWidth - 24;
-        $toText = static function ($v) use ($outputlangs) { return $outputlangs->convToOutputCharset((string) $v); };
-        // Follow the native Dolibarr PDF convention for issuer logos.
-        // The PDF revision remains immutable after this initial rendering.
-        global $mysoc;
+        $toText = static function ($v) use ($outputlangs) {
+            return $outputlangs->convToOutputCharset((string) $v);
+        };
+
         if (!empty($mysoc->logo) && !getDolGlobalInt('PDF_DISABLE_MYCOMPANY_LOGO')) {
             $logo = $conf->mycompany->dir_output.'/logos/'.$mysoc->logo;
             if (is_readable($logo)) {
                 $pdf->Image($logo, 12, 14, 0, min(15, pdf_getHeightForLogo($logo)));
             }
         }
+
         $pdf->SetFont($font, 'B', 17);
         $pdf->SetX(42);
         $pdf->Cell($usable - 30, 11, $toText($outputlangs->transnoentities('WarrantyLetterTitle')), 0, 1, 'C');
@@ -75,23 +83,24 @@ class pdf_warrantyletter_standard extends ModelePDFWarrantySvc
         $pdf->MultiCell($half, 5, $toText($data['buyer']), 0, 'L', false, 1);
         $pdf->SetY(max($pdf->GetY(), $leftEnd, $y + 32));
         $pdf->Ln(3);
-        $entries = array(
-            array('WarrantyLetterIssuedAt', substr($data['issued_at'], 0, 10)),
-            array('Order', $data['order_ref']),
-            array('ShipmentRef', $data['shipment_ref']),
-        );
-        foreach ($entries as $entry) {
-            $pdf->SetFont($font, 'B', 9);
-            $pdf->Cell(48, 6, $toText($outputlangs->transnoentities($entry[0])), 0, 0);
-            $pdf->SetFont($font, '', 9);
-            $pdf->Cell($usable - 48, 6, $toText($entry[1]), 0, 1);
-        }
-        $pdf->Ln(6);
-        $pdf->SetFont($font, 'B', 10);
-        $pdf->Cell($usable, 8, $toText($outputlangs->transnoentities('WarrantyLetterCoveredProducts')), 0, 1);
 
-        $c1 = $usable * .40; $c2 = $usable * .10; $c3 = $usable * .25; $c4 = $usable * .25;
-        $printHeader = static function () use ($pdf, $outputlangs, $toText, $font, $c1, $c2, $c3, $c4) {
+        $pdf->SetFont($font, 'B', 9);
+        $pdf->Cell(48, 6, $toText($outputlangs->transnoentities('WarrantyLetterIssuedAt')), 0, 0);
+        $pdf->SetFont($font, '', 9);
+        $pdf->Cell($usable - 48, 6, $toText(substr((string) $data['issued_at'], 0, 10)), 0, 1);
+
+        $pdf->SetFont($font, 'B', 9);
+        $pdf->Cell(48, 6, $toText($outputlangs->transnoentities('WarrantyLetterShipmentCount')), 0, 0);
+        $pdf->SetFont($font, '', 9);
+        $pdf->Cell($usable - 48, 6, $toText((string) count($data['shipments'])), 0, 1);
+        $pdf->Ln(5);
+
+        $c1 = $usable * .40;
+        $c2 = $usable * .10;
+        $c3 = $usable * .25;
+        $c4 = $usable * .25;
+
+        $printTableHeader = static function () use ($pdf, $outputlangs, $toText, $font, $c1, $c2, $c3, $c4) {
             $pdf->SetFillColor(228, 231, 234);
             $pdf->SetFont($font, 'B', 8);
             $pdf->Cell($c1, 8, $toText($outputlangs->transnoentities('Product')), 1, 0, 'L', true);
@@ -99,28 +108,65 @@ class pdf_warrantyletter_standard extends ModelePDFWarrantySvc
             $pdf->Cell($c3, 8, $toText($outputlangs->transnoentities('WarrantyLetterStartDate')), 1, 0, 'C', true);
             $pdf->Cell($c4, 8, $toText($outputlangs->transnoentities('WarrantyLetterEndDate')), 1, 1, 'C', true);
         };
-        $printHeader();
-        foreach ($data['groups'] as $item) {
-            $label = trim($item['product_ref'].' - '.$item['product_label'], ' -');
-            $serials = !empty($item['serials']) ? implode(', ', $item['serials']) : $outputlangs->transnoentities('WarrantyLetterNoSerial');
-            $description = $label."\n".$outputlangs->transnoentities('WarrantyLetterSerials').': '.$serials;
-            $text = $toText($description);
-            $pdf->SetFont($font, '', 8);
-            $height = max(12, ($pdf->getNumLines($text, $c1 - 4) * 4.5) + 4);
-            if ($pdf->GetY() + $height > (float) $format['height'] - 20) {
+
+        foreach ($data['shipments'] as $shipmentIndex => $shipment) {
+            if ($pdf->GetY() > $pageHeight - 55) {
                 $pdf->AddPage();
-                $printHeader();
             }
-            $y = $pdf->GetY();
-            $pdf->MultiCell($c1, $height, $text, 1, 'L', false, 0);
-            $pdf->MultiCell($c2, $height, $toText((string) $item['qty']), 1, 'C', false, 0);
-            $pdf->MultiCell($c3, $height, $toText(substr($item['start_date'], 0, 10)), 1, 'C', false, 0);
-            $pdf->MultiCell($c4, $height, $toText(substr($item['expiry_date'], 0, 10)), 1, 'C', false, 1);
-            $pdf->SetY($y + $height);
+
+            $pdf->SetFillColor(242, 242, 242);
+            $pdf->SetFont($font, 'B', 10);
+            $title = $outputlangs->transnoentities('ShipmentRef').': '.(string) ($shipment['shipment_ref'] ?? '');
+            if (!empty($shipment['shipment_date'])) {
+                $title .= ' — '.$outputlangs->transnoentities('Date').': '.(string) $shipment['shipment_date'];
+            }
+            $pdf->Cell($usable, 8, $toText($title), 1, 1, 'L', true);
+
+            if (!empty($shipment['order_refs']) && is_array($shipment['order_refs'])) {
+                $pdf->SetFont($font, '', 8.5);
+                $pdf->Cell($usable, 6, $toText($outputlangs->transnoentities('Order').': '.implode(', ', $shipment['order_refs'])), 1, 1, 'L');
+            }
+
+            $printTableHeader();
+
+            foreach ((array) ($shipment['groups'] ?? array()) as $item) {
+                $label = trim((string) $item['product_ref'].' - '.(string) $item['product_label'], ' -');
+                $serials = !empty($item['serials'])
+                    ? implode(', ', $item['serials'])
+                    : $outputlangs->transnoentities('WarrantyLetterNoSerial');
+                $description = $label."\n".$outputlangs->transnoentities('WarrantyLetterSerials').': '.$serials;
+                $text = $toText($description);
+                $pdf->SetFont($font, '', 8);
+                $height = max(12, ($pdf->getNumLines($text, $c1 - 4) * 4.5) + 4);
+
+                if ($pdf->GetY() + $height > $pageHeight - 20) {
+                    $pdf->AddPage();
+                    $pdf->SetFillColor(242, 242, 242);
+                    $pdf->SetFont($font, 'B', 9);
+                    $pdf->Cell($usable, 7, $toText($outputlangs->transnoentities('ShipmentRef').': '.(string) ($shipment['shipment_ref'] ?? '')), 1, 1, 'L', true);
+                    $printTableHeader();
+                }
+
+                $y = $pdf->GetY();
+                $pdf->MultiCell($c1, $height, $text, 1, 'L', false, 0);
+                $pdf->MultiCell($c2, $height, $toText((string) $item['qty']), 1, 'C', false, 0);
+                $pdf->MultiCell($c3, $height, $toText(substr((string) $item['start_date'], 0, 10)), 1, 'C', false, 0);
+                $pdf->MultiCell($c4, $height, $toText(substr((string) $item['expiry_date'], 0, 10)), 1, 'C', false, 1);
+                $pdf->SetY($y + $height);
+            }
+
+            if (empty($shipment['groups'])) {
+                $pdf->SetFont($font, '', 8);
+                $pdf->Cell($usable, 8, $toText($outputlangs->transnoentities('WarrantyLetterNoWarranties')), 1, 1, 'L');
+            }
+
+            if ($shipmentIndex < count($data['shipments']) - 1) $pdf->Ln(6);
         }
+
         $pdf->Ln(7);
         $pdf->SetFont($font, '', 8);
         $pdf->MultiCell($usable, 5, $toText($outputlangs->transnoentities('WarrantyLetterFooterNote')), 0, 'L');
+
         $pdf->Output($path, 'F');
         $this->result = array('fullpath'=>$path);
         return 1;
