@@ -311,6 +311,7 @@ class modWarrantySvc extends DolibarrModules
 		$r++;
 
 		// Warranties
+		// The parent entry is the canonical complete warranty list.
 		$this->menu[$r] = array(
 			'fk_menu'  => 'fk_mainmenu=products,fk_leftmenu=warrantysvc',
 			'type'     => 'left',
@@ -318,9 +319,26 @@ class modWarrantySvc extends DolibarrModules
 			'prefix'   => img_picto('', 'bill', 'class="paddingright pictofixedwidth"'),
 			'mainmenu' => 'products',
 			'leftmenu' => 'warrantysvc_warranty_list',
-			'url'      => '/warrantysvc/warranty_shipment_list.php?mainmenu=products&leftmenu=warrantysvc_warranty_list',
+			'url'      => '/warrantysvc/warranty_list.php?mainmenu=products&leftmenu=warrantysvc_warranty_list',
 			'langs'    => 'warrantysvc@warrantysvc',
 			'position' => 930,
+			'enabled'  => 'isModEnabled("warrantysvc")',
+			'perms'    => '$user->hasRight("warrantysvc", "svcwarranty", "read")',
+			'target'   => '',
+			'user'     => 0,
+		);
+		$r++;
+
+		$this->menu[$r] = array(
+			'fk_menu'  => 'fk_mainmenu=products,fk_leftmenu=warrantysvc_warranty_list',
+			'type'     => 'left',
+			'titre'    => 'WarrantyShipments',
+			'prefix'   => img_picto('', 'shipment', 'class="paddingright pictofixedwidth"'),
+			'mainmenu' => 'products',
+			'leftmenu' => 'warrantysvc_warranty_shipments',
+			'url'      => '/warrantysvc/warranty_shipment_list.php?mainmenu=products&leftmenu=warrantysvc_warranty_shipments',
+			'langs'    => 'warrantysvc@warrantysvc',
+			'position' => 935,
 			'enabled'  => 'isModEnabled("warrantysvc")',
 			'perms'    => '$user->hasRight("warrantysvc", "svcwarranty", "read")',
 			'target'   => '',
@@ -340,23 +358,6 @@ class modWarrantySvc extends DolibarrModules
 			'position' => 940,
 			'enabled'  => 'isModEnabled("warrantysvc")',
 			'perms'    => '$user->hasRight("warrantysvc", "svcwarranty", "write")',
-			'target'   => '',
-			'user'     => 0,
-		);
-		$r++;
-
-		$this->menu[$r] = array(
-			'fk_menu'  => 'fk_mainmenu=products,fk_leftmenu=warrantysvc_warranty_list',
-			'type'     => 'left',
-			'titre'    => 'WarrantyDetails',
-			'prefix'   => img_picto('', 'list', 'class="paddingright pictofixedwidth"'),
-			'mainmenu' => 'products',
-			'leftmenu' => 'warrantysvc_warranty_details',
-			'url'      => '/warrantysvc/warranty_list.php?mainmenu=products&leftmenu=warrantysvc_warranty_details',
-			'langs'    => 'warrantysvc@warrantysvc',
-			'position' => 945,
-			'enabled'  => 'isModEnabled("warrantysvc")',
-			'perms'    => '$user->hasRight("warrantysvc", "svcwarranty", "read")',
 			'target'   => '',
 			'user'     => 0,
 		);
