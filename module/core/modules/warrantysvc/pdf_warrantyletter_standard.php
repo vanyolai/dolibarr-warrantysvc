@@ -15,7 +15,7 @@
 
 require_once DOL_DOCUMENT_ROOT.'/core/lib/pdf.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/core/lib/company.lib.php';
-require_once DOL_DOCUMENT_ROOT.'/custom/warrantysvc/core/modules/warrantysvc/modules_warrantysvc.php';
+dol_include_once('/warrantysvc/core/modules/warrantysvc/modules_warrantysvc.php');
 
 class pdf_warrantyletter_standard extends ModelePDFWarrantySvc
 {
