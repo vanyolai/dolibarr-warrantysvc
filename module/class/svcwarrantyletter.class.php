@@ -240,14 +240,40 @@ class SvcWarrantyLetter extends CommonObject
         $this->entity = (int) $conf->entity;
         $this->fk_soc = $socid;
         $this->socid = $socid;
+        $this->date_creation = dol_now();
+        $this->model_pdf = getDolGlobalString('WARRANTYSVC_WARRANTYLETTER_PDF_MODEL', 'warrantyletter_standard');
+
         $tempref = 'PROV-WL-'.str_replace('.', '', uniqid('', true));
         $sql = 'INSERT INTO '.MAIN_DB_PREFIX.'svc_warranty_letter';
         $sql .= ' (ref, entity, fk_soc, status, current_version, last_sent_version, model_pdf, date_creation, fk_user_creat)';
-        $sql .= " VALUES ('".$this->db->escape($tempref)."', ".$this->entity.', '.$socid.", 'draft', 0, 0, 'warrantyletter_standard', '".$this->db->idate(dol_now())."', ".((int) $user->id).')';
+        $sql .= " VALUES ('".$this->db->escape($tempref)."', ".$this->entity.', '.$socid.", 'draft', 0, 0, '".$this->db->escape($this->model_pdf)."', '".$this->db->idate($this->date_creation)."', ".((int) $user->id).')';
         if (!$this->db->query($sql)) { $this->error = $this->db->lasterror(); return -1; }
 
         $this->id = (int) $this->db->last_insert_id(MAIN_DB_PREFIX.'svc_warranty_letter');
-        $this->ref = 'GL-'.date('Y', dol_now()).'-'.str_pad((string) $this->id, 6, '0', STR_PAD_LEFT);
+
+        $addon = getDolGlobalString('WARRANTYSVC_WARRANTYLETTER_ADDON', 'mod_warrantyletter_standard');
+        if (!preg_match('/^mod_warrantyletter_[a-zA-Z0-9_]+$/', $addon)) {
+            $this->error = 'WarrantyLetterInvalidNumberingModule';
+            return -1;
+        }
+        $addonFile = DOL_DOCUMENT_ROOT.'/custom/warrantysvc/core/modules/warrantysvc/'.$addon.'.php';
+        if (!is_readable($addonFile)) {
+            $this->error = 'WarrantyLetterNumberingModuleNotFound';
+            return -1;
+        }
+        require_once $addonFile;
+        if (!class_exists($addon)) {
+            $this->error = 'WarrantyLetterNumberingModuleNotFound';
+            return -1;
+        }
+        $numref = new $addon();
+        $nextref = $numref->getNextValue('', $this);
+        if (!is_string($nextref) || $nextref === '') {
+            $this->error = !empty($numref->error) ? $numref->error : 'WarrantyLetterNumberingFailed';
+            return -1;
+        }
+        $this->ref = $nextref;
+
         if (!$this->db->query('UPDATE '.MAIN_DB_PREFIX."svc_warranty_letter SET ref = '".$this->db->escape($this->ref)."' WHERE rowid = ".$this->id)) {
             $this->error = $this->db->lasterror();
             return -1;
@@ -427,10 +453,25 @@ class SvcWarrantyLetter extends CommonObject
         if (file_exists($path)) {
             $this->error = 'WarrantyLetterVersionFileExists'; return -1;
         }
-        require_once DOL_DOCUMENT_ROOT.'/custom/warrantysvc/core/modules/warrantysvc/pdf_warrantyletter_standard.php';
+        $model = !empty($this->model_pdf) ? $this->model_pdf : getDolGlobalString('WARRANTYSVC_WARRANTYLETTER_PDF_MODEL', 'warrantyletter_standard');
+        if (!preg_match('/^warrantyletter_[a-zA-Z0-9_]+$/', $model)) {
+            $this->error = 'WarrantyLetterInvalidPdfModel';
+            return -1;
+        }
+        $modelFile = DOL_DOCUMENT_ROOT.'/custom/warrantysvc/core/modules/warrantysvc/pdf_'.$model.'.php';
+        $modelClass = 'pdf_'.$model;
+        if (!is_readable($modelFile)) {
+            $this->error = 'WarrantyLetterPdfModelNotFound';
+            return -1;
+        }
+        require_once $modelFile;
+        if (!class_exists($modelClass)) {
+            $this->error = 'WarrantyLetterPdfModelNotFound';
+            return -1;
+        }
         $this->pending_snapshot = $snapshot;
         $this->pending_version = $number;
-        $generator = new pdf_warrantyletter_standard($this->db);
+        $generator = new $modelClass($this->db);
         $ok = $generator->write_file($this, $outputlangs);
         unset($this->pending_snapshot, $this->pending_version);
         if ($ok <= 0 || !is_file($path)) {
@@ -483,6 +524,87 @@ class SvcWarrantyLetter extends CommonObject
         $this->current_version = $number;
         $this->last_main_doc = $mainDoc;
         $this->status = $status;
+        return 1;
+    }
+
+    /**
+     * Delete an unsent PDF revision. Revisions referenced by mail history are immutable.
+     *
+     * @param int  $number Revision number
+     * @param User $user   Acting user
+     * @return int 1=OK, -1=error
+     */
+    public function deleteVersion($number, $user)
+    {
+        global $conf;
+
+        $version = $this->getVersion((int) $number);
+        if (!$version) {
+            $this->error = 'WarrantyLetterVersionNotFound';
+            return -1;
+        }
+
+        $sql = 'SELECT COUNT(*) AS nb FROM '.MAIN_DB_PREFIX.'svc_warranty_letter_mail';
+        $sql .= ' WHERE entity = '.((int) $conf->entity).' AND fk_letter = '.((int) $this->id).' AND fk_version = '.((int) $version->rowid);
+        $res = $this->db->query($sql);
+        if (!$res) { $this->error = $this->db->lasterror(); return -1; }
+        $row = $this->db->fetch_object($res);
+        $this->db->free($res);
+        if ($row && (int) $row->nb > 0) {
+            $this->error = 'WarrantyLetterSentVersionCannotBeDeleted';
+            return -1;
+        }
+
+        $path = $this->versionFullPath($version);
+        if (is_file($path) && !@unlink($path)) {
+            $this->error = 'ErrorFailToDeleteFile';
+            return -1;
+        }
+
+        $sql = 'DELETE FROM '.MAIN_DB_PREFIX.'svc_warranty_letter_version';
+        $sql .= ' WHERE rowid = '.((int) $version->rowid).' AND fk_letter = '.((int) $this->id).' AND entity = '.((int) $conf->entity);
+        if (!$this->db->query($sql)) {
+            $this->error = $this->db->lasterror();
+            return -1;
+        }
+
+        $remaining = $this->getVersions();
+        if ($remaining === null) return -1;
+        $newCurrent = !empty($remaining) ? (int) $remaining[0]->version : 0;
+        $newMainDoc = '';
+        $newStatus = self::STATUS_DRAFT;
+
+        if ($newCurrent > 0) {
+            $currentRow = $remaining[0];
+            $fullPath = $this->versionFullPath($currentRow);
+            $dataRoot = rtrim(DOL_DATA_ROOT, '/').'/';
+            if (strpos($fullPath, $dataRoot) === 0) {
+                $newMainDoc = substr($fullPath, strlen($dataRoot));
+            }
+
+            if (!$this->isSnapshotCurrent($currentRow)) {
+                $newStatus = self::STATUS_STALE;
+            } elseif ((int) $this->last_sent_version === $newCurrent) {
+                $newStatus = self::STATUS_SENT;
+            } elseif ((int) $this->last_sent_version > 0) {
+                $newStatus = self::STATUS_UPDATED;
+            } else {
+                $newStatus = self::STATUS_READY;
+            }
+        }
+
+        $sql = 'UPDATE '.MAIN_DB_PREFIX.'svc_warranty_letter SET current_version = '.$newCurrent;
+        $sql .= ", last_main_doc = '".$this->db->escape($newMainDoc)."'";
+        $sql .= ", status = '".$this->db->escape($newStatus)."'";
+        $sql .= ' WHERE rowid = '.((int) $this->id).' AND entity = '.((int) $conf->entity);
+        if (!$this->db->query($sql)) {
+            $this->error = $this->db->lasterror();
+            return -1;
+        }
+
+        $this->current_version = $newCurrent;
+        $this->last_main_doc = $newMainDoc;
+        $this->status = $newStatus;
         return 1;
     }
 
