@@ -184,8 +184,8 @@ class InterfaceWarrantySvcTrigger extends DolibarrTriggers
 				return 1;
 
 			// ------------------------------------------------------------------
-			// Shipment closed or validated — auto-create warranty records
-			// for each shipped serialized product line.
+			// Shipment closed or validated — auto-create warranty records only.
+			// Warranty letters are created explicitly by users so multiple shipments can be combined.
 			// Gated by WARRANTYSVC_AUTO_WARRANTY_ON_SHIPMENT (master switch)
 			// and WARRANTYSVC_WARRANTY_TRIGGER_EVENT (validate|close|both).
 			// ------------------------------------------------------------------
@@ -206,7 +206,6 @@ class InterfaceWarrantySvcTrigger extends DolibarrTriggers
 						if ($autoResult < 0) {
 							return -1;
 						}
-						if ($this->_ensureWarrantyLetterFromShipment($object, $user, $langs) < 0) return -1;
 					}
 				}
 				return 1;
@@ -229,7 +228,6 @@ class InterfaceWarrantySvcTrigger extends DolibarrTriggers
 							if ($autoResult < 0) {
 								return -1;
 							}
-							if ($this->_ensureWarrantyLetterFromShipment($expedition, $user, $langs) < 0) return -1;
 						}
 					}
 				}
@@ -482,31 +480,6 @@ class InterfaceWarrantySvcTrigger extends DolibarrTriggers
 				dol_syslog('WarrantySvcTrigger: unable to flag warranty letter as stale: '.$this->db->lasterror(), LOG_ERR);
 			}
 		}
-	}
-
-	/**
-	 * Called after the unchanged warranty-generation policy has finished.
-	 * The parent trigger already runs inside the Dolibarr business transaction.
-	 * Never revise an existing/previously emailed letter automatically.
-	 */
-	private function _ensureWarrantyLetterFromShipment($shipment, $user, $langs)
-	{
-		require_once DOL_DOCUMENT_ROOT.'/custom/warrantysvc/class/svcwarrantyletter.class.php';
-		require_once DOL_DOCUMENT_ROOT.'/custom/warrantysvc/lib/warrantysvc.lib.php';
-		if (warrantysvc_count_shipment_warranties($this->db, (int) $shipment->id) <= 0) return 0;
-		$found = SvcWarrantyLetter::findByShipment($this->db, (int) $shipment->id);
-		if ($found < 0) {
-			$this->error = $this->db->lasterror();
-			return -1;
-		}
-		if ($found > 0) return 1;
-		$letter = new SvcWarrantyLetter($this->db);
-		if ($letter->createFromShipment($shipment, $user) < 0 || $letter->createRevision($user, $langs) < 0) {
-			$this->error = $letter->error;
-			dol_syslog('WarrantySvcTrigger: unable to issue warranty letter for shipment '.$shipment->id.': '.$this->error, LOG_ERR);
-			return -1;
-		}
-		return 1;
 	}
 
 	/**
