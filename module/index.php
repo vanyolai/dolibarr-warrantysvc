@@ -60,13 +60,13 @@ if ($canReadWarranties) {
 	$stats['warranty_active'] = $scalar($db,
 		'SELECT COUNT(*) AS nb FROM '.MAIN_DB_PREFIX.'svc_warranty'
 		.' WHERE entity = '.((int) $conf->entity)
-		." AND status <> 'voided'"
+		." AND status <> '".SvcWarranty::STATUS_VOIDED."'"
 		." AND (expiry_date IS NULL OR expiry_date >= '".$db->escape($today)."')"
 	);
 	$stats['warranty_expiring'] = $scalar($db,
 		'SELECT COUNT(*) AS nb FROM '.MAIN_DB_PREFIX.'svc_warranty'
 		.' WHERE entity = '.((int) $conf->entity)
-		." AND status <> 'voided'"
+		." AND status <> '".SvcWarranty::STATUS_VOIDED."'"
 		." AND expiry_date >= '".$db->escape($today)."'"
 		." AND expiry_date <= '".$db->escape($soon)."'"
 	);
@@ -77,7 +77,7 @@ if ($canReadWarranties) {
 		.' LEFT JOIN '.MAIN_DB_PREFIX.'svc_warranty_letter_shipment ls'
 		.' ON ls.entity = w.entity AND ls.fk_expedition = w.fk_expedition'
 		.' WHERE w.entity = '.((int) $conf->entity)
-		." AND w.status <> 'voided'"
+		." AND w.status <> '".SvcWarranty::STATUS_VOIDED."'"
 		.' AND w.fk_expedition IS NOT NULL AND w.fk_expedition > 0'
 		.' AND ls.rowid IS NULL'
 		.') x'
@@ -88,12 +88,12 @@ if ($canReadLetters) {
 	$stats['letters_ready'] = $scalar($db,
 		'SELECT COUNT(*) AS nb FROM '.MAIN_DB_PREFIX.'svc_warranty_letter'
 		.' WHERE entity = '.((int) $conf->entity)
-		." AND status = 'ready'"
+		." AND status = '".SvcWarrantyLetter::STATUS_READY."'"
 	);
 	$stats['letters_stale'] = $scalar($db,
 		'SELECT COUNT(*) AS nb FROM '.MAIN_DB_PREFIX.'svc_warranty_letter'
 		.' WHERE entity = '.((int) $conf->entity)
-		." AND status = 'stale'"
+		." AND status = '".SvcWarrantyLetter::STATUS_STALE."'"
 	);
 }
 
@@ -101,7 +101,7 @@ if ($canReadReturns) {
 	$stats['returns_open'] = $scalar($db,
 		'SELECT COUNT(*) AS nb FROM '.MAIN_DB_PREFIX.'svc_supplier_return'
 		.' WHERE entity = '.((int) $conf->entity)
-		." AND status NOT IN ('closed','cancelled')"
+		." AND status NOT IN ('".SvcSupplierReturn::STATUS_CLOSED."','".SvcSupplierReturn::STATUS_CANCELLED."')"
 	);
 }
 
@@ -115,9 +115,9 @@ print '<div class="fichehalfleft">';
 if ($canReadRequests) {
 	print load_fiche_titre($langs->trans('SvcRequests'), '', 'technic');
 	print '<table class="noborder centpercent">';
-	print '<tr class="oddeven"><td><a href="'.DOL_URL_ROOT.'/custom/warrantysvc/list.php?preset=myopen">'.$langs->trans('WarrantySvcOpenRequests').'</a></td><td class="right"><strong>'.$stats['requests_open'].'</strong></td></tr>';
-	print '<tr class="oddeven"><td><a href="'.DOL_URL_ROOT.'/custom/warrantysvc/list.php?preset=awaitreturn">'.$langs->trans('AwaitingReturn').'</a></td><td class="right"><strong>'.$stats['requests_await'].'</strong></td></tr>';
-	print '<tr class="oddeven"><td><a href="'.DOL_URL_ROOT.'/custom/warrantysvc/list.php?preset=unassigned">'.$langs->trans('Unassigned').'</a></td><td class="right"><strong>'.$stats['requests_unassigned'].'</strong></td></tr>';
+	print '<tr class="oddeven"><td><a href="'.dol_buildpath('/warrantysvc/list.php',1).'?search_status=0%2C1%2C2%2C3%2C6">'.$langs->trans('WarrantySvcOpenRequests').'</a></td><td class="right"><strong>'.$stats['requests_open'].'</strong></td></tr>';
+	print '<tr class="oddeven"><td><a href="'.dol_buildpath('/warrantysvc/list.php',1).'?preset=awaitreturn">'.$langs->trans('AwaitingReturn').'</a></td><td class="right"><strong>'.$stats['requests_await'].'</strong></td></tr>';
+	print '<tr class="oddeven"><td><a href="'.dol_buildpath('/warrantysvc/list.php',1).'?preset=unassigned">'.$langs->trans('Unassigned').'</a></td><td class="right"><strong>'.$stats['requests_unassigned'].'</strong></td></tr>';
 	print '</table>';
 	print '<br>';
 }
@@ -125,7 +125,7 @@ if ($canReadRequests) {
 if ($canReadReturns) {
 	print load_fiche_titre($langs->trans('SupplierReturns'), '', 'shipment');
 	print '<table class="noborder centpercent">';
-	print '<tr class="oddeven"><td><a href="'.DOL_URL_ROOT.'/custom/warrantysvc/supplier_return_list.php">'.$langs->trans('WarrantySvcOpenSupplierReturns').'</a></td><td class="right"><strong>'.$stats['returns_open'].'</strong></td></tr>';
+	print '<tr class="oddeven"><td><a href="'.dol_buildpath('/warrantysvc/supplier_return_list.php',1).'">'.$langs->trans('WarrantySvcOpenSupplierReturns').'</a></td><td class="right"><strong>'.$stats['returns_open'].'</strong></td></tr>';
 	print '</table>';
 }
 
@@ -135,9 +135,9 @@ print '<div class="fichehalfright">';
 if ($canReadWarranties) {
 	print load_fiche_titre($langs->trans('Warranties'), '', 'bill');
 	print '<table class="noborder centpercent">';
-	print '<tr class="oddeven"><td><a href="'.DOL_URL_ROOT.'/custom/warrantysvc/warranty_list.php?preset=active">'.$langs->trans('SvcActive').'</a></td><td class="right"><strong>'.$stats['warranty_active'].'</strong></td></tr>';
-	print '<tr class="oddeven"><td><a href="'.DOL_URL_ROOT.'/custom/warrantysvc/warranty_list.php?preset=expiring">'.$langs->trans('ExpiringSoon').'</a></td><td class="right"><strong>'.$stats['warranty_expiring'].'</strong></td></tr>';
-	print '<tr class="oddeven"><td><a href="'.DOL_URL_ROOT.'/custom/warrantysvc/warranty_shipment_list.php">'.$langs->trans('WarrantySvcShipmentsWithoutLetter').'</a></td><td class="right"><strong>'.$stats['shipment_without_letter'].'</strong></td></tr>';
+	print '<tr class="oddeven"><td><a href="'.dol_buildpath('/warrantysvc/warranty_list.php',1).'?preset=active">'.$langs->trans('SvcActive').'</a></td><td class="right"><strong>'.$stats['warranty_active'].'</strong></td></tr>';
+	print '<tr class="oddeven"><td><a href="'.dol_buildpath('/warrantysvc/warranty_list.php',1).'?preset=expiring">'.$langs->trans('ExpiringSoon').'</a></td><td class="right"><strong>'.$stats['warranty_expiring'].'</strong></td></tr>';
+	print '<tr class="oddeven"><td><a href="'.dol_buildpath('/warrantysvc/warranty_shipment_list.php',1).'?preset=withoutletter">'.$langs->trans('WarrantySvcShipmentsWithoutLetter').'</a></td><td class="right"><strong>'.$stats['shipment_without_letter'].'</strong></td></tr>';
 	print '</table>';
 	print '<br>';
 }
@@ -145,8 +145,8 @@ if ($canReadWarranties) {
 if ($canReadLetters) {
 	print load_fiche_titre($langs->trans('WarrantyLetters'), '', 'pdf');
 	print '<table class="noborder centpercent">';
-	print '<tr class="oddeven"><td><a href="'.DOL_URL_ROOT.'/custom/warrantysvc/warranty_letter_list.php?search_status=ready">'.$langs->trans('WarrantyLetterReady').'</a></td><td class="right"><strong>'.$stats['letters_ready'].'</strong></td></tr>';
-	print '<tr class="oddeven"><td><a href="'.DOL_URL_ROOT.'/custom/warrantysvc/warranty_letter_list.php?search_status=stale">'.$langs->trans('WarrantyLetterStale').'</a></td><td class="right"><strong>'.$stats['letters_stale'].'</strong></td></tr>';
+	print '<tr class="oddeven"><td><a href="'.dol_buildpath('/warrantysvc/warranty_letter_list.php',1).'?search_status='.urlencode(SvcWarrantyLetter::STATUS_READY)">'.$langs->trans('WarrantyLetterReady').'</a></td><td class="right"><strong>'.$stats['letters_ready'].'</strong></td></tr>';
+	print '<tr class="oddeven"><td><a href="'.dol_buildpath('/warrantysvc/warranty_letter_list.php',1).'?search_status='.urlencode(SvcWarrantyLetter::STATUS_STALE)">'.$langs->trans('WarrantyLetterStale').'</a></td><td class="right"><strong>'.$stats['letters_stale'].'</strong></td></tr>';
 	print '</table>';
 }
 
@@ -174,7 +174,7 @@ if ($canReadRequests) {
 			$request->ref = (string) $row->ref;
 			$request->status = (int) $row->status;
 			print '<tr class="oddeven">';
-			print '<td><a href="'.DOL_URL_ROOT.'/custom/warrantysvc/card.php?id='.((int) $row->rowid).'">'.dol_escape_htmltag($row->ref).'</a></td>';
+			print '<td><a href="'.dol_buildpath('/warrantysvc/card.php',1).'?id='.((int) $row->rowid).'">'.dol_escape_htmltag($row->ref).'</a></td>';
 			print '<td>'.dol_escape_htmltag((string) $row->subject).'</td>';
 			print '<td>'.(!empty($row->issue_date) ? dol_print_date($db->jdate($row->issue_date), 'day') : '').'</td>';
 			print '<td>'.$request->getLibStatut(2).'</td>';
