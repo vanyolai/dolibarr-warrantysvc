@@ -430,7 +430,7 @@ if ($action !== 'presend') {
 
     $formfile=new FormFile($db);
     $letterSubdir='letters/'.dol_sanitizeFileName($object->ref);
-    $letterDir=rtrim($conf->warrantysvc->dir_output,'/').'/'.$letterSubdir;
+    $letterDir=$object->getOutputRoot().'/'.$letterSubdir;
     $documentUrlWasSet=isset($conf->global->DOL_URL_ROOT_DOCUMENT_PHP);
     $previousDocumentUrl=$documentUrlWasSet ? $conf->global->DOL_URL_ROOT_DOCUMENT_PHP : null;
     $conf->global->DOL_URL_ROOT_DOCUMENT_PHP=dol_buildpath('/warrantysvc/warranty_letter_download.php',1).'';
@@ -483,7 +483,7 @@ if ($action==='presend' && $canSend) {
     $modelmail='svcwarrantyletter';
     $defaulttopic='WarrantyLetterEmailSubject';
     $defaulttopiclang='warrantysvc@warrantysvc';
-    $diroutput=$conf->warrantysvc->dir_output;
+    $diroutput=$object->getOutputRoot();
     include DOL_DOCUMENT_ROOT.'/core/tpl/card_presend.tpl.php';
 }
 
