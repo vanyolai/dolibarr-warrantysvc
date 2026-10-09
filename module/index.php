@@ -115,9 +115,9 @@ print '<div class="fichehalfleft">';
 if ($canReadRequests) {
 	print load_fiche_titre($langs->trans('SvcRequests'), '', 'technic');
 	print '<table class="noborder centpercent">';
-	print '<tr class="oddeven"><td><a href="'.dol_buildpath('/warrantysvc/list.php',1).'?search_status=0%2C1%2C2%2C3%2C6">'.$langs->trans('WarrantySvcOpenRequests').'</a></td><td class="right"><strong>'.$stats['requests_open'].'</strong></td></tr>';
+	print '<tr class="oddeven"><td><a href="'.dol_buildpath('/warrantysvc/list.php',1).'?search_status=0%2C1%2C2%2C3%2C4%2C6">'.$langs->trans('WarrantySvcOpenRequests').'</a></td><td class="right"><strong>'.$stats['requests_open'].'</strong></td></tr>';
 	print '<tr class="oddeven"><td><a href="'.dol_buildpath('/warrantysvc/list.php',1).'?preset=awaitreturn">'.$langs->trans('AwaitingReturn').'</a></td><td class="right"><strong>'.$stats['requests_await'].'</strong></td></tr>';
-	print '<tr class="oddeven"><td><a href="'.dol_buildpath('/warrantysvc/list.php',1).'?preset=unassigned">'.$langs->trans('Unassigned').'</a></td><td class="right"><strong>'.$stats['requests_unassigned'].'</strong></td></tr>';
+	print '<tr class="oddeven"><td><a href="'.dol_buildpath('/warrantysvc/list.php',1).'?search_assigned=-1&search_status=0%2C1%2C2%2C3%2C4%2C6">'.$langs->trans('Unassigned').'</a></td><td class="right"><strong>'.$stats['requests_unassigned'].'</strong></td></tr>';
 	print '</table>';
 	print '<br>';
 }
