@@ -130,6 +130,7 @@ $canSend=false;
 $revision=null;
 $verified=false;
 $stale=false;
+$liveSnapshot=null;
 
 // Native FormMail cancel posts action=send together with cancel=Cancel.
 // Cancel must leave the mail composer before any send-only validation runs.
@@ -148,7 +149,8 @@ if (!$needsCreation) {
     $hideref=0;
     $revision=$object->getVersion();
     $verified=$object->verifyVersion($revision);
-    $stale=$verified && !$object->isSnapshotCurrent($revision);
+    $liveSnapshot=$object->buildSnapshot();
+    $stale=$verified && !$object->isSnapshotCurrent($revision,$liveSnapshot);
     $canSend=$permwrite && $revision && $verified && !$stale;
 
     if (in_array($action,array('send','relance'),true)) {
@@ -282,9 +284,8 @@ print '<div class="clearboth"></div><br>';
 
 if ($stale) print '<div class="warning">'.$langs->trans('WarrantyLetterStaleWarning').'</div>';
 
-// Current live business content. This uses the very same grouping logic that
-// will be frozen into the next immutable PDF revision.
-$liveSnapshot=$object->buildSnapshot();
+// Current live business content. This is the same snapshot that was used for
+// the stale check and will be frozen into the next immutable PDF revision.
 if (is_array($liveSnapshot) && !empty($liveSnapshot['shipments'])) {
     print load_fiche_titre($langs->trans('WarrantyLetterContents'),'','product');
     foreach ($liveSnapshot['shipments'] as $contentShipment) {
