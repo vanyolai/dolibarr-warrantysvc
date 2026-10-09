@@ -203,7 +203,7 @@ class SvcWarrantyLetter extends CommonObject
         $sql .= ' LEFT JOIN '.MAIN_DB_PREFIX.'svc_warranty_letter_shipment ls';
         $sql .= ' ON ls.entity = w.entity AND ls.fk_expedition = w.fk_expedition';
         $sql .= ' WHERE w.entity = '.((int) $conf->entity).' AND w.fk_soc = '.((int) $socid);
-        $sql .= " AND w.status <> 'voided' AND w.fk_expedition IS NOT NULL AND w.fk_expedition > 0";
+        $sql .= " AND w.status <> '".SvcWarranty::STATUS_VOIDED."' AND w.fk_expedition IS NOT NULL AND w.fk_expedition > 0";
         if ($letterId > 0) {
             $sql .= ' AND (ls.fk_letter IS NULL OR ls.fk_letter = '.((int) $letterId).')';
         } else {
@@ -256,9 +256,9 @@ class SvcWarrantyLetter extends CommonObject
             }
 
             $q = 'SELECT COUNT(*) AS nb FROM '.MAIN_DB_PREFIX.'svc_warranty';
-            $q .= ' WHERE entity = '.((int) $conf->entity).' AND fk_expedition = '.$shipmentId." AND status <> 'voided'";
+            $q .= ' WHERE entity = '.((int) $conf->entity).' AND fk_expedition = '.$shipmentId." AND status <> '".SvcWarranty::STATUS_VOIDED."'";
             $r = $this->db->query($q);
-            if (!$r) { $cleanupGeneratedFile($path); $this->error = $this->db->lasterror(); return -1; }
+            if (!$r) { $this->error = $this->db->lasterror(); return -1; }
             $count = $this->db->fetch_object($r);
             $this->db->free($r);
             if (!$count || (int) $count->nb <= 0) { $this->error = 'WarrantyLetterNoWarranties'; return -1; }
@@ -338,7 +338,7 @@ class SvcWarrantyLetter extends CommonObject
         $tempref = 'PROV-WL-'.str_replace('.', '', uniqid('', true));
         $sql = 'INSERT INTO '.MAIN_DB_PREFIX.'svc_warranty_letter';
         $sql .= ' (ref, entity, fk_soc, status, current_version, last_sent_version, model_pdf, date_creation, fk_user_creat)';
-        $sql .= " VALUES ('".$this->db->escape($tempref)."', ".$this->entity.', '.$socid.", 'draft', 0, 0, '".$this->db->escape($this->model_pdf)."', '".$this->db->idate($this->date_creation)."', ".((int) $user->id).')';
+        $sql .= " VALUES ('".$this->db->escape($tempref)."', ".$this->entity.', '.$socid.", '".self::STATUS_DRAFT."', 0, 0, '".$this->db->escape($this->model_pdf)."', '".$this->db->idate($this->date_creation)."', ".((int) $user->id).')';
         if (!$this->db->query($sql)) { $this->error = $this->db->lasterror(); return -1; }
 
         $this->id = (int) $this->db->last_insert_id(MAIN_DB_PREFIX.'svc_warranty_letter');
@@ -412,7 +412,7 @@ class SvcWarrantyLetter extends CommonObject
             $sql = 'SELECT w.rowid, w.fk_product, w.serial_number, w.covered_qty, w.start_date, w.expiry_date, p.ref AS product_ref, p.label AS product_label';
             $sql .= ' FROM '.MAIN_DB_PREFIX.'svc_warranty w LEFT JOIN '.MAIN_DB_PREFIX.'product p ON p.rowid = w.fk_product';
             $sql .= ' WHERE w.fk_expedition = '.((int) $shipment->fk_expedition).' AND w.entity = '.((int) $conf->entity);
-            $sql .= " AND w.status <> 'voided' ORDER BY p.ref, w.start_date, w.expiry_date, w.serial_number, w.rowid";
+            $sql .= " AND w.status <> '".SvcWarranty::STATUS_VOIDED."' ORDER BY p.ref, w.start_date, w.expiry_date, w.serial_number, w.rowid";
             $result = $this->db->query($sql);
             if (!$result) { $this->error = $this->db->lasterror(); return null; }
             while ($row = $this->db->fetch_object($result)) {
@@ -604,7 +604,11 @@ class SvcWarrantyLetter extends CommonObject
             $sqlCheck .= ' AND fk_target = '.((int) $this->id);
             $sqlCheck .= " AND targettype = 'warrantysvc_svcwarrantyletter'";
             $r = $this->db->query($sqlCheck);
-            if (!$r) { $this->error = $this->db->lasterror(); return -1; }
+            if (!$r) {
+                $cleanupGeneratedFile($path);
+                $this->error = $this->db->lasterror();
+                return -1;
+            }
             $linked = (bool) $this->db->fetch_object($r);
             $this->db->free($r);
             if (!$linked && $this->add_object_linked('warrantysvc_svcwarranty', $warrantyId, $user) <= 0) {
