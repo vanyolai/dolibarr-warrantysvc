@@ -469,9 +469,9 @@ print '</tr>';
 $handle = opendir($letterDir);
 if ($handle) {
 	while (($file = readdir($handle)) !== false) {
-		if (strpos($file, 'pdf_warrantyletter_') !== 0 || substr($file, -4) !== '.php' || substr($file, -12) === '.modules.php') continue;
+		if (strpos($file, 'pdf_warrantyletter_') !== 0 || substr($file, -12) !== '.modules.php') continue;
 		require_once $letterDir.$file;
-		$classname = substr($file, 0, -4);
+		$classname = substr($file, 0, -12);
 		if (!class_exists($classname)) continue;
 		$model = new $classname($db);
 		$modelName = preg_replace('/^pdf_/', '', $classname);
