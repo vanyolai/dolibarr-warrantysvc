@@ -188,7 +188,19 @@ if ($needsCreation) {
         print '<input type="hidden" name="action" value="create_letter">';
         print '</form>';
         print '<div class="tabsAction">';
-        print dolGetButtonAction('', $langs->trans('WarrantyLetterCreate'), 'default', 'javascript:document.getElementById(\'warrantyLetterCreateForm\').submit();');
+        print dolGetButtonAction(
+			'',
+			$langs->trans('WarrantyLetterCreate'),
+			'default',
+			'',
+			'',
+			1,
+			array('attr'=>array(
+				'onclick'=>"document.getElementById('warrantyLetterCreateForm').submit();",
+				'role'=>'button',
+				'tabindex'=>'0'
+			))
+		);
         print dolGetButtonAction('', $langs->trans('WarrantyLetterCombineShipments'), 'default', DOL_URL_ROOT.'/custom/warrantysvc/warranty_shipment_list.php?socid='.((int)$shipment->socid));
         print '</div>';
     }
@@ -266,7 +278,19 @@ if ($permwrite) {
         print '</table></div>';
         print '</form>';
         print '<div class="tabsAction">';
-        print dolGetButtonAction('', $langs->trans('WarrantyLetterAddSelectedShipments'), 'default', 'javascript:document.getElementById(\'warrantyLetterAddShipmentsForm\').submit();');
+        print dolGetButtonAction(
+			'',
+			$langs->trans('WarrantyLetterAddSelectedShipments'),
+			'default',
+			'',
+			'',
+			1,
+			array('attr'=>array(
+				'onclick'=>"document.getElementById('warrantyLetterAddShipmentsForm').submit();",
+				'role'=>'button',
+				'tabindex'=>'0'
+			))
+		);
         print '</div>';
     }
 
@@ -280,7 +304,14 @@ if ($permwrite) {
         $langs->trans('WarrantyLetterNewRevisionWarning'),
         $langs->trans('WarrantyLetterNewRevision'),
         'default',
-        'javascript:document.getElementById(\'warrantyLetterRevisionForm\').submit();'
+        '',
+        '',
+        1,
+        array('attr'=>array(
+            'onclick'=>"document.getElementById('warrantyLetterRevisionForm').submit();",
+            'role'=>'button',
+            'tabindex'=>'0'
+        ))
     );
     if ($verified) {
         $sendHref=$canSend?$_SERVER['PHP_SELF'].'?id='.((int)$object->id).'&action=presend#formmailbeforetitle':'#';
