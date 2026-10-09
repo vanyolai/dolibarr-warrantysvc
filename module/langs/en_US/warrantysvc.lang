@@ -979,3 +979,13 @@ WarrantySvcOpenRequests=Open warranty/service requests
 WarrantySvcShipmentsWithoutLetter=Shipments without warranty letter
 WarrantySvcOpenSupplierReturns=Open supplier returns
 WarrantySvcAttentionNeeded=Needs attention
+
+WarrantyLetterContents=Warranty letter contents
+WarrantyLetterAgendaShipmentsAdded=Shipments changed on warranty letter %s
+WarrantyLetterAgendaShipmentsAddedNote=Added shipment(s): %s
+WarrantyLetterAgendaRevisionCreated=Warranty letter %s PDF revision v%s created
+WarrantyLetterAgendaRevisionCreatedNote=Created document: %s
+WarrantyLetterAgendaRevisionDeleted=Warranty letter %s PDF revision v%s deleted
+WarrantyLetterAgendaRevisionDeletedNote=Deleted document: %s
+WarrantyLetterAgendaSentByEmail=Warranty letter %s v%s sent by email
+WarrantyLetterAgendaSentByEmailNote=Recipient: %s\nSubject: %s
