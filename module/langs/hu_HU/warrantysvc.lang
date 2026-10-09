@@ -972,3 +972,10 @@ WarrantyLetterSentVersionCannotBeDeleted=Elküldött garancialevél-verzió nem 
 WarrantyLetterVersionDeleted=A garancialevél PDF-verziója törölve.
 WarrantyLetterVersionNotFound=A garancialevél-verzió nem található.
 WarrantyLetterDeleteUnsentVersion=Nem elküldött PDF-verzió törlése
+
+WarrantyLetters=Garancialevelek
+WarrantySvcOverview=Garancia és szerviz – áttekintés
+WarrantySvcOpenRequests=Folyamatban lévő garanciális igények
+WarrantySvcShipmentsWithoutLetter=Garancialevél nélküli szállítmányok
+WarrantySvcOpenSupplierReturns=Folyamatban lévő beszállítói visszáruk
+WarrantySvcAttentionNeeded=Figyelmet igényel
