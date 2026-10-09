@@ -926,7 +926,7 @@ WarrantyLetterPdfFailed=Nem sikerült létrehozni a garancialevél PDF-jét
 WarrantyLetterVersionFileExists=Ez a PDF-verzió már létezik; nem került felülírásra
 WarrantyLetterPdfHashMismatch=A PDF ellenőrzőösszege nem egyezik. Az email-küldés letiltva.
 WarrantyLetterPdfAttachmentMissing=A hivatalos PDF csatolása kötelező.
-WarrantyLetterNoWarranties=Ehhez a szállítmányhoz nem található érvényes garancia
+WarrantyLetterNoWarranties=A kiválasztott szállítmányhoz nem található érvényes garancia
 WarrantyLetterUseExplicitNewRevision=Használja az Új PDF-verzió létrehozása műveletet.
 WarrantyLetterVersionAlreadySent=Ezt a PDF-verziót már elküldték. Újraküldés előtt hozzon létre új verziót.
 WarrantyLetterCreated=Garancialevél létrehozva.
@@ -944,3 +944,21 @@ WarrantyLetterOutputOutsideDocumentRoot=A dokumentumkönyvtárnak a Dolibarr pri
 
 WarrantyLetterStartDate=Garancia kezdete
 WarrantyLetterEndDate=Garancia lejárata
+
+# Több szállítmányos garancialevél
+
+WarrantyShipments=Garanciák szállítmányonként
+WarrantyShipmentViewHelp=A garanciák szállítmányonként csoportosítva jelennek meg. Azonos vevő több szállítmánya egyetlen garancialevélbe összevonható.
+WarrantyRecords=Garanciatételek
+CoveredQuantity=Garanciális mennyiség
+WarrantyDetails=Garanciarészletek
+WarrantyLetterCreateFromSelected=Garancialevél létrehozása a kijelölt szállítmányokból
+WarrantyLetterShipmentCount=Szállítmányok száma
+WarrantyLetterShipments=Garancialevélhez tartozó szállítmányok
+WarrantyLetterAddShipments=További szállítmányok hozzáadása
+WarrantyLetterAddSelectedShipments=Kijelölt szállítmányok hozzáadása
+WarrantyLetterShipmentsAdded=A szállítmányok hozzáadásra kerültek. Küldés előtt hozzon létre új PDF-verziót.
+WarrantyLetterCombineShipments=Több szállítmány összevonása
+WarrantyLetterNoShipments=Nincs szállítmány kiválasztva
+WarrantyLetterCustomerMismatch=Egy garancialevél csak ugyanahhoz a vevőhöz tartozó szállítmányokat tartalmazhat.
+WarrantyLetterShipmentAlreadyAssigned=A kiválasztott szállítmány már egy másik garancialevélhez tartozik.
