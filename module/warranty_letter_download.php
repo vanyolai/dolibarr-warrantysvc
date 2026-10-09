@@ -7,7 +7,7 @@ if (!$res && file_exists('../../main.inc.php')) $res=@include '../../main.inc.ph
 if (!$res && file_exists('../../../main.inc.php')) $res=@include '../../../main.inc.php';
 if (!$res) die('Include of main fails');
 
-require_once DOL_DOCUMENT_ROOT.'/custom/warrantysvc/class/svcwarrantyletter.class.php';
+dol_include_once('/warrantysvc/class/svcwarrantyletter.class.php');
 
 if (!$user->hasRight('warrantysvc','warrantyletter','read') || !empty($user->socid)) accessforbidden();
 
