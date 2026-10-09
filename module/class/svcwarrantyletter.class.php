@@ -183,7 +183,7 @@ class SvcWarrantyLetter extends CommonObject
         $out = array();
         $sql = 'SELECT ls.fk_expedition, e.ref, e.fk_soc, e.date_expedition';
         $sql .= ' FROM '.MAIN_DB_PREFIX.'svc_warranty_letter_shipment ls';
-        $sql .= ' JOIN '.MAIN_DB_PREFIX.'expedition e ON e.rowid = ls.fk_expedition';
+        $sql .= ' JOIN '.MAIN_DB_PREFIX.'expedition e ON e.rowid = ls.fk_expedition AND e.entity = ls.entity AND e.fk_soc = '.((int) $this->fk_soc);
         $sql .= ' WHERE ls.fk_letter = '.((int) $this->id).' AND ls.entity = '.((int) $conf->entity);
         $sql .= ' ORDER BY e.date_expedition, e.ref, e.rowid';
         $res = $this->db->query($sql);
@@ -199,7 +199,7 @@ class SvcWarrantyLetter extends CommonObject
         $out = array();
         $sql = 'SELECT w.fk_expedition, e.ref, e.date_expedition, SUM(w.covered_qty) AS covered_qty';
         $sql .= ' FROM '.MAIN_DB_PREFIX.'svc_warranty w';
-        $sql .= ' JOIN '.MAIN_DB_PREFIX.'expedition e ON e.rowid = w.fk_expedition';
+        $sql .= ' JOIN '.MAIN_DB_PREFIX.'expedition e ON e.rowid = w.fk_expedition AND e.entity = w.entity AND e.fk_soc = w.fk_soc';
         $sql .= ' LEFT JOIN '.MAIN_DB_PREFIX.'svc_warranty_letter_shipment ls';
         $sql .= ' ON ls.entity = w.entity AND ls.fk_expedition = w.fk_expedition';
         $sql .= ' WHERE w.entity = '.((int) $conf->entity).' AND w.fk_soc = '.((int) $socid);
@@ -244,7 +244,7 @@ class SvcWarrantyLetter extends CommonObject
         $addedShipmentRefs = array();
 
         foreach ($ids as $shipmentId) {
-            $sql = 'SELECT rowid, ref, fk_soc FROM '.MAIN_DB_PREFIX.'expedition WHERE rowid = '.$shipmentId;
+            $sql = 'SELECT rowid, ref, fk_soc FROM '.MAIN_DB_PREFIX.'expedition WHERE rowid = '.$shipmentId.' AND entity = '.((int) $this->entity);
             $res = $this->db->query($sql);
             if (!$res) { $this->error = $this->db->lasterror(); return -1; }
             $shipment = $this->db->fetch_object($res);
@@ -316,7 +316,7 @@ class SvcWarrantyLetter extends CommonObject
 
         $socid = 0;
         foreach ($ids as $shipmentId) {
-            $sql = 'SELECT fk_soc FROM '.MAIN_DB_PREFIX.'expedition WHERE rowid = '.$shipmentId;
+            $sql = 'SELECT fk_soc FROM '.MAIN_DB_PREFIX.'expedition WHERE rowid = '.$shipmentId.' AND entity = '.((int) $conf->entity);
             $res = $this->db->query($sql);
             if (!$res) { $this->error = $this->db->lasterror(); return -1; }
             $row = $this->db->fetch_object($res);
