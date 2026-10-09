@@ -1,59 +1,113 @@
-# Official Warranty Letter (starting from 1.46.9)
+# Warranty Letter v2 — shipment-centric warranty workflow
 
-Feature branch: feature/dolibarr-23-migration. No direct changes to dist or production.
+Feature branch: `feature/warranty-letter-v2`. No direct changes to dist or production.
 
-## Data and lifecycle
+## Domain model
 
-One SvcWarrantyLetter per shipment via unique (entity, fk_expedition).
-Native object links connect the letter with shipment, order, and warranties.
-Existing warranty generator and LOT/SN, duration and eligibility policy remain
-unchanged. The shipment validation/close trigger invokes the letter creation
-only *after* the existing algorithm finishes. ORDER_CLOSE uses the same helper.
+Individual `svc_warranty` records remain the source of truth for product, LOT/SN,
+coverage start/end and service eligibility. The normal user-facing warranty view
+groups those rows by Shipment.
 
-A letter starts in draft. Its initial PDF creates ready status; native email
-sending creates sent status; regeneration after sending creates updated status
-until the new version is sent. The letter is append-only for PDF versions:
-svc_warranty_letter_version stores a full historical JSON snapshot of the issuer,
-recipient, shipment, order and warranty grouping; immutable relative PDF path;
-SHA256; revision number; creation timestamp and user. Version numbers never
-overwrite old PDFs, including unsent ones. The mail table associates the actual
-sent PDF version with email sender/user, recipient, subject and message ID.
+A `SvcWarrantyLetter` is a customer-scoped document. It no longer owns
+`fk_expedition` or `fk_commande` columns. Shipments are assigned through
+`svc_warranty_letter_shipment`.
 
-Email uses Dolibarr 23 native card_presend.tpl.php and actions_sendmails.inc.php
-and template type svcwarrantyletter. Attachment integrity and presence are
-validated before delivery. Post-send trigger records immutable version sent.
-The deprecated warranty_confirmation.php redirects to the new letter card.
+Relationship:
 
-## Grouping and rendering
+```
+Customer
+  +-- Shipment A
+  |     +-- warranty / serial rows
+  +-- Shipment B
+  |     +-- warranty / serial rows
+  |
+  +-- Warranty Letter
+        +-- Shipment A
+        +-- Shipment B
+```
 
-Each PDF row groups warranties by (product ID, start date, expiry date),
-summing covered quantities and listing all serial/LOT numbers. The PDF renderer
-reads the frozen snapshot, not live warranty data. The customer sees the issuer,
-buyer, shipment and order identifiers, document ref and version.
+All shipments on one letter must belong to the same customer. A shipment may
+belong to at most one warranty letter; additional deliveries are added to the
+same letter and represented by a new immutable PDF revision.
 
-## Deployment and validation
+## Creation lifecycle
 
-On an already installed module, migrations add only missing letter tables,
-without re-running the existing module full SQL bootstrap. Fresh installs load
-the SQL files as normal. Existing 1.46.9 editable HTML mail templates remain
-untouched but no new legacy templates are installed.
+Shipment/order triggers continue to create missing `svc_warranty` rows using
+the existing warranty-duration, LOT/SN and shipment-date policy. They no longer
+create warranty letters automatically.
 
-Required sandbox acceptance scenarios before dist:
-1. Migration against an existing 1.46.9 database and repeated activation.
-2. Two serial numbers for same product+dates produce a single grouped row;
-   different start/end dates produce separate rows. Verify long lists across pages.
-3. No eligible warranties -> no letter; repeated validate/close -> no duplicates.
-4. Native links appear on shipment, customer order, each warranty.
-5. Send exactly one PDF from native mail composer; check email log and agenda.
-6. Remove required attachment: Send blocked before physical delivery.
-7. Tamper with file on disk: hash mismatch blocks download/send.
-8. Change warranty after v1 mailed and explicitly generate v2: v1 remains intact.
-9. Access controls disallow unauthorized/third-party users.
-10. After sandbox test, create separate dist commit; production remains untouched.
+The shipment-centric warranty list is the normal entry point. Users can select
+one or more unassigned shipments belonging to the same customer and create a
+letter. A Shipment card can also start with one shipment or navigate to the
+grouped list to combine deliveries.
 
-Note: rolled-back DB transactions after PDF output can leave unreferenced files.
-An orphan reconciliation tool should be added before general deployment.
+Additional unassigned shipments for the same customer can be attached later.
+This marks the current PDF stale. The user explicitly creates the next PDF
+revision before sending it.
 
-## Warranty change detection
+## Immutable revisions
 
-Warranty creation/modification triggers mark the letter stale when current warranty data differs from the preserved snapshot. Every card view and send request also compares the live snapshot, catching changes or deletions that bypass triggers. A stale letter cannot be emailed until an explicit new revision is generated.
+`svc_warranty_letter_version` stores the complete historical JSON snapshot,
+relative PDF path, SHA256, revision number, timestamp and creator.
+
+Each snapshot contains:
+
+- issuer and customer address snapshot;
+- all shipment references and shipment dates;
+- related order references per shipment;
+- grouped warranty rows per shipment;
+- all source warranty IDs.
+
+Historical PDF files are append-only. A current warranty change or a change to
+the attached shipment set makes the current revision stale but never alters an
+old PDF.
+
+## PDF grouping
+
+The PDF renders a separate section for every shipment. Inside a shipment,
+warranties are grouped by:
+
+`(product ID, warranty start date, warranty expiry date)`
+
+Quantities are summed and serial/LOT identifiers are listed in that row.
+
+## Email
+
+Email uses Dolibarr's native `card_presend.tpl.php` and
+`actions_sendmails.inc.php` pipeline with template type
+`svcwarrantyletter`. Multi-shipment substitutions include
+`__SHIPMENT_REFS__` and `__ORDER_REFS__`; the singular legacy names resolve
+to the same comma-separated values for compatibility.
+
+The exact immutable PDF attachment is checked before delivery. The post-send
+trigger records the actual PDF version delivered.
+
+## Migration from the abandoned v1 development model
+
+If the previous development-only letter table is found with
+`fk_expedition`, activation copies that relation into
+`svc_warranty_letter_shipment`, removes the old shipment/order indexes and
+drops `fk_expedition` and `fk_commande` from the letter header.
+
+This migration exists only to make repeated sandbox testing safe; the v1 model
+was never intended for production deployment.
+
+## Sandbox acceptance scenarios
+
+1. Refresh the sandbox from production and activate WarrantySvc repeatedly.
+2. Existing warranty rows appear grouped by shipment without modifying them.
+3. Select two shipments for the same customer and create one letter.
+4. Selecting shipments from different customers is rejected transactionally.
+5. A shipment already assigned to another letter cannot be selected again.
+6. PDF shows one shipment section per selected shipment and grouped serials.
+7. Add another shipment after v1 exists: current document becomes stale.
+8. Generate v2: v1 remains byte-for-byte unchanged and downloadable.
+9. Modify a source warranty: sending is blocked until a new revision is made.
+10. Send through the native mail composer and verify the exact PDF version in
+    the mail audit.
+11. Tamper with a PDF: hash mismatch blocks download/send.
+12. Only after sandbox acceptance should a dist/release commit be created.
+
+Note: PDF output occurs before the surrounding DB transaction commits, so a
+rolled-back transaction may leave an unreferenced file. Orphan reconciliation
+remains a pre-release hardening task.
