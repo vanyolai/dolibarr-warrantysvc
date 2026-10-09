@@ -962,3 +962,5 @@ WarrantyLetterCombineShipments=Combine multiple shipments
 WarrantyLetterNoShipments=No shipments selected
 WarrantyLetterCustomerMismatch=A warranty letter can contain only shipments belonging to the same customer.
 WarrantyLetterShipmentAlreadyAssigned=The selected shipment already belongs to another warranty letter.
+
+WarrantyExpiryRange=Warranty expiry
