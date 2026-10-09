@@ -10,7 +10,7 @@ if (!$res && file_exists('../../../main.inc.php')) $res = @include '../../../mai
 if (!$res) die('Include of main fails');
 
 require_once DOL_DOCUMENT_ROOT.'/core/class/html.form.class.php';
-require_once DOL_DOCUMENT_ROOT.'/custom/warrantysvc/class/svcwarrantyletter.class.php';
+dol_include_once('/warrantysvc/class/svcwarrantyletter.class.php');
 
 $langs->loadLangs(array('warrantysvc@warrantysvc', 'companies', 'sendings'));
 
