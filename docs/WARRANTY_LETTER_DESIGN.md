@@ -45,7 +45,7 @@ Additional unassigned shipments for the same customer can be attached later.
 This marks the current PDF stale. The user explicitly creates the next PDF
 revision before sending it.
 
-## Immutable revisions
+## Preserved revisions
 
 `svc_warranty_letter_version` stores the complete historical JSON snapshot,
 relative PDF path, SHA256, revision number, timestamp and creator.
