@@ -266,8 +266,8 @@ print '<div class="fichecenter">';
 print '<div class="fichehalfleft">';
 print '<div class="underbanner clearboth"></div>';
 print '<table class="border tableforfield centpercent">';
-print '<tr><td class="titlefield">'.$langs->trans('Customer').'</td><td>'.(is_object($object->thirdparty)?$object->thirdparty->getNomUrl(1):'').'</td></tr>';
-print '<tr><td>'.$langs->trans('WarrantyLetterShipmentCount').'</td><td>'.count($shipments).'</td></tr>';
+print '<tr><td class="titlefield">'.$langs->trans('WarrantyLetterShipmentCount').'</td><td>'.count($shipments).'</td></tr>';
+print '<tr><td>'.$langs->trans('DateCreation').'</td><td>'.dol_print_date($object->date_creation,'dayhour').'</td></tr>';
 print '</table>';
 print '</div>';
 
@@ -276,7 +276,6 @@ print '<div class="underbanner clearboth"></div>';
 print '<table class="border tableforfield centpercent">';
 print '<tr><td class="titlefieldmiddle">'.$langs->trans('WarrantyLetterVersion').'</td><td>'.((int)$object->current_version).'</td></tr>';
 print '<tr><td>'.$langs->trans('WarrantyLetterLastSentVersion').'</td><td>'.((int)$object->last_sent_version).'</td></tr>';
-print '<tr><td>'.$langs->trans('DateCreation').'</td><td>'.dol_print_date($object->date_creation,'dayhour').'</td></tr>';
 print '</table>';
 print '</div>';
 print '</div>';
