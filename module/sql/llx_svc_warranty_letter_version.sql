@@ -1,4 +1,4 @@
--- Immutable version metadata: no UPDATE/DELETE in business code.
+-- Preserved PDF revision metadata. Sent revisions are immutable; unsent revisions may be explicitly deleted.
 CREATE TABLE llx_svc_warranty_letter_version (
  rowid INTEGER AUTO_INCREMENT PRIMARY KEY,
  entity INTEGER NOT NULL DEFAULT 1,
