@@ -686,7 +686,11 @@ class SvcWarrantyLetter extends CommonObject
         if (!$res) { $this->error = $this->db->lasterror(); return -1; }
         $row = $this->db->fetch_object($res);
         $this->db->free($res);
-        if ($row && (int) $row->nb > 0) {
+        // Do not rely exclusively on the mail audit row: SMTP may already have
+        // succeeded even when logging its metadata failed. Keep the last known
+        // successfully sent revision protected in that recovery scenario too.
+        if (($row && (int) $row->nb > 0)
+            || (int) $version->version === (int) $this->last_sent_version && (int) $this->last_sent_version > 0) {
             $this->error = 'WarrantyLetterSentVersionCannotBeDeleted';
             return -1;
         }
