@@ -128,16 +128,16 @@ if ($use_warranty_types && $search_wtype) {
 }
 if ($search_status && $search_status != '-1') {
 	if ($search_status == 'active') {
-		$sql .= " AND t.status != 'voided' AND (".$eff_exp." IS NULL OR ".$eff_exp." >= '".$db->escape($today_date)."')";
+		$sql .= " AND t.status != '".SvcWarranty::STATUS_VOIDED."' AND (".$eff_exp." IS NULL OR ".$eff_exp." >= '".$db->escape($today_date)."')";
 	} elseif ($search_status == 'expiring') {
 		$expiring_to = dol_print_date(dol_time_plus_duree(dol_now(), 30, 'd'), '%Y-%m-%d', 'tzserver');
-		$sql .= " AND t.status != 'voided'";
+		$sql .= " AND t.status != '".SvcWarranty::STATUS_VOIDED."'";
 		$sql .= " AND ".$eff_exp." >= '".$db->escape($today_date)."'";
 		$sql .= " AND ".$eff_exp." <= '".$db->escape($expiring_to)."'";
 	} elseif ($search_status == 'expired') {
-		$sql .= " AND t.status != 'voided' AND ".$eff_exp." < '".$db->escape($today_date)."'";
+		$sql .= " AND t.status != '".SvcWarranty::STATUS_VOIDED."' AND ".$eff_exp." < '".$db->escape($today_date)."'";
 	} elseif ($search_status == 'voided') {
-		$sql .= " AND t.status = 'voided'";
+		$sql .= " AND t.status = '".SvcWarranty::STATUS_VOIDED."'";
 	}
 }
 if ($search_expiry_from) {
@@ -158,7 +158,23 @@ if ($resqlcount) {
 	$nbtotalofrecords = $objcount->nb;
 }
 
-$sql .= $db->order($sortfield, $sortorder);
+$allowedSort = array(
+	't.ref' => 't.ref',
+	's.nom' => 's.nom',
+	'e.ref' => 'e.ref',
+	'p.ref' => 'p.ref',
+	't.serial_number' => 't.serial_number',
+	't.warranty_type' => 't.warranty_type',
+	't.coverage_months' => 't.coverage_months',
+	't.status' => 't.status',
+	't.start_date' => 't.start_date',
+	't.expiry_date' => 't.expiry_date',
+	't.claim_count' => 'claim_count',
+);
+if (!isset($allowedSort[$sortfield])) {
+	$sortfield = 't.expiry_date';
+}
+$sql .= $db->order($allowedSort[$sortfield], $sortorder);
 $sql .= $db->plimit($limit, $offset);
 
 /*
@@ -182,6 +198,24 @@ if ($shipment_context) {
 $listparam = '';
 if ($socid > 0) $listparam .= '&socid='.((int) $socid);
 if ($shipmentid > 0) $listparam .= '&shipmentid='.((int) $shipmentid);
+if ($preset !== '') $listparam .= '&preset='.urlencode($preset);
+if ($search_ref !== '') $listparam .= '&search_ref='.urlencode($search_ref);
+if ($search_company !== '') $listparam .= '&search_company='.urlencode($search_company);
+if ($search_shipment !== '') $listparam .= '&search_shipment='.urlencode($search_shipment);
+if ($search_product !== '') $listparam .= '&search_product='.urlencode($search_product);
+if ($search_serial !== '') $listparam .= '&search_serial='.urlencode($search_serial);
+if ($search_wtype !== '') $listparam .= '&search_wtype='.urlencode($search_wtype);
+if ($search_status !== '') $listparam .= '&search_status='.urlencode($search_status);
+if ($search_expiry_from) {
+	$listparam .= '&search_expiry_fromday='.dol_print_date($search_expiry_from, '%d');
+	$listparam .= '&search_expiry_frommonth='.dol_print_date($search_expiry_from, '%m');
+	$listparam .= '&search_expiry_fromyear='.dol_print_date($search_expiry_from, '%Y');
+}
+if ($search_expiry_to) {
+	$listparam .= '&search_expiry_today='.dol_print_date($search_expiry_to, '%d');
+	$listparam .= '&search_expiry_tomonth='.dol_print_date($search_expiry_to, '%m');
+	$listparam .= '&search_expiry_toyear='.dol_print_date($search_expiry_to, '%Y');
+}
 
 llxHeader('', $list_title, '');
 
@@ -200,7 +234,7 @@ if ($socid > 0) {
 
 $newcardbutton = '';
 if ($shipment_context) {
-	$backurl = DOL_URL_ROOT.'/custom/warrantysvc/warranty_shipment_list.php';
+	$backurl = dol_buildpath('/warrantysvc/warranty_shipment_list.php',1).'';
 	if ($socid > 0) $backurl .= '?socid='.((int) $socid);
 	$newcardbutton .= dolGetButtonTitle(
 		$langs->trans('BackToList'),
@@ -214,7 +248,7 @@ if ($user->hasRight('warrantysvc', 'svcwarranty', 'write')) {
 		$langs->trans('NewWarranty'),
 		'',
 		'fa fa-plus-circle',
-		DOL_URL_ROOT.'/custom/warrantysvc/warranty_card.php?action=create'
+		dol_buildpath('/warrantysvc/warranty_card.php',1).'?action=create'
 	);
 }
 
@@ -396,19 +430,19 @@ if ($resql) {
 		$expiry_is_calc     = (!$obj->expiry_date && $obj->effective_expiry);
 
 		// Compute live status for display
-		if ($obj->status == 'voided') {
-			$display_status = 'voided';
+		if ($obj->status == SvcWarranty::STATUS_VOIDED) {
+			$display_status = SvcWarranty::STATUS_VOIDED;
 		} elseif ($expiry_ts && dol_print_date($expiry_ts, '%Y-%m-%d', 'tzserver') < $today_date) {
-			$display_status = 'expired';
+			$display_status = SvcWarranty::STATUS_EXPIRED;
 		} else {
-			$display_status = 'active';
+			$display_status = SvcWarranty::STATUS_ACTIVE;
 		}
 
 		// Row highlighting: red tint for expired, yellow for expiring within 30 days
 		$row_class = 'oddeven';
-		if ($display_status == 'expired') {
+		if ($display_status == SvcWarranty::STATUS_EXPIRED) {
 			$row_class = 'oddeven warranty-row-expired';
-		} elseif ($display_status == 'active' && $expiry_ts && $expiry_ts < dol_time_plus_duree($now, 30, 'd')) {
+		} elseif ($display_status == SvcWarranty::STATUS_ACTIVE && $expiry_ts && $expiry_ts < dol_time_plus_duree($now, 30, 'd')) {
 			$row_class = 'oddeven highlight';
 		}
 
@@ -461,9 +495,9 @@ if ($resql) {
 			if ($expiry_is_calc) {
 				$expiry_label = '<em title="'.dol_escape_htmltag($langs->trans('ExpiryDateCalculated')).'">'.$expiry_label.'</em>';
 			}
-			if ($display_status == 'expired') {
+			if ($display_status == SvcWarranty::STATUS_EXPIRED) {
 				print '<span class="warning">'.$expiry_label.'</span>';
-			} elseif ($display_status == 'active' && $expiry_ts < dol_time_plus_duree($now, 30, 'd')) {
+			} elseif ($display_status == SvcWarranty::STATUS_ACTIVE && $expiry_ts < dol_time_plus_duree($now, 30, 'd')) {
 				print '<span class="opacitymediumhigh">'.$expiry_label.'</span>';
 			} else {
 				print $expiry_label;
@@ -474,7 +508,7 @@ if ($resql) {
 		print '</td>';
 		// Claims count — link to filtered SR list for this warranty
 		$claim_count = (int) $obj->claim_count;
-		$sr_list_url = DOL_URL_ROOT.'/custom/warrantysvc/list.php?fk_warranty='.$obj->rowid;
+		$sr_list_url = dol_buildpath('/warrantysvc/list.php',1).'?fk_warranty='.$obj->rowid;
 		print '<td class="center">';
 		if ($claim_count > 0) {
 			print '<a href="'.$sr_list_url.'">'.$claim_count.'</a>';
@@ -484,8 +518,8 @@ if ($resql) {
 		print '</td>';
 		// Quick-action: New Service Request for this warranty
 		print '<td class="center">';
-		if ($user->hasRight('warrantysvc', 'svcrequest', 'write') && $display_status !== 'voided') {
-			$new_sr_url = DOL_URL_ROOT.'/custom/warrantysvc/card.php?action=create&fk_warranty='.$obj->rowid.'&fk_soc='.$obj->fk_soc.'&serial_number='.urlencode($obj->serial_number)
+		if ($user->hasRight('warrantysvc', 'svcrequest', 'write') && $display_status !== SvcWarranty::STATUS_VOIDED) {
+			$new_sr_url = dol_buildpath('/warrantysvc/card.php',1).'?action=create&fk_warranty='.$obj->rowid.'&fk_soc='.$obj->fk_soc.'&serial_number='.urlencode($obj->serial_number)
 				.($obj->fk_product ? '&fk_product='.(int) $obj->fk_product : '');
 			print '<a href="'.$new_sr_url.'" title="'.dol_escape_htmltag($langs->trans('NewSvcRequest')).'">'.img_picto($langs->trans('NewSvcRequest'), 'add', 'class="size15"').'</a>';
 		}
