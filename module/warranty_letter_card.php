@@ -89,24 +89,34 @@ if (!$needsCreation && $action==='add_shipments' && $permwrite && $_SERVER['REQU
     exit;
 }
 
-if (!$needsCreation && $action==='delete_revision' && $permwrite) {
-    $fileToDelete=GETPOST('file','restricthtml');
+// FormFile uses GET to request deletion, but only a native POST confirmation
+// with a CSRF token may actually delete a registered PDF revision.
+if (!$needsCreation && $action==='confirm_delete_revision' && $permwrite
+    && $_SERVER['REQUEST_METHOD']==='POST' && GETPOST('confirm','alpha')==='yes') {
+    $requestedPath=ltrim(str_replace('\\','/',(string) GETPOST('file','restricthtml')),'/');
+    $revisions=$letter->getVersions();
     $revisionNumber=0;
-    if (preg_match('/_v([0-9]+)\.pdf$/', basename((string) $fileToDelete), $match)) {
-        $revisionNumber=(int) $match[1];
-    }
-
-    if ($revisionNumber<=0) {
-        setEventMessages($langs->trans('WarrantyLetterVersionNotFound'),null,'errors');
+    if ($revisions===null) {
+        setEventMessages($letter->error,null,'errors');
     } else {
-        $db->begin();
-        $ok=$letter->deleteVersion($revisionNumber,$user);
-        if ($ok>0) {
-            $db->commit();
-            setEventMessages($langs->trans('WarrantyLetterVersionDeleted'),null,'mesgs');
+        foreach ($revisions as $candidate) {
+            if ((string) $candidate->file_path === $requestedPath) {
+                $revisionNumber=(int) $candidate->version;
+                break;
+            }
+        }
+        if ($revisionNumber<=0) {
+            setEventMessages($langs->trans('WarrantyLetterVersionNotFound'),null,'errors');
         } else {
-            $db->rollback();
-            setEventMessages($langs->trans($letter->error),null,'errors');
+            $db->begin();
+            $ok=$letter->deleteVersion($revisionNumber,$user);
+            if ($ok>0) {
+                $db->commit();
+                setEventMessages($langs->trans('WarrantyLetterVersionDeleted'),null,'mesgs');
+            } else {
+                $db->rollback();
+                setEventMessages($langs->trans($letter->error),null,'errors');
+            }
         }
     }
     header('Location: '.dol_buildpath('/warrantysvc/warranty_letter_card.php',1).'?id='.$letter->id);
@@ -185,6 +195,32 @@ if (!$needsCreation) {
 
 llxHeader('',$langs->trans('WarrantyLetterTitle'));
 $form=new Form($db);
+
+// FormFile's trash icon opens confirmation; it must not modify any PDF on GET.
+if (!$needsCreation && $action==='delete_revision' && $permwrite) {
+    $requestedPath=ltrim(str_replace('\\','/',(string) GETPOST('file','restricthtml')),'/');
+    $revisions=$letter->getVersions();
+    $knownFile=false;
+    foreach ((array) $revisions as $candidate) {
+        if ((string) $candidate->file_path === $requestedPath) {
+            $knownFile=true;
+            break;
+        }
+    }
+    if (!$knownFile) {
+        setEventMessages($langs->trans('WarrantyLetterVersionNotFound'),null,'errors');
+    } else {
+        print $form->formconfirm(
+            $_SERVER['PHP_SELF'].'?id='.((int) $letter->id).'&file='.urlencode($requestedPath),
+            $langs->trans('DeleteFile'),
+            $langs->trans('ConfirmDeleteFile'),
+            'confirm_delete_revision',
+            '',
+            'no',
+            0
+        );
+    }
+}
 
 if ($needsCreation) {
     print dol_get_fiche_head(array(), '', $langs->trans('WarrantyLetterTitle'), -1, 'pdf');
