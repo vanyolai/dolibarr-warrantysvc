@@ -103,15 +103,15 @@ print '<div class="opacitymedium marginbottomonly">'.$langs->trans('WarrantyShip
 
 $canCreateLetter = $user->hasRight('warrantysvc', 'warrantyletter', 'write');
 
-print '<form method="GET" id="shipmentSearchForm" action="'.$_SERVER['PHP_SELF'].'">';
-if ($socid > 0) print '<input type="hidden" name="socid" value="'.((int) $socid).'">';
-
 if ($canCreateLetter) {
     print '<form method="POST" action="'.DOL_URL_ROOT.'/custom/warrantysvc/warranty_letter_card.php" id="warrantyShipmentCreateForm">';
     print '<input type="hidden" name="token" value="'.newToken().'">';
     print '<input type="hidden" name="action" value="create_letter">';
     print '</form>';
 }
+
+print '<form method="GET" id="shipmentSearchForm" action="'.$_SERVER['PHP_SELF'].'">';
+if ($socid > 0) print '<input type="hidden" name="socid" value="'.((int) $socid).'">';
 
 print '<div class="div-table-responsive">';
 print '<table class="noborder centpercent">';
