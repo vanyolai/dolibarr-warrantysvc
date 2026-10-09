@@ -9,10 +9,10 @@ if (!$res && file_exists('../../main.inc.php')) $res = @include '../../main.inc.
 if (!$res && file_exists('../../../main.inc.php')) $res = @include '../../../main.inc.php';
 if (!$res) die('Include of main fails');
 
-require_once DOL_DOCUMENT_ROOT.'/custom/warrantysvc/class/svcrequest.class.php';
-require_once DOL_DOCUMENT_ROOT.'/custom/warrantysvc/class/svcwarranty.class.php';
-require_once DOL_DOCUMENT_ROOT.'/custom/warrantysvc/class/svcwarrantyletter.class.php';
-require_once DOL_DOCUMENT_ROOT.'/custom/warrantysvc/class/svcsupplierreturn.class.php';
+dol_include_once('/warrantysvc/class/svcrequest.class.php');
+dol_include_once('/warrantysvc/class/svcwarranty.class.php');
+dol_include_once('/warrantysvc/class/svcwarrantyletter.class.php');
+dol_include_once('/warrantysvc/class/svcsupplierreturn.class.php');
 
 $langs->loadLangs(array('warrantysvc@warrantysvc','companies','sendings'));
 
