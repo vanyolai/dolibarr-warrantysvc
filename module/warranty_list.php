@@ -423,7 +423,7 @@ if ($resql) {
 	}
 
 	foreach ($rows as $obj) {
-		$cardurl = DOL_URL_ROOT.'/custom/warrantysvc/warranty_card.php?id='.$obj->rowid;
+		$cardurl = dol_buildpath('/warrantysvc/warranty_card.php',1).'?id='.$obj->rowid;
 
 		// Use effective_expiry (stored date, or start_date + type duration) for all status logic
 		$expiry_ts          = $obj->effective_expiry ? $db->jdate($obj->effective_expiry) : null;
