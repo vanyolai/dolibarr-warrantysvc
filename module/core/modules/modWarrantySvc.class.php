@@ -366,6 +366,23 @@ class modWarrantySvc extends DolibarrModules
 		$this->menu[$r] = array(
 			'fk_menu'  => 'fk_mainmenu=products,fk_leftmenu=warrantysvc_warranty_list',
 			'type'     => 'left',
+			'titre'    => 'WarrantyLetters',
+			'prefix'   => img_picto('', 'pdf', 'class="paddingright pictofixedwidth"'),
+			'mainmenu' => 'products',
+			'leftmenu' => 'warrantysvc_warranty_letters',
+			'url'      => '/warrantysvc/warranty_letter_list.php?mainmenu=products&leftmenu=warrantysvc_warranty_letters',
+			'langs'    => 'warrantysvc@warrantysvc',
+			'position' => 945,
+			'enabled'  => 'isModEnabled("warrantysvc")',
+			'perms'    => '$user->hasRight("warrantysvc", "warrantyletter", "read")',
+			'target'   => '',
+			'user'     => 0,
+		);
+		$r++;
+
+		$this->menu[$r] = array(
+			'fk_menu'  => 'fk_mainmenu=products,fk_leftmenu=warrantysvc_warranty_list',
+			'type'     => 'left',
 			'titre'    => 'WarrantyTypes',
 			'prefix'   => img_picto('', 'setup', 'class="paddingright pictofixedwidth"'),
 			'mainmenu' => 'products',
