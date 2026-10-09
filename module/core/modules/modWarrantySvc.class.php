@@ -255,9 +255,7 @@ class modWarrantySvc extends DolibarrModules
 		$this->menu = array();
 		$r = 0;
 
-		// WarrantySvc is integrated into the Products top menu. It gets its own
-		// section in the Products left navigation instead of creating another top
-		// navigation entry.
+		// WarrantySvc root: operational overview, never an arbitrary child list.
 		$this->menu[$r] = array(
 			'fk_menu'  => 'fk_mainmenu=products',
 			'type'     => 'left',
@@ -265,7 +263,7 @@ class modWarrantySvc extends DolibarrModules
 			'prefix'   => img_picto('', $this->picto, 'class="paddingright pictofixedwidth"'),
 			'mainmenu' => 'products',
 			'leftmenu' => 'warrantysvc',
-			'url'      => '/warrantysvc/list.php?mainmenu=products&leftmenu=warrantysvc_list',
+			'url'      => '/warrantysvc/index.php?mainmenu=products&leftmenu=warrantysvc',
 			'langs'    => 'warrantysvc@warrantysvc',
 			'position' => 900,
 			'enabled'  => 'isModEnabled("warrantysvc")',
@@ -275,15 +273,15 @@ class modWarrantySvc extends DolibarrModules
 		);
 		$r++;
 
-		// Service Requests
+		// Service / warranty claims section.
 		$this->menu[$r] = array(
 			'fk_menu'  => 'fk_mainmenu=products,fk_leftmenu=warrantysvc',
 			'type'     => 'left',
 			'titre'    => 'SvcRequests',
 			'prefix'   => img_picto('', 'technic', 'class="paddingright pictofixedwidth"'),
 			'mainmenu' => 'products',
-			'leftmenu' => 'warrantysvc_list',
-			'url'      => '/warrantysvc/list.php?mainmenu=products&leftmenu=warrantysvc_list',
+			'leftmenu' => 'warrantysvc_requests',
+			'url'      => '/warrantysvc/list.php?mainmenu=products&leftmenu=warrantysvc_requests',
 			'langs'    => 'warrantysvc@warrantysvc',
 			'position' => 910,
 			'enabled'  => 'isModEnabled("warrantysvc")',
@@ -294,15 +292,15 @@ class modWarrantySvc extends DolibarrModules
 		$r++;
 
 		$this->menu[$r] = array(
-			'fk_menu'  => 'fk_mainmenu=products,fk_leftmenu=warrantysvc_list',
+			'fk_menu'  => 'fk_mainmenu=products,fk_leftmenu=warrantysvc_requests',
 			'type'     => 'left',
 			'titre'    => 'NewSvcRequest',
 			'prefix'   => img_picto('', 'add', 'class="paddingright pictofixedwidth"'),
 			'mainmenu' => 'products',
-			'leftmenu' => 'warrantysvc_new',
-			'url'      => '/warrantysvc/card.php?action=create&mainmenu=products&leftmenu=warrantysvc_new',
+			'leftmenu' => 'warrantysvc_request_new',
+			'url'      => '/warrantysvc/card.php?action=create&mainmenu=products&leftmenu=warrantysvc_request_new',
 			'langs'    => 'warrantysvc@warrantysvc',
-			'position' => 920,
+			'position' => 911,
 			'enabled'  => 'isModEnabled("warrantysvc")',
 			'perms'    => '$user->hasRight("warrantysvc", "svcrequest", "write")',
 			'target'   => '',
@@ -310,16 +308,58 @@ class modWarrantySvc extends DolibarrModules
 		);
 		$r++;
 
-		// Warranties
-		// The parent entry is the canonical complete warranty list.
+		$this->menu[$r] = array(
+			'fk_menu'  => 'fk_mainmenu=products,fk_leftmenu=warrantysvc_requests',
+			'type'     => 'left',
+			'titre'    => 'List',
+			'mainmenu' => 'products',
+			'leftmenu' => 'warrantysvc_request_list',
+			'url'      => '/warrantysvc/list.php?mainmenu=products&leftmenu=warrantysvc_request_list',
+			'langs'    => 'main',
+			'position' => 912,
+			'enabled'  => 'isModEnabled("warrantysvc")',
+			'perms'    => '$user->hasRight("warrantysvc", "svcrequest", "read")',
+			'target'   => '',
+			'user'     => 0,
+		);
+		$r++;
+
+		$requestStatusMenus = array(
+			array('SvcDraft', 0, 913),
+			array('SvcValidated', 1, 914),
+			array('SvcDiagnosing', 6, 915),
+			array('SvcInProgress', 2, 916),
+			array('AwaitingReturn', 3, 917),
+			array('SvcResolved', 4, 918),
+			array('SvcClosed', 5, 919),
+		);
+		foreach ($requestStatusMenus as $requestStatusMenu) {
+			$this->menu[$r] = array(
+				'fk_menu'  => 'fk_mainmenu=products,fk_leftmenu=warrantysvc_request_list',
+				'type'     => 'left',
+				'titre'    => $requestStatusMenu[0],
+				'mainmenu' => 'products',
+				'leftmenu' => 'warrantysvc_request_status_'.$requestStatusMenu[1],
+				'url'      => '/warrantysvc/list.php?mainmenu=products&leftmenu=warrantysvc_request_status_'.$requestStatusMenu[1].'&search_status='.$requestStatusMenu[1],
+				'langs'    => 'warrantysvc@warrantysvc',
+				'position' => $requestStatusMenu[2],
+				'enabled'  => 'isModEnabled("warrantysvc")',
+				'perms'    => '$user->hasRight("warrantysvc", "svcrequest", "read")',
+				'target'   => '',
+				'user'     => 0,
+			);
+			$r++;
+		}
+
+		// Warranties are a section with multiple equal views.
 		$this->menu[$r] = array(
 			'fk_menu'  => 'fk_mainmenu=products,fk_leftmenu=warrantysvc',
 			'type'     => 'left',
 			'titre'    => 'Warranties',
 			'prefix'   => img_picto('', 'bill', 'class="paddingright pictofixedwidth"'),
 			'mainmenu' => 'products',
-			'leftmenu' => 'warrantysvc_warranty_list',
-			'url'      => '/warrantysvc/warranty_list.php?mainmenu=products&leftmenu=warrantysvc_warranty_list',
+			'leftmenu' => 'warrantysvc_warranties',
+			'url'      => '/warrantysvc/warranty_list.php?mainmenu=products&leftmenu=warrantysvc_warranties',
 			'langs'    => 'warrantysvc@warrantysvc',
 			'position' => 930,
 			'enabled'  => 'isModEnabled("warrantysvc")',
@@ -330,15 +370,14 @@ class modWarrantySvc extends DolibarrModules
 		$r++;
 
 		$this->menu[$r] = array(
-			'fk_menu'  => 'fk_mainmenu=products,fk_leftmenu=warrantysvc_warranty_list',
+			'fk_menu'  => 'fk_mainmenu=products,fk_leftmenu=warrantysvc_warranties',
 			'type'     => 'left',
-			'titre'    => 'WarrantyShipments',
-			'prefix'   => img_picto('', 'shipment', 'class="paddingright pictofixedwidth"'),
+			'titre'    => 'List',
 			'mainmenu' => 'products',
-			'leftmenu' => 'warrantysvc_warranty_shipments',
-			'url'      => '/warrantysvc/warranty_shipment_list.php?mainmenu=products&leftmenu=warrantysvc_warranty_shipments',
-			'langs'    => 'warrantysvc@warrantysvc',
-			'position' => 935,
+			'leftmenu' => 'warrantysvc_warranty_list',
+			'url'      => '/warrantysvc/warranty_list.php?mainmenu=products&leftmenu=warrantysvc_warranty_list',
+			'langs'    => 'main',
+			'position' => 931,
 			'enabled'  => 'isModEnabled("warrantysvc")',
 			'perms'    => '$user->hasRight("warrantysvc", "svcwarranty", "read")',
 			'target'   => '',
@@ -347,24 +386,24 @@ class modWarrantySvc extends DolibarrModules
 		$r++;
 
 		$this->menu[$r] = array(
-			'fk_menu'  => 'fk_mainmenu=products,fk_leftmenu=warrantysvc_warranty_list',
+			'fk_menu'  => 'fk_mainmenu=products,fk_leftmenu=warrantysvc_warranties',
 			'type'     => 'left',
-			'titre'    => 'NewWarranty',
-			'prefix'   => img_picto('', 'add', 'class="paddingright pictofixedwidth"'),
+			'titre'    => 'WarrantyShipments',
+			'prefix'   => img_picto('', 'shipment', 'class="paddingright pictofixedwidth"'),
 			'mainmenu' => 'products',
-			'leftmenu' => 'warrantysvc_warranty_new',
-			'url'      => '/warrantysvc/warranty_card.php?action=create&mainmenu=products&leftmenu=warrantysvc_warranty_new',
+			'leftmenu' => 'warrantysvc_warranty_shipments',
+			'url'      => '/warrantysvc/warranty_shipment_list.php?mainmenu=products&leftmenu=warrantysvc_warranty_shipments',
 			'langs'    => 'warrantysvc@warrantysvc',
-			'position' => 940,
+			'position' => 932,
 			'enabled'  => 'isModEnabled("warrantysvc")',
-			'perms'    => '$user->hasRight("warrantysvc", "svcwarranty", "write")',
+			'perms'    => '$user->hasRight("warrantysvc", "svcwarranty", "read")',
 			'target'   => '',
 			'user'     => 0,
 		);
 		$r++;
 
 		$this->menu[$r] = array(
-			'fk_menu'  => 'fk_mainmenu=products,fk_leftmenu=warrantysvc_warranty_list',
+			'fk_menu'  => 'fk_mainmenu=products,fk_leftmenu=warrantysvc_warranties',
 			'type'     => 'left',
 			'titre'    => 'WarrantyLetters',
 			'prefix'   => img_picto('', 'pdf', 'class="paddingright pictofixedwidth"'),
@@ -372,7 +411,7 @@ class modWarrantySvc extends DolibarrModules
 			'leftmenu' => 'warrantysvc_warranty_letters',
 			'url'      => '/warrantysvc/warranty_letter_list.php?mainmenu=products&leftmenu=warrantysvc_warranty_letters',
 			'langs'    => 'warrantysvc@warrantysvc',
-			'position' => 945,
+			'position' => 933,
 			'enabled'  => 'isModEnabled("warrantysvc")',
 			'perms'    => '$user->hasRight("warrantysvc", "warrantyletter", "read")',
 			'target'   => '',
@@ -381,7 +420,24 @@ class modWarrantySvc extends DolibarrModules
 		$r++;
 
 		$this->menu[$r] = array(
-			'fk_menu'  => 'fk_mainmenu=products,fk_leftmenu=warrantysvc_warranty_list',
+			'fk_menu'  => 'fk_mainmenu=products,fk_leftmenu=warrantysvc_warranties',
+			'type'     => 'left',
+			'titre'    => 'NewWarranty',
+			'prefix'   => img_picto('', 'add', 'class="paddingright pictofixedwidth"'),
+			'mainmenu' => 'products',
+			'leftmenu' => 'warrantysvc_warranty_new',
+			'url'      => '/warrantysvc/warranty_card.php?action=create&mainmenu=products&leftmenu=warrantysvc_warranty_new',
+			'langs'    => 'warrantysvc@warrantysvc',
+			'position' => 934,
+			'enabled'  => 'isModEnabled("warrantysvc")',
+			'perms'    => '$user->hasRight("warrantysvc", "svcwarranty", "write")',
+			'target'   => '',
+			'user'     => 0,
+		);
+		$r++;
+
+		$this->menu[$r] = array(
+			'fk_menu'  => 'fk_mainmenu=products,fk_leftmenu=warrantysvc_warranties',
 			'type'     => 'left',
 			'titre'    => 'WarrantyTypes',
 			'prefix'   => img_picto('', 'setup', 'class="paddingright pictofixedwidth"'),
@@ -389,7 +445,7 @@ class modWarrantySvc extends DolibarrModules
 			'leftmenu' => 'warrantysvc_warranty_types',
 			'url'      => '/warrantysvc/warranty_type_list.php?mainmenu=products&leftmenu=warrantysvc_warranty_types',
 			'langs'    => 'warrantysvc@warrantysvc',
-			'position' => 950,
+			'position' => 935,
 			'enabled'  => 'isModEnabled("warrantysvc") && (getDolGlobalString("WARRANTYSVC_DURATION_SOURCE") == "warranty_type" || (getDolGlobalString("WARRANTYSVC_DURATION_SOURCE") == "" && getDolGlobalString("WARRANTYSVC_PRODUCT_WARRANTY_MONTHS_FIELD") == ""))',
 			'perms'    => '$user->hasRight("warrantysvc", "svcwarranty", "read")',
 			'target'   => '',
@@ -404,8 +460,8 @@ class modWarrantySvc extends DolibarrModules
 			'titre'    => 'SupplierReturns',
 			'prefix'   => img_picto('', 'shipment', 'class="paddingright pictofixedwidth"'),
 			'mainmenu' => 'products',
-			'leftmenu' => 'warrantysvc_supplier_return_list',
-			'url'      => '/warrantysvc/supplier_return_list.php?mainmenu=products&leftmenu=warrantysvc_supplier_return_list',
+			'leftmenu' => 'warrantysvc_supplier_returns',
+			'url'      => '/warrantysvc/supplier_return_list.php?mainmenu=products&leftmenu=warrantysvc_supplier_returns',
 			'langs'    => 'warrantysvc@warrantysvc',
 			'position' => 960,
 			'enabled'  => 'isModEnabled("warrantysvc")',
@@ -416,7 +472,7 @@ class modWarrantySvc extends DolibarrModules
 		$r++;
 
 		$this->menu[$r] = array(
-			'fk_menu'  => 'fk_mainmenu=products,fk_leftmenu=warrantysvc_supplier_return_list',
+			'fk_menu'  => 'fk_mainmenu=products,fk_leftmenu=warrantysvc_supplier_returns',
 			'type'     => 'left',
 			'titre'    => 'NewSupplierReturn',
 			'prefix'   => img_picto('', 'add', 'class="paddingright pictofixedwidth"'),
@@ -424,13 +480,30 @@ class modWarrantySvc extends DolibarrModules
 			'leftmenu' => 'warrantysvc_supplier_return_new',
 			'url'      => '/warrantysvc/supplier_return_card.php?action=create&mainmenu=products&leftmenu=warrantysvc_supplier_return_new',
 			'langs'    => 'warrantysvc@warrantysvc',
-			'position' => 970,
+			'position' => 961,
 			'enabled'  => 'isModEnabled("warrantysvc")',
 			'perms'    => '$user->hasRight("warrantysvc", "supplierreturn", "write")',
 			'target'   => '',
 			'user'     => 0,
 		);
 		$r++;
+
+		$this->menu[$r] = array(
+			'fk_menu'  => 'fk_mainmenu=products,fk_leftmenu=warrantysvc_supplier_returns',
+			'type'     => 'left',
+			'titre'    => 'List',
+			'mainmenu' => 'products',
+			'leftmenu' => 'warrantysvc_supplier_return_list',
+			'url'      => '/warrantysvc/supplier_return_list.php?mainmenu=products&leftmenu=warrantysvc_supplier_return_list',
+			'langs'    => 'main',
+			'position' => 962,
+			'enabled'  => 'isModEnabled("warrantysvc")',
+			'perms'    => '$user->hasRight("warrantysvc", "supplierreturn", "read")',
+			'target'   => '',
+			'user'     => 0,
+		);
+		$r++;
+
 	}
 
 	/**
