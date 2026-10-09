@@ -29,6 +29,7 @@ if (!$user->hasRight('warrantysvc', 'svcwarranty', 'read')) {
 $action      = GETPOST('action', 'aZ09');
 $optioncss   = GETPOST('optioncss', 'alpha');
 $socid       = GETPOSTINT('socid');
+$shipmentid  = GETPOSTINT('shipmentid');
 $contextpage = GETPOST('contextpage', 'aZ') ? GETPOST('contextpage', 'aZ') : 'svcwarranty';
 $duration_source = warrantysvc_get_duration_source();
 $use_warranty_types = ($duration_source === 'warranty_type');
@@ -100,6 +101,9 @@ $sql .= " WHERE t.entity IN (".getEntity('svcwarranty').")";
 
 if ($socid > 0) {
 	$sql .= " AND t.fk_soc = ".((int) $socid);
+}
+if ($shipmentid > 0) {
+	$sql .= " AND t.fk_expedition = ".((int) $shipmentid);
 }
 if ($search_ref) {
 	$sql .= natural_search('t.ref', $search_ref);
@@ -220,6 +224,9 @@ print '</div>';
 print '<form method="GET" id="searchFormList" action="'.$_SERVER['PHP_SELF'].'">';
 if ($socid > 0) {
 	print '<input type="hidden" name="socid" value="'.((int) $socid).'">';
+}
+if ($shipmentid > 0) {
+	print '<input type="hidden" name="shipmentid" value="'.((int) $shipmentid).'">';
 }
 if ($preset) {
 	print '<input type="hidden" name="preset" value="'.dol_escape_htmltag($preset).'">';
