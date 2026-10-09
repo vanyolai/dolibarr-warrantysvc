@@ -348,8 +348,8 @@ class SvcWarrantyLetter extends CommonObject
             $this->error = 'WarrantyLetterInvalidNumberingModule';
             return -1;
         }
-        $addonFile = DOL_DOCUMENT_ROOT.'/custom/warrantysvc/core/modules/warrantysvc/'.$addon.'.php';
-        if (!is_readable($addonFile)) {
+        $addonFile = dol_buildpath('/warrantysvc/core/modules/warrantysvc/'.$addon.'.php', 0, 1);
+        if ($addonFile === '' || !is_readable($addonFile)) {
             $this->error = 'WarrantyLetterNumberingModuleNotFound';
             return -1;
         }
@@ -555,9 +555,9 @@ class SvcWarrantyLetter extends CommonObject
             $this->error = 'WarrantyLetterInvalidPdfModel';
             return -1;
         }
-        $modelFile = DOL_DOCUMENT_ROOT.'/custom/warrantysvc/core/modules/warrantysvc/pdf_'.$model.'.php';
+        $modelFile = dol_buildpath('/warrantysvc/core/modules/warrantysvc/pdf_'.$model.'.php', 0, 1);
         $modelClass = 'pdf_'.$model;
-        if (!is_readable($modelFile)) {
+        if ($modelFile === '' || !is_readable($modelFile)) {
             $this->error = 'WarrantyLetterPdfModelNotFound';
             return -1;
         }
