@@ -102,10 +102,15 @@ print_barre_liste(
 print '<div class="opacitymedium marginbottomonly">'.$langs->trans('WarrantyShipmentViewHelp').'</div>';
 
 $canCreateLetter = $user->hasRight('warrantysvc', 'warrantyletter', 'write');
+
+print '<form method="GET" id="shipmentSearchForm" action="'.$_SERVER['PHP_SELF'].'">';
+if ($socid > 0) print '<input type="hidden" name="socid" value="'.((int) $socid).'">';
+
 if ($canCreateLetter) {
-    print '<form method="POST" action="'.DOL_URL_ROOT.'/custom/warrantysvc/warranty_letter_card.php" id="warrantyShipmentForm">';
+    print '<form method="POST" action="'.DOL_URL_ROOT.'/custom/warrantysvc/warranty_letter_card.php" id="warrantyShipmentCreateForm">';
     print '<input type="hidden" name="token" value="'.newToken().'">';
     print '<input type="hidden" name="action" value="create_letter">';
+    print '</form>';
 }
 
 print '<div class="div-table-responsive">';
@@ -113,15 +118,12 @@ print '<table class="noborder centpercent">';
 
 print '<tr class="liste_titre_filter">';
 if ($canCreateLetter) print '<td class="center"></td>';
-print '<td><input class="flat maxwidth100" type="text" name="search_shipment" value="'.dol_escape_htmltag($searchShipment).'" form="shipmentSearchForm"></td>';
+print '<td><input class="flat maxwidth100" type="text" name="search_shipment" value="'.dol_escape_htmltag($searchShipment).'"></td>';
 print '<td><input class="flat maxwidth150" type="text" name="search_company" value="'.dol_escape_htmltag($searchCompany).'" form="shipmentSearchForm"></td>';
 print '<td></td><td></td><td></td><td></td><td></td>';
 print '<td class="right">';
-print '<form method="GET" id="shipmentSearchForm" action="'.$_SERVER['PHP_SELF'].'">';
-if ($socid > 0) print '<input type="hidden" name="socid" value="'.((int) $socid).'">';
 print '<input class="button small" type="submit" name="button_search_x" value="'.$langs->trans('Search').'">';
 print ' <input class="button small" type="submit" name="button_removefilter_x" value="'.$langs->trans('Reset').'">';
-print '</form>';
 print '</td></tr>';
 
 print '<tr class="liste_titre">';
@@ -149,7 +151,7 @@ if (!$resql) {
         if ($canCreateLetter) {
             print '<td class="center">';
             if (empty($row->fk_letter)) {
-                print '<input type="checkbox" class="warranty-shipment-select" name="shipmentids[]" value="'.$shipmentId.'" data-socid="'.((int) $row->fk_soc).'">';
+                print '<input type="checkbox" class="warranty-shipment-select" name="shipmentids[]" value="'.$shipmentId.'" data-socid="'.((int) $row->fk_soc).'" form="warrantyShipmentCreateForm">';
             } else {
                 print '<span class="opacitymedium">—</span>';
             }
@@ -174,12 +176,12 @@ if (!$resql) {
     $db->free($resql);
 }
 print '</table></div>';
+print '</form>';
 
 if ($canCreateLetter) {
     print '<div class="tabsAction">';
-    print '<button class="butAction" type="submit">'.$langs->trans('WarrantyLetterCreateFromSelected').'</button>';
+    print '<button class="butAction" type="submit" form="warrantyShipmentCreateForm">'.$langs->trans('WarrantyLetterCreateFromSelected').'</button>';
     print '</div>';
-    print '</form>';
     print '<script>
     (function(){
         const boxes=[...document.querySelectorAll(".warranty-shipment-select")];
