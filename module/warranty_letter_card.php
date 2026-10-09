@@ -231,30 +231,6 @@ print '<tr><td>'.$langs->trans('WarrantyLetterVersion').'</td><td>'.((int)$objec
 print '<tr><td>'.$langs->trans('WarrantyLetterLastSentVersion').'</td><td>'.((int)$object->last_sent_version).'</td></tr>';
 print '</table>';
 
-print load_fiche_titre($langs->trans('WarrantyLetterShipments'),'','shipment');
-print '<div class="div-table-responsive"><table class="noborder centpercent">';
-print '<tr class="liste_titre"><th>'.$langs->trans('ShipmentRef').'</th><th>'.$langs->trans('Date').'</th><th>'.$langs->trans('Order').'</th><th class="right">'.$langs->trans('ShowDetails').'</th></tr>';
-foreach ($shipments as $s) {
-    $orderRefs=array();
-    $sql='SELECT DISTINCT c.rowid, c.ref FROM '.MAIN_DB_PREFIX.'svc_warranty w';
-    $sql.=' JOIN '.MAIN_DB_PREFIX.'commande c ON c.rowid=w.fk_commande';
-    $sql.=' WHERE w.entity='.((int)$conf->entity).' AND w.fk_expedition='.((int)$s->fk_expedition).' AND w.fk_commande>0 ORDER BY c.ref';
-    $r=$db->query($sql);
-    if ($r) {
-        while ($ord=$db->fetch_object($r)) {
-            $orderRefs[]='<a href="'.DOL_URL_ROOT.'/commande/card.php?id='.((int)$ord->rowid).'">'.dol_escape_htmltag($ord->ref).'</a>';
-        }
-        $db->free($r);
-    }
-    print '<tr class="oddeven">';
-    print '<td><a href="'.DOL_URL_ROOT.'/expedition/card.php?id='.((int)$s->fk_expedition).'">'.dol_escape_htmltag($s->ref).'</a></td>';
-    print '<td>'.(!empty($s->date_expedition)?dol_print_date($db->jdate($s->date_expedition),'day'):'').'</td>';
-    print '<td>'.($orderRefs?implode(', ',$orderRefs):'<span class="opacitymedium">—</span>').'</td>';
-    print '<td class="right"><a href="'.DOL_URL_ROOT.'/custom/warrantysvc/warranty_list.php?shipmentid='.((int)$s->fk_expedition).'">'.$langs->trans('ShowDetails').'</a></td>';
-    print '</tr>';
-}
-print '</table></div>';
-
 if ($stale) print '<div class="warning">'.$langs->trans('WarrantyLetterStaleWarning').'</div>';
 
 // Current live business content. This uses the very same grouping logic that
@@ -273,7 +249,27 @@ if (is_array($liveSnapshot) && !empty($liveSnapshot['shipments'])) {
             print ' &mdash; '.$langs->trans('Date').': '.dol_print_date($db->jdate((string)$contentShipment['shipment_date']),'day');
         }
         if (!empty($contentShipment['order_refs'])) {
-            print ' &mdash; '.$langs->trans('Order').': '.dol_escape_htmltag(implode(', ', (array)$contentShipment['order_refs']));
+            $orderLinks=array();
+            $sqlOrders='SELECT DISTINCT c.rowid, c.ref FROM '.MAIN_DB_PREFIX.'svc_warranty w';
+            $sqlOrders.=' JOIN '.MAIN_DB_PREFIX.'commande c ON c.rowid=w.fk_commande';
+            $sqlOrders.=' WHERE w.entity='.((int)$conf->entity);
+            $sqlOrders.=' AND w.fk_expedition='.((int)$contentShipment['shipment_id']);
+            $sqlOrders.=' AND w.fk_commande IS NOT NULL AND w.fk_commande>0';
+            $sqlOrders.=' ORDER BY c.ref';
+            $resOrders=$db->query($sqlOrders);
+            if ($resOrders) {
+                while ($orderRow=$db->fetch_object($resOrders)) {
+                    $orderLinks[]='<a href="'.DOL_URL_ROOT.'/commande/card.php?id='.((int)$orderRow->rowid).'">'.dol_escape_htmltag((string)$orderRow->ref).'</a>';
+                }
+                $db->free($resOrders);
+            }
+
+            print ' &mdash; '.$langs->trans('Order').': ';
+            if ($orderLinks) {
+                print implode(', ', $orderLinks);
+            } else {
+                print dol_escape_htmltag(implode(', ', (array)$contentShipment['order_refs']));
+            }
         }
         print '</th>';
         print '</tr>';
