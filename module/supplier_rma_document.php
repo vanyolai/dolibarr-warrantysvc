@@ -56,6 +56,10 @@ $permissiontoadd = $permwrite ? 1 : 0;
 $permtoedit = $permissiontoadd;
 $permission = $permissiontoadd;
 $param = '&id='.((int) $object->id);
+$sortfield = GETPOST('sortfield', 'aZ09comma') ?: 'name';
+$sortorder = strtoupper(GETPOST('sortorder', 'aZ09comma') ?: 'ASC');
+if (!in_array($sortfield, array('name', 'size', 'date', 'position_name'), true)) $sortfield = 'name';
+if (!in_array($sortorder, array('ASC', 'DESC'), true)) $sortorder = 'ASC';
 $savingdocmask = dol_sanitizeFileName($object->ref).'-__file__';
 
 if ($upload_dir !== '') {
