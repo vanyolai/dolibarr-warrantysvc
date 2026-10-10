@@ -992,3 +992,18 @@ WarrantyLetterAgendaRevisionDeleted=Warranty letter %s PDF revision v%s deleted
 WarrantyLetterAgendaRevisionDeletedNote=Deleted document: %s
 WarrantyLetterAgendaSentByEmail=Warranty letter %s v%s sent by email
 WarrantyLetterAgendaSentByEmailNote=Recipient: %s\nSubject: %s
+
+# Supplier service / RMA workspace
+SupplierRmaServiceMenu=Supplier service / RMA
+SupplierRmaOpenOverview=Open supplier RMAs
+SupplierRmaInServiceOverview=Supplier service in progress
+SupplierRmaWorkDone=Work performed by supplier
+SupplierRmaDateUpdated=RMA event date updated; the correction was logged.
+SupplierRmaClearDate=Clear date
+SupplierRmaDateCorrectionReason=Reason for correction (optional)
+SupplierRmaEventDATE=Date correction
+SupplierRmaDocuments=Supplier documents
+SupplierRmaDocumentsHint=Attach a supplier RMA form, service report, or other file. External document links (e.g. Paperless) can also be added through Dolibarr's link manager, subject to core security restrictions.
+ErrorSupplierRmaInvalidDateField=Unknown RMA date field.
+ErrorSupplierRmaRequiredDate=The RMA request date cannot be cleared.
+ErrorSupplierRmaInvalidDate=Invalid RMA event date.
