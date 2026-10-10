@@ -8,5 +8,6 @@ CREATE TABLE llx_svc_supplier_rma_log(
 	new_status        VARCHAR(32),
 	note              TEXT,
 	date_event        DATETIME     NOT NULL,
+	date_effective    DATETIME,
 	fk_user           INTEGER
 ) ENGINE=innodb;
