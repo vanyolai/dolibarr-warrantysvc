@@ -207,6 +207,12 @@ function svcsupplierrma_prepare_head($object)
 	$head[$h][2] = 'contact';
 	$h++;
 
+	// Native Dolibarr document tab supports local uploads and external links.
+	$head[$h][0] = dol_buildpath('/warrantysvc/supplier_rma_document.php', 1).'?id='.((int) $object->id);
+	$head[$h][1] = $langs->trans('SupplierRmaDocuments');
+	$head[$h][2] = 'document';
+	$h++;
+
 	complete_head_from_modules($conf, $langs, $object, $head, $h, 'svcsupplierrma@warrantysvc');
 	return $head;
 }
