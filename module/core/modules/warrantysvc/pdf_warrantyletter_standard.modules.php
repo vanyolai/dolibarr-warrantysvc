@@ -372,7 +372,7 @@ class pdf_warrantyletter_standard extends ModelePDFWarrantySvc
 			$pdf->SetTextColor(0, 0, 0);
 			$pdf->SetFont('', '', $defaultFontSize - 2);
 			$pdf->SetXY($senderX, $senderY - 5);
-			$pdf->MultiCell(80, 5, $outputlangs->transnoentities('BillFrom'), 0, $ltrdirection);
+			$pdf->MultiCell(80, 5, $outputlangs->transnoentities('WarrantyLetterIssuer'), 0, $ltrdirection);
 			$pdf->SetFillColor(230, 230, 230);
 			$pdf->RoundedRect($senderX, $senderY, $senderW, $frameH, $this->corner_radius, '1234', 'F');
 		}
@@ -403,7 +403,7 @@ class pdf_warrantyletter_standard extends ModelePDFWarrantySvc
 			$pdf->SetTextColor(0, 0, 0);
 			$pdf->SetFont('', '', $defaultFontSize - 2);
 			$pdf->SetXY($recipientX + 2, $recipientY - 5);
-			$pdf->MultiCell($recipientW, 5, $outputlangs->transnoentities('BillTo'), 0, $ltrdirection);
+			$pdf->MultiCell($recipientW, 5, $outputlangs->transnoentities('WarrantyLetterCustomer'), 0, $ltrdirection);
 			$pdf->RoundedRect($recipientX, $recipientY, $recipientW, $frameH, $this->corner_radius, '1234', 'D');
 		}
 
