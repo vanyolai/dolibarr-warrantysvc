@@ -133,3 +133,34 @@ was never intended for production deployment.
 PDF generation occurs inside a caller-owned DB transaction. If a later
 revision-registration step fails, the generated file is explicitly cleaned up,
 so rolled-back revisions do not leave orphan PDFs.
+
+
+## Native email regression checks (Dolibarr 23)
+
+Run these tests in the sandbox after changing the mail form or substitution hook:
+
+1. Open an existing, hash-verified and non-stale letter using **Send email**.
+   The first render must already list the official current-version PDF under
+   attachments (no manual file upload or template re-application).
+2. The message subject and body must show concrete values, not literal tokens,
+   for `__WARRANTY_LETTER_REF__`, `__WARRANTY_LETTER_VERSION__`,
+   `__SHIPMENT_REFS__` and `__ORDER_REFS__`. Verify multiple references.
+3. Select the standard PDF mail template and click **Apply**. Its default
+   `joinfiles=1` must preserve/reinitialize the correct PDF attachment and
+   must show the resolved variables in the new template.
+4. Remove the PDF in the native composer and try to send: the server must
+   refuse delivery and keep the composer available with an error.
+5. Press **Cancel** from the composer: leave without validating attachments
+   or sending an email.
+6. Send a test message with the valid PDF: verify the MIME attachment, actual
+   rendered subject/body, revision-specific mail audit and Agenda event.
+7. Create a newer PDF revision, reopen the composer and verify the new
+   version is attached, not the earlier one. Repeat for a stale/modified
+   source warranty: sending must be disabled before opening the composer.
+8. For a manually customized template with `joinfiles=0`, sending remains
+   blocked until the official PDF is attached. The standard PDF template is
+   configured with `joinfiles=1`; user templates are never overwritten.
+
+The PDF initialization uses Dolibarr's native `mode=init` entry flow and
+`fileinit`; template preview variables use the module substitution hook,
+while actual sending still calls the same object-owned substitution mapping.
