@@ -699,10 +699,7 @@ if ($action === 'presend' && $permwrite) {
 	$modelmail = 'svcsupplierrma';
 	$defaulttopic = 'SupplierRmaEmailSubject';
 	$defaulttopiclang = 'warrantysvc@warrantysvc';
-	$baseOutput = !empty($conf->warrantysvc->multidir_output[$object->entity])
-		? $conf->warrantysvc->multidir_output[$object->entity]
-		: (!empty($conf->warrantysvc->dir_output) ? $conf->warrantysvc->dir_output : DOL_DATA_ROOT.'/warrantysvc');
-	$diroutput = $baseOutput.'/'.$sr->ref.'/supplier-rma/'.$object->ref;
+	$diroutput = $object->getDocumentOutputDir((string) $sr->ref);
 	$trackid = 'wsvcsrma'.$object->id;
 	include DOL_DOCUMENT_ROOT.'/core/tpl/card_presend.tpl.php';
 }
