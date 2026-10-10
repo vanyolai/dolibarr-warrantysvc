@@ -1275,7 +1275,8 @@ class modWarrantySvc extends DolibarrModules
 		foreach ($templates as $lang => $tpl) {
 			$sql = 'SELECT rowid FROM '.MAIN_DB_PREFIX.'c_email_templates WHERE entity = '.((int) $conf->entity);
 			$sql .= " AND type_template = 'svcwarrantyletter' AND lang = '".$this->db->escape($lang)."'";
-			$sql .= ' AND active = 1'.$this->db->plimit(1);
+			// Disabled templates are user-managed too: never silently recreate one on activation.
+			$sql .= $this->db->plimit(1);
 			$res = $this->db->query($sql);
 			if (!$res) return -1;
 			$exists = (bool) $this->db->fetch_object($res);
