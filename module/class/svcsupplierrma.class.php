@@ -520,7 +520,7 @@ class SvcSupplierRma extends CommonObject
 		$documentDir = $this->getDocumentOutputDir((string) $request->ref);
 		if ($documentDir !== '' && is_dir($documentDir)) {
 			require_once DOL_DOCUMENT_ROOT.'/core/lib/files.lib.php';
-			if (!empty(dol_dir_list($documentDir, 'files', 0, '', '(\\.meta|_preview.*\\.png)
+			if (!empty(dol_dir_list($documentDir, 'files', 0, '', '(\.meta|_preview.*\.png)$'))) {
 				$this->error = 'ErrorSupplierRmaHasDocuments';
 				return -1;
 			}
