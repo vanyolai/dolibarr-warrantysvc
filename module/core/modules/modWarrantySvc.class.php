@@ -575,6 +575,7 @@ class modWarrantySvc extends DolibarrModules
 		$requestTable = MAIN_DB_PREFIX.'svc_request';
 		$serviceLogTable = MAIN_DB_PREFIX.'svc_service_log';
 		$supplierRmaTable = MAIN_DB_PREFIX.'svc_supplier_rma';
+		$supplierRmaLogTable = MAIN_DB_PREFIX.'svc_supplier_rma_log';
 		$supplierReturnLineTable = MAIN_DB_PREFIX.'svc_supplier_return_line';
 
 		if ($this->tableExists($warrantyTable)) {
@@ -734,6 +735,20 @@ class modWarrantySvc extends DolibarrModules
 				&& $this->db->DDLAddField($supplierRmaTable, 'supplier_work_done', array('type'=>'text')) < 0) {
 				return -1;
 			}
+		}
+
+		// Preserve both the real date of a supplier event and the time at which
+		// it was entered into the system. Older rows retain their original audit
+		// timestamp as the initial effective date until explicitly corrected.
+		if ($this->tableExists($supplierRmaLogTable)) {
+			$columns = $this->getColumnTypes($supplierRmaLogTable);
+			if (!isset($columns['date_effective'])
+				&& $this->db->DDLAddField($supplierRmaLogTable, 'date_effective', array('type'=>'datetime')) < 0) {
+				return -1;
+			}
+			$sql = 'UPDATE '.$supplierRmaLogTable.' SET date_effective = date_event';
+			$sql .= " WHERE date_effective IS NULL AND event_code IN ('CREATE', 'STATUS')";
+			if (!$this->db->query($sql)) return -1;
 		}
 
 		return 1;
