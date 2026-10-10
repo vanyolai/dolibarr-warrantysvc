@@ -282,16 +282,10 @@ if ($action === 'create') {
 	print '</td></tr>';
 
 	print '<tr><td class="tdtop">'.$langs->trans('SupplierRmaWorkDone').'</td><td>';
-if ($isEdit) {
 	print '<textarea name="supplier_work_done" class="quatrevingtpercent" rows="5">'.dol_escape_htmltag((string) $object->supplier_work_done).'</textarea>';
-} else {
-	print !empty($object->supplier_work_done)
-		? dol_string_onlythesehtmltags(dol_htmlentitiesbr($object->supplier_work_done))
-		: '<span class="opacitymedium">—</span>';
-}
-print '</td></tr>';
+	print '</td></tr>';
 
-print '<tr><td class="tdtop">'.$langs->trans('SupplierRmaAccessoriesSent').'</td><td>';
+	print '<tr><td class="tdtop">'.$langs->trans('SupplierRmaAccessoriesSent').'</td><td>';
 	print '<textarea name="accessories_sent" class="quatrevingtpercent" rows="3">'.dol_escape_htmltag($object->accessories_sent).'</textarea>';
 	print '</td></tr>';
 
@@ -550,6 +544,16 @@ if ($isEdit) {
 	print '<textarea name="diagnosis" class="quatrevingtpercent" rows="5">'.dol_escape_htmltag($object->diagnosis).'</textarea>';
 } else {
 	print !empty($object->diagnosis) ? dol_string_onlythesehtmltags(dol_htmlentitiesbr($object->diagnosis)) : '<span class="opacitymedium">—</span>';
+}
+print '</td></tr>';
+
+print '<tr><td class="tdtop">'.$langs->trans('SupplierRmaWorkDone').'</td><td>';
+if ($isEdit) {
+	print '<textarea name="supplier_work_done" class="quatrevingtpercent" rows="5">'.dol_escape_htmltag((string) $object->supplier_work_done).'</textarea>';
+} else {
+	print !empty($object->supplier_work_done)
+		? dol_string_onlythesehtmltags(dol_htmlentitiesbr($object->supplier_work_done))
+		: '<span class="opacitymedium">—</span>';
 }
 print '</td></tr>';
 
