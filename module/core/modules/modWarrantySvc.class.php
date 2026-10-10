@@ -728,6 +728,12 @@ class modWarrantySvc extends DolibarrModules
 			if (!isset($columns['qty']) && $this->db->DDLAddField($supplierRmaTable, 'qty', array('type'=>'decimal', 'value'=>'24,8', 'default'=>'1')) < 0) {
 				return -1;
 			}
+			// Free-text supplier resolution is distinct from our own diagnosis.
+			// Idempotent migration; existing service/RMA rows are preserved.
+			if (!isset($columns['supplier_work_done'])
+				&& $this->db->DDLAddField($supplierRmaTable, 'supplier_work_done', array('type'=>'text')) < 0) {
+				return -1;
+			}
 		}
 
 		return 1;
