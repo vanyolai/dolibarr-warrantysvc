@@ -180,7 +180,7 @@ if ($action === 'update_business_date' && $permwrite && $object->id > 0 && $_SER
 	$action = 'editdate';
 }
 
-if ($action === 'setstatus' && $permwrite && $object->id > 0) {
+if ($action === 'setstatus' && $permwrite && $object->id > 0 && $_SERVER['REQUEST_METHOD'] === 'POST') {
 	$newStatus = GETPOST('newstatus', 'alpha');
 	$note = GETPOST('status_note', 'restricthtml');
 	$result = $object->setStatus($newStatus, $user, $note);
@@ -635,7 +635,12 @@ if ($isEdit) {
 	if ($permwrite) {
 		foreach ($next as $nextStatus => $labelKey) {
 			$css = ($nextStatus === SvcSupplierRma::STATUS_CANCELLED) ? 'butActionDelete' : 'butAction';
-			print '<a href="'.$_SERVER['PHP_SELF'].'?id='.$object->id.'&action=setstatus&newstatus='.urlencode($nextStatus).'&token='.newToken().'" class="'.$css.'">'.$langs->trans($labelKey).'</a>';
+			print '<form method="POST" action="'.$_SERVER['PHP_SELF'].'?id='.((int) $object->id).'" class="inline-block">';
+			print '<input type="hidden" name="token" value="'.newToken().'">';
+			print '<input type="hidden" name="action" value="setstatus">';
+			print '<input type="hidden" name="newstatus" value="'.dol_escape_htmltag($nextStatus).'">';
+			print '<button type="submit" class="'.$css.'">'.dol_escape_htmltag($langs->trans($labelKey)).'</button>';
+			print '</form>';
 		}
 	}
 
