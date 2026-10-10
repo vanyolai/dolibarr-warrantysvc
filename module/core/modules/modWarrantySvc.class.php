@@ -267,7 +267,7 @@ class modWarrantySvc extends DolibarrModules
 			'langs'    => 'warrantysvc@warrantysvc',
 			'position' => 900,
 			'enabled'  => 'isModEnabled("warrantysvc")',
-			'perms'    => '$user->hasRight("warrantysvc", "svcrequest", "read") || $user->hasRight("warrantysvc", "svcwarranty", "read") || $user->hasRight("warrantysvc", "warrantyletter", "read") || $user->hasRight("warrantysvc", "supplierreturn", "read")',
+			'perms'    => '$user->hasRight("warrantysvc", "svcrequest", "read") || $user->hasRight("warrantysvc", "svcwarranty", "read") || $user->hasRight("warrantysvc", "warrantyletter", "read") || $user->hasRight("warrantysvc", "supplierrma", "read") || $user->hasRight("warrantysvc", "supplierreturn", "read")',
 			'target'   => '',
 			'user'     => 0,
 		);
@@ -285,7 +285,7 @@ class modWarrantySvc extends DolibarrModules
 			'langs'    => 'warrantysvc@warrantysvc',
 			'position' => 910,
 			'enabled'  => 'isModEnabled("warrantysvc")',
-			'perms'    => '$user->hasRight("warrantysvc", "svcrequest", "read")',
+			'perms'    => '$user->hasRight("warrantysvc", "svcrequest", "read") || $user->hasRight("warrantysvc", "supplierrma", "read")',
 			'target'   => '',
 			'user'     => 0,
 		);
