@@ -350,9 +350,13 @@ if (is_array($liveSnapshot) && !empty($liveSnapshot['shipments'])) {
     }
 
     print load_fiche_titre($langs->trans('WarrantyLetterContents'),'','product');
+    // All shipment groups share one table and therefore one column layout.
+    // Separate auto-layout tables calculate widths independently based on
+    // product descriptions and serial/LOT values and cannot align reliably.
+    print '<div class="div-table-responsive">';
+    print '<table class="noborder centpercent marginbottomonly">';
     foreach ($liveSnapshot['shipments'] as $contentShipment) {
-        print '<div class="div-table-responsive">';
-        print '<table class="noborder centpercent marginbottomonly">';
+        print '<tbody>';
         print '<tr class="liste_titre">';
         print '<th colspan="5">';
         print $langs->trans('ShipmentRef').': ';
@@ -402,9 +406,10 @@ if (is_array($liveSnapshot) && !empty($liveSnapshot['shipments'])) {
             print '<td>'.(!empty($group['expiry_date']) ? dol_print_date($db->jdate((string)$group['expiry_date']),'day') : '').'</td>';
             print '</tr>';
         }
-        print '</table>';
-        print '</div>';
+        print '</tbody>';
     }
+    print '</table>';
+    print '</div>';
 } else {
     print '<div class="warning">'.$langs->trans('WarrantyLetterNoWarranties').'</div>';
 }
