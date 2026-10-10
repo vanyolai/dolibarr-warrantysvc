@@ -66,7 +66,7 @@ class pdf_warrantyletter_standard extends ModelePDFWarrantySvc
 		global $conf, $langs, $user;
 
 		if (!is_object($outputlangs)) $outputlangs = $langs;
-		$outputlangs->loadLangs(array('warrantysvc@warrantysvc', 'main', 'companies', 'products', 'sendings', 'orders'));
+		$outputlangs->loadLangs(array('warrantysvc@warrantysvc', 'main', 'companies', 'products', 'sendings', 'orders', 'bills'));
 
 		$data = $object->pending_snapshot;
 		$revision = (int) $object->pending_version;
