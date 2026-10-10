@@ -139,7 +139,7 @@ function warrantysvc_completesubstitutionarray(&$substitutionarray, $outputlangs
 	if ($object->element === 'svcrequest') {
 		$serviceRequest = $object;
 	} elseif ($object->element === 'svcsupplierrma') {
-		require_once DOL_DOCUMENT_ROOT.'/custom/warrantysvc/class/svcrequest.class.php';
+		dol_include_once('/warrantysvc/class/svcrequest.class.php');
 		$serviceRequest = new SvcRequest($object->db);
 		if ($serviceRequest->fetch((int) $object->fk_svc_request) <= 0) {
 			$serviceRequest = null;
@@ -256,7 +256,7 @@ function warrantysvc_completesubstitutionarray(&$substitutionarray, $outputlangs
 		}
 
 		if (!empty($serviceRequest->fk_warranty)) {
-			require_once DOL_DOCUMENT_ROOT.'/custom/warrantysvc/class/svcwarranty.class.php';
+			dol_include_once('/warrantysvc/class/svcwarranty.class.php');
 			$warranty = new SvcWarranty($object->db);
 			if ($warranty->fetch((int) $serviceRequest->fk_warranty) <= 0) {
 				$warranty = null;
