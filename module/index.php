@@ -13,6 +13,7 @@ dol_include_once('/warrantysvc/class/svcrequest.class.php');
 dol_include_once('/warrantysvc/class/svcwarranty.class.php');
 dol_include_once('/warrantysvc/class/svcwarrantyletter.class.php');
 dol_include_once('/warrantysvc/class/svcsupplierreturn.class.php');
+dol_include_once('/warrantysvc/class/svcsupplierrma.class.php');
 
 $langs->loadLangs(array('warrantysvc@warrantysvc','companies','sendings'));
 
@@ -22,6 +23,7 @@ $canReadRequests = $user->hasRight('warrantysvc','svcrequest','read');
 $canReadWarranties = $user->hasRight('warrantysvc','svcwarranty','read');
 $canReadLetters = $user->hasRight('warrantysvc','warrantyletter','read');
 $canReadReturns = $user->hasRight('warrantysvc','supplierreturn','read');
+$canReadSupplierRma = $user->hasRight('warrantysvc','supplierrma','read');
 
 $scalar = static function($db, $sql) {
 	$res = $db->query($sql);
@@ -97,6 +99,19 @@ if ($canReadLetters) {
 	);
 }
 
+if ($canReadSupplierRma) {
+	$stats['supplier_rma_open'] = $scalar($db,
+		'SELECT COUNT(*) AS nb FROM '.MAIN_DB_PREFIX.'svc_supplier_rma'
+		.' WHERE entity = '.((int) $conf->entity)
+		." AND status NOT IN ('".SvcSupplierRma::STATUS_CLOSED."','".SvcSupplierRma::STATUS_CANCELLED."')"
+	);
+	$stats['supplier_rma_in_service'] = $scalar($db,
+		'SELECT COUNT(*) AS nb FROM '.MAIN_DB_PREFIX.'svc_supplier_rma'
+		.' WHERE entity = '.((int) $conf->entity)
+		." AND status IN ('".SvcSupplierRma::STATUS_RECEIVED_BY_SUPPLIER."','".SvcSupplierRma::STATUS_IN_SERVICE."')"
+	);
+}
+
 if ($canReadReturns) {
 	$stats['returns_open'] = $scalar($db,
 		'SELECT COUNT(*) AS nb FROM '.MAIN_DB_PREFIX.'svc_supplier_return'
@@ -118,6 +133,15 @@ if ($canReadRequests) {
 	print '<tr class="oddeven"><td><a href="'.dol_buildpath('/warrantysvc/list.php',1).'?search_status=0%2C1%2C2%2C3%2C4%2C6">'.$langs->trans('WarrantySvcOpenRequests').'</a></td><td class="right"><strong>'.$stats['requests_open'].'</strong></td></tr>';
 	print '<tr class="oddeven"><td><a href="'.dol_buildpath('/warrantysvc/list.php',1).'?preset=awaitreturn">'.$langs->trans('AwaitingReturn').'</a></td><td class="right"><strong>'.$stats['requests_await'].'</strong></td></tr>';
 	print '<tr class="oddeven"><td><a href="'.dol_buildpath('/warrantysvc/list.php',1).'?search_assigned=-1&search_status=0%2C1%2C2%2C3%2C4%2C6">'.$langs->trans('Unassigned').'</a></td><td class="right"><strong>'.$stats['requests_unassigned'].'</strong></td></tr>';
+	print '</table>';
+	print '<br>';
+}
+
+if ($canReadSupplierRma) {
+	print load_fiche_titre($langs->trans('SupplierRmaServiceMenu'), '', 'tools');
+	print '<table class="noborder centpercent">';
+	print '<tr class="oddeven"><td><a href="'.dol_buildpath('/warrantysvc/supplier_rma_list.php',1).'?preset=open">'.$langs->trans('SupplierRmaOpenOverview').'</a></td><td class="right"><strong>'.$stats['supplier_rma_open'].'</strong></td></tr>';
+	print '<tr class="oddeven"><td><a href="'.dol_buildpath('/warrantysvc/supplier_rma_list.php',1).'?preset=service">'.$langs->trans('SupplierRmaInServiceOverview').'</a></td><td class="right"><strong>'.$stats['supplier_rma_in_service'].'</strong></td></tr>';
 	print '</table>';
 	print '<br>';
 }
