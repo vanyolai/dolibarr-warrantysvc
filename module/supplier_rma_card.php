@@ -17,9 +17,9 @@ require_once DOL_DOCUMENT_ROOT.'/core/class/html.formcompany.class.php';
 require_once DOL_DOCUMENT_ROOT.'/core/class/html.formfile.class.php';
 require_once DOL_DOCUMENT_ROOT.'/product/class/product.class.php';
 require_once DOL_DOCUMENT_ROOT.'/societe/class/societe.class.php';
-require_once DOL_DOCUMENT_ROOT.'/custom/warrantysvc/class/svcsupplierrma.class.php';
-require_once DOL_DOCUMENT_ROOT.'/custom/warrantysvc/class/svcrequest.class.php';
-require_once DOL_DOCUMENT_ROOT.'/custom/warrantysvc/lib/warrantysvc.lib.php';
+dol_include_once('/warrantysvc/class/svcsupplierrma.class.php');
+dol_include_once('/warrantysvc/class/svcrequest.class.php');
+dol_include_once('/warrantysvc/lib/warrantysvc.lib.php');
 
 $langs->loadLangs(array('warrantysvc@warrantysvc', 'companies', 'products', 'stocks'));
 
@@ -93,6 +93,7 @@ function warrantysvc_supplier_rma_fill_from_post($object, $identityEditable = tr
 	$object->replacement_serial_number = GETPOST('replacement_serial_number', 'alphanohtml');
 	$object->problem_description = GETPOST('problem_description', 'restricthtml');
 	$object->diagnosis = GETPOST('diagnosis', 'restricthtml');
+	$object->supplier_work_done = GETPOST('supplier_work_done', 'restricthtml');
 	$object->accessories_sent = GETPOST('accessories_sent', 'restricthtml');
 	$object->fk_warehouse_source = GETPOSTINT('fk_warehouse_source');
 	$object->fk_warehouse_return = GETPOSTINT('fk_warehouse_return');
@@ -242,7 +243,17 @@ if ($action === 'create') {
 	print '<textarea name="diagnosis" class="quatrevingtpercent" rows="5">'.dol_escape_htmltag($object->diagnosis).'</textarea>';
 	print '</td></tr>';
 
-	print '<tr><td class="tdtop">'.$langs->trans('SupplierRmaAccessoriesSent').'</td><td>';
+	print '<tr><td class="tdtop">'.$langs->trans('SupplierRmaWorkDone').'</td><td>';
+if ($isEdit) {
+	print '<textarea name="supplier_work_done" class="quatrevingtpercent" rows="5">'.dol_escape_htmltag((string) $object->supplier_work_done).'</textarea>';
+} else {
+	print !empty($object->supplier_work_done)
+		? dol_string_onlythesehtmltags(dol_htmlentitiesbr($object->supplier_work_done))
+		: '<span class="opacitymedium">—</span>';
+}
+print '</td></tr>';
+
+print '<tr><td class="tdtop">'.$langs->trans('SupplierRmaAccessoriesSent').'</td><td>';
 	print '<textarea name="accessories_sent" class="quatrevingtpercent" rows="3">'.dol_escape_htmltag($object->accessories_sent).'</textarea>';
 	print '</td></tr>';
 
@@ -296,7 +307,7 @@ if ($action === 'delete') {
 }
 print $formconfirm;
 
-$linkback = '<a href="'.DOL_URL_ROOT.'/custom/warrantysvc/card.php?id='.$sr->id.'#supplier-rma">'.$langs->trans('BackToSvcRequest').'</a>';
+$linkback = '<a href="'.dol_buildpath('/warrantysvc/supplier_rma_list.php', 1).'">'.$langs->trans('BackToList').'</a>';
 
 $morehtmlref = '<div class="refidno">';
 $morehtmlref .= '<a href="'.DOL_URL_ROOT.'/custom/warrantysvc/card.php?id='.$sr->id.'">'.dol_escape_htmltag($sr->ref).'</a>';
