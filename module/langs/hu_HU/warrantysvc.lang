@@ -1010,3 +1010,4 @@ ErrorSupplierRmaInvalidDate=Érvénytelen RMA eseménydátum.
 ErrorSupplierRmaHasDocuments=Az RMA-hoz fájl vagy külső dokumentumhivatkozás tartozik. A bizonylat nem törölhető véglegesen, amíg ezek megvannak.
 SupplierRmaEffectiveDate=Tényleges eseménydátum
 SupplierRmaRecordedDate=Rögzítés időpontja
+SubstSupplierRmaWorkDone=A beszállító által elvégzett munka
