@@ -1256,32 +1256,58 @@ class modWarrantySvc extends DolibarrModules
 		return 1;
 	}
 
-	/** Register a new native Email Templates type without overwriting legacy drafts. */
+	/**
+	 * Seed native, editable Warranty Letter email templates.
+	 *
+	 * Do not recreate disabled templates and never overwrite user-edited
+	 * subjects, bodies or labels. Only migrate the two exact old default labels:
+	 * Dolibarr's FormMail parses "(...)" within a template label as a
+	 * translation marker, which reduced both labels to the misleading "PDF".
+	 *
+	 * @return int 1 if successful, -1 on database failure
+	 */
 	private function syncWarrantyLetterEmailTemplates()
 	{
 		global $conf;
+
 		$templates = array(
-			'hu_HU'=>array(
-				'label'=>'Garancialevél (PDF)',
-				'topic'=>'Garancialevél – __WARRANTY_LETTER_REF__',
-				'content'=>'Tisztelt Partnerünk!<br><br>A következő szállítmányokhoz tartozó garancialevelet PDF-mellékletként küldjük: __SHIPMENT_REFS__.<br><br>Garancialevél: __WARRANTY_LETTER_REF__, verzió: __WARRANTY_LETTER_VERSION__<br>Kapcsolódó rendelés(ek): __ORDER_REFS__<br><br>Üdvözlettel,<br>__SENDEREMAIL_SIGNATURE__'
+			'hu_HU' => array(
+				'label' => 'Garancialevél - PDF',
+				'previous_label' => 'Garancialevél (PDF)',
+				'topic' => 'Garancialevél – __WARRANTY_LETTER_REF__',
+				'content' => 'Tisztelt Partnerünk!<br><br>A következő szállítmányokhoz tartozó garancialevelet PDF-mellékletként küldjük: __SHIPMENT_REFS__.<br><br>Garancialevél: __WARRANTY_LETTER_REF__, verzió: __WARRANTY_LETTER_VERSION__<br>Kapcsolódó rendelés(ek): __ORDER_REFS__<br><br>Üdvözlettel,<br>__SENDEREMAIL_SIGNATURE__'
 			),
-			'en_US'=>array(
-				'label'=>'Warranty letter (PDF)',
-				'topic'=>'Warranty letter – __WARRANTY_LETTER_REF__',
-				'content'=>'Dear Partner,<br><br>Please find attached the warranty letter covering shipment(s): __SHIPMENT_REFS__.<br><br>Letter: __WARRANTY_LETTER_REF__, version: __WARRANTY_LETTER_VERSION__<br>Related order(s): __ORDER_REFS__<br><br>Kind regards,<br>__SENDEREMAIL_SIGNATURE__'
+			'en_US' => array(
+				'label' => 'Warranty letter - PDF',
+				'previous_label' => 'Warranty letter (PDF)',
+				'topic' => 'Warranty letter – __WARRANTY_LETTER_REF__',
+				'content' => 'Dear Partner,<br><br>Please find attached the warranty letter covering shipment(s): __SHIPMENT_REFS__.<br><br>Letter: __WARRANTY_LETTER_REF__, version: __WARRANTY_LETTER_VERSION__<br>Related order(s): __ORDER_REFS__<br><br>Kind regards,<br>__SENDEREMAIL_SIGNATURE__'
 			)
 		);
+
 		foreach ($templates as $lang => $tpl) {
-			$sql = 'SELECT rowid FROM '.MAIN_DB_PREFIX.'c_email_templates WHERE entity = '.((int) $conf->entity);
+			$sql = 'SELECT rowid, module, label FROM '.MAIN_DB_PREFIX.'c_email_templates';
+			$sql .= ' WHERE entity = '.((int) $conf->entity);
 			$sql .= " AND type_template = 'svcwarrantyletter' AND lang = '".$this->db->escape($lang)."'";
-			// Disabled templates are user-managed too: never silently recreate one on activation.
 			$sql .= $this->db->plimit(1);
 			$res = $this->db->query($sql);
 			if (!$res) return -1;
-			$exists = (bool) $this->db->fetch_object($res);
+			$existing = $this->db->fetch_object($res);
 			$this->db->free($res);
-			if ($exists) continue;
+			if ($existing) {
+				if ((string) $existing->module === 'warrantysvc'
+					&& (string) $existing->label === $tpl['previous_label']) {
+					$sql = 'UPDATE '.MAIN_DB_PREFIX.'c_email_templates';
+					$sql .= " SET label = '".$this->db->escape($tpl['label'])."'";
+					$sql .= ' WHERE rowid = '.((int) $existing->rowid);
+					$sql .= ' AND entity = '.((int) $conf->entity);
+					$sql .= " AND module = 'warrantysvc'";
+					$sql .= " AND label = '".$this->db->escape($tpl['previous_label'])."'";
+					if (!$this->db->query($sql)) return -1;
+				}
+				continue;
+			}
+
 			$sql = 'INSERT INTO '.MAIN_DB_PREFIX.'c_email_templates';
 			$sql .= ' (entity, module, type_template, lang, private, fk_user, datec, label, position, defaultfortype, enabled, active, topic, joinfiles, content)';
 			$sql .= ' VALUES ('.((int) $conf->entity).", 'warrantysvc', 'svcwarrantyletter', '".$this->db->escape($lang)."'";
@@ -1289,6 +1315,7 @@ class modWarrantySvc extends DolibarrModules
 			$sql .= ", 10, 1, '1', 1, '".$this->db->escape($tpl['topic'])."', 1, '".$this->db->escape($tpl['content'])."')";
 			if (!$this->db->query($sql)) return -1;
 		}
+
 		return 1;
 	}
 
