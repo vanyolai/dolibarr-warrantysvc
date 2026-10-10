@@ -501,6 +501,74 @@ class SvcSupplierRma extends CommonObject
 		return 1;
 	}
 
+	/**
+	 * Correct one business event timestamp without rewriting the audit timeline.
+	 *
+	 * The timestamp stored on the RMA records when the supplier/business event
+	 * actually happened; the DATE audit event always uses the time of the user's
+	 * correction. Updating one whitelisted column avoids changing other fields.
+	 *
+	 * @param string $field Whitelisted date column
+	 * @param int|null $timestamp Event time, or null to clear an optional date
+	 * @param User $user Operator
+	 * @param string $reason Optional explanatory note
+	 * @return int 1 on success, -1 on failure
+	 */
+	public function setBusinessDate($field, $timestamp, $user, $reason = '')
+	{
+		$allowed = array(
+			'date_request', 'date_authorized', 'date_shipped',
+			'date_supplier_received', 'date_supplier_completed', 'date_returned'
+		);
+		if (!in_array((string) $field, $allowed, true) || $this->id <= 0) {
+			$this->error = 'ErrorSupplierRmaInvalidDateField';
+			return -1;
+		}
+		if ($timestamp === null && $field === 'date_request') {
+			$this->error = 'ErrorSupplierRmaRequiredDate';
+			return -1;
+		}
+		if ($timestamp !== null && (!is_int($timestamp) || $timestamp <= 0)) {
+			$this->error = 'ErrorSupplierRmaInvalidDate';
+			return -1;
+		}
+		$previous = !empty($this->{$field}) ? (int) $this->{$field} : null;
+		if ($previous === $timestamp) return 1;
+
+		$previousSql = $previous === null ? 'NULL' : $this->db->idate($previous);
+		$newSql = $timestamp === null ? 'NULL' : $this->db->idate($timestamp);
+		$eventNote = $field.': '.$previousSql.' -> '.$newSql;
+		if (trim((string) $reason) !== '') $eventNote .= "\n".trim((string) $reason);
+
+		$this->db->begin();
+		$sql = 'UPDATE '.MAIN_DB_PREFIX.'svc_supplier_rma SET '.$field.' = '.$this->sqlDateOrNull($timestamp);
+		$sql .= ', fk_user_modif = '.((int) $user->id);
+		$sql .= ' WHERE rowid = '.((int) $this->id).' AND entity = '.((int) $this->entity);
+		$sql .= ' AND '.($previous === null ? $field.' IS NULL' : $field." = '".$this->db->escape($previousSql)."'");
+		$resql = $this->db->query($sql);
+		if (!$resql) {
+			$this->error = $this->db->lasterror();
+			$this->db->rollback();
+			return -1;
+		}
+		if ($this->db->affected_rows($resql) !== 1) {
+			$this->error = 'ErrorSupplierRmaConcurrentUpdate';
+			$this->db->rollback();
+			return -1;
+		}
+		if ($this->logEvent('DATE', $this->status, $this->status, $eventNote, $user) < 0) {
+			$this->db->rollback();
+			return -1;
+		}
+		if ($this->db->commit() <= 0) {
+			$this->error = $this->db->lasterror();
+			return -1;
+		}
+		$this->{$field} = $timestamp;
+		$this->fk_user_modif = (int) $user->id;
+		return 1;
+	}
+
 	public function setStatus($newStatus, $user, $note = '')
 	{
 		$transitions = array(
