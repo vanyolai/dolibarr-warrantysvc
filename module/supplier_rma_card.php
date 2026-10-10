@@ -142,6 +142,44 @@ if ($action === 'update' && $permwrite && $object->id > 0) {
 	$action = 'edit';
 }
 
+// Business event dates are editable independently of state transitions. The
+// audit log keeps the correction timestamp separate from the actual event date.
+$businessDateFields = array(
+	'date_request' => 'SupplierRmaDateRequest',
+	'date_authorized' => 'SupplierRmaDateAuthorized',
+	'date_shipped' => 'DateShipped',
+	'date_supplier_received' => 'SupplierRmaDateSupplierReceived',
+	'date_supplier_completed' => 'SupplierRmaDateSupplierCompleted',
+	'date_returned' => 'SupplierRmaDateReturned',
+);
+$editDateField = GETPOST('field', 'aZ09');
+if ($action === 'update_business_date' && $permwrite && $object->id > 0 && $_SERVER['REQUEST_METHOD'] === 'POST') {
+	if (!isset($businessDateFields[$editDateField])) {
+		setEventMessages($langs->trans('ErrorSupplierRmaInvalidDateField'), null, 'errors');
+	} else {
+		$clearDate = (bool) GETPOSTINT('clear_business_date');
+		$validDate = $clearDate || (
+			GETPOSTINT('business_date_day') > 0
+			&& GETPOSTINT('business_date_month') > 0
+			&& GETPOSTINT('business_date_year') > 0
+			&& checkdate(GETPOSTINT('business_date_month'), GETPOSTINT('business_date_day'), GETPOSTINT('business_date_year'))
+		);
+		$time = $clearDate ? null : ($validDate ? GETPOSTDATE('business_date_', 'getpost') : null);
+		if (!$validDate || (!$clearDate && (!$time || $time < 1))) {
+			setEventMessages($langs->trans('ErrorSupplierRmaInvalidDate'), null, 'errors');
+		} else {
+			$result = $object->setBusinessDate($editDateField, $time, $user, GETPOST('date_reason', 'restricthtml'));
+			if ($result > 0) {
+				setEventMessages($langs->trans('SupplierRmaDateUpdated'), null, 'mesgs');
+				header('Location: '.$_SERVER['PHP_SELF'].'?id='.((int) $object->id));
+				exit;
+			}
+			setEventMessages($langs->trans($object->error), null, 'errors');
+		}
+	}
+	$action = 'editdate';
+}
+
 if ($action === 'setstatus' && $permwrite && $object->id > 0) {
 	$newStatus = GETPOST('newstatus', 'alpha');
 	$note = GETPOST('status_note', 'restricthtml');
@@ -397,12 +435,29 @@ if ($isEdit) {
 print '</td></tr>';
 
 print '<tr><td>'.$langs->trans('Status').'</td><td>'.$object->getLibStatut().'</td></tr>';
-print '<tr><td>'.$langs->trans('SupplierRmaDateRequest').'</td><td>'.($object->date_request ? dol_print_date($object->date_request, 'dayhour') : '—').'</td></tr>';
-print '<tr><td>'.$langs->trans('SupplierRmaDateAuthorized').'</td><td>'.($object->date_authorized ? dol_print_date($object->date_authorized, 'dayhour') : '—').'</td></tr>';
-print '<tr><td>'.$langs->trans('DateShipped').'</td><td>'.($object->date_shipped ? dol_print_date($object->date_shipped, 'dayhour') : '—').'</td></tr>';
-print '<tr><td>'.$langs->trans('SupplierRmaDateSupplierReceived').'</td><td>'.($object->date_supplier_received ? dol_print_date($object->date_supplier_received, 'dayhour') : '—').'</td></tr>';
-print '<tr><td>'.$langs->trans('SupplierRmaDateSupplierCompleted').'</td><td>'.($object->date_supplier_completed ? dol_print_date($object->date_supplier_completed, 'dayhour') : '—').'</td></tr>';
-print '<tr><td>'.$langs->trans('SupplierRmaDateReturned').'</td><td>'.($object->date_returned ? dol_print_date($object->date_returned, 'dayhour') : '—').'</td></tr>';
+foreach ($businessDateFields as $dateField => $dateLabel) {
+	print '<tr><td>'.$langs->trans($dateLabel).'</td><td>';
+	if ($action === 'editdate' && $permwrite && $editDateField === $dateField && !$isEdit) {
+		print '<form method="POST" action="'.$_SERVER['PHP_SELF'].'?id='.((int) $object->id).'">';
+		print '<input type="hidden" name="token" value="'.newToken().'">';
+		print '<input type="hidden" name="action" value="update_business_date">';
+		print '<input type="hidden" name="field" value="'.dol_escape_htmltag($dateField).'">';
+		print $form->selectDate($object->{$dateField} ?: -1, 'business_date_', 1, 1, 1);
+		if ($dateField !== 'date_request') {
+			print ' <label class="marginleftonly"><input type="checkbox" name="clear_business_date" value="1"> '.$langs->trans('SupplierRmaClearDate').'</label>';
+		}
+		print ' <input type="text" name="date_reason" class="minwidth200" placeholder="'.dol_escape_htmltag($langs->trans('SupplierRmaDateCorrectionReason')).'">';
+		print ' <input type="submit" class="button button-save" value="'.dol_escape_htmltag($langs->trans('Save')).'">';
+		print ' <a class="button button-cancel" href="'.$_SERVER['PHP_SELF'].'?id='.((int) $object->id).'">'.$langs->trans('Cancel').'</a>';
+		print '</form>';
+	} else {
+		print !empty($object->{$dateField}) ? dol_print_date($object->{$dateField}, 'dayhour') : '—';
+		if ($permwrite && !$isEdit) {
+			print ' <a class="editfielda marginleftonly" href="'.$_SERVER['PHP_SELF'].'?id='.((int) $object->id).'&action=editdate&field='.urlencode($dateField).'">'.img_edit($langs->trans('Edit')).'</a>';
+		}
+	}
+	print '</td></tr>';
+}
 
 print '</table>';
 print '</div>';
