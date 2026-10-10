@@ -837,17 +837,47 @@ class SvcWarrantyLetter extends CommonObject
         return $out;
     }
 
-    public function makeSubstitution($text)
+    /**
+     * Return the official warranty-letter email substitutions.
+     *
+     * These values are consumed by the Dolibarr substitution hook when the
+     * native FormMail editor is rendered, and by makeSubstitution() when the
+     * final message is dispatched. Use the registered immutable revision,
+     * never a freshly computed live snapshot, to keep both stages consistent.
+     *
+     * @return array<string,string> Email substitution variables
+     */
+    public function getEmailSubstitutions()
     {
         $version = $this->getVersion();
-        $data = $version ? json_decode($version->snapshot, true) : array();
-        $shipmentRefs = isset($data['shipment_refs']) && is_array($data['shipment_refs']) ? implode(', ', $data['shipment_refs']) : '';
-        $orderRefs = isset($data['order_refs']) && is_array($data['order_refs']) ? implode(', ', $data['order_refs']) : '';
-        return str_replace(
-            array('__WARRANTY_LETTER_REF__','__WARRANTY_LETTER_VERSION__','__SHIPMENT_REF__','__SHIPMENT_REFS__','__ORDER_REF__','__ORDER_REFS__'),
-            array($this->ref, (string) $this->current_version, $shipmentRefs, $shipmentRefs, $orderRefs, $orderRefs),
-            (string) $text
+        $data = $version ? json_decode((string) $version->snapshot, true) : array();
+        if (!is_array($data)) $data = array();
+
+        $shipmentRefs = !empty($data['shipment_refs']) && is_array($data['shipment_refs'])
+            ? implode(', ', $data['shipment_refs']) : '';
+        $orderRefs = !empty($data['order_refs']) && is_array($data['order_refs'])
+            ? implode(', ', $data['order_refs']) : '';
+        $versionNumber = $version ? (int) $version->version : (int) $this->current_version;
+
+        return array(
+            '__WARRANTY_LETTER_REF__' => (string) $this->ref,
+            '__WARRANTY_LETTER_VERSION__' => (string) $versionNumber,
+            '__SHIPMENT_REF__' => $shipmentRefs,
+            '__SHIPMENT_REFS__' => $shipmentRefs,
+            '__ORDER_REF__' => $orderRefs,
+            '__ORDER_REFS__' => $orderRefs
         );
+    }
+
+    /**
+     * Apply the same registered-revision values during actual SMTP delivery.
+     *
+     * @param string $text Subject or message body
+     * @return string Substituted text
+     */
+    public function makeSubstitution($text)
+    {
+        return strtr((string) $text, $this->getEmailSubstitutions());
     }
 
     /** Regeneration is deliberately explicit; native mail form cannot rewrite an issued PDF. */
