@@ -52,7 +52,24 @@ function warrantysvc_completesubstitutionarray(&$substitutionarray, $outputlangs
 		'__SUPPLIER_RETURN_REASON__' => $outputlangs->transnoentitiesnoconv('SubstSupplierReturnReason'),
 		'__SUPPLIER_RETURN_LINES__' => $outputlangs->transnoentitiesnoconv('SubstSupplierReturnLines'),
 		'__WARRANTY_CONFIRMATION_LINES__' => $outputlangs->transnoentitiesnoconv('SubstWarrantyConfirmationLines'),
+        '__WARRANTY_LETTER_REF__' => $outputlangs->transnoentitiesnoconv('WarrantyLetterTitle'),
+        '__WARRANTY_LETTER_VERSION__' => $outputlangs->transnoentitiesnoconv('WarrantyLetterVersion'),
+        '__SHIPMENT_REF__' => $outputlangs->transnoentitiesnoconv('ShipmentRef'),
+        '__SHIPMENT_REFS__' => $outputlangs->transnoentitiesnoconv('ShipmentRef'),
+        '__ORDER_REF__' => $outputlangs->transnoentitiesnoconv('Order'),
+        '__ORDER_REFS__' => $outputlangs->transnoentitiesnoconv('Order'),
 	);
+
+    // The native mail composer uses this hook for its preview substitutions.
+    // The letter object owns the one authoritative set of values, based on its
+    // registered immutable PDF revision. SMTP uses the same set.
+    if (is_object($object) && !empty($object->element)
+        && $object->element === 'svcwarrantyletter' && method_exists($object, 'getEmailSubstitutions')) {
+        foreach ($object->getEmailSubstitutions() as $key => $value) {
+            $substitutionarray[$key] = $value;
+        }
+        return;
+    }
 
 	if (!is_object($object) || empty($object->element) || !in_array($object->element, array('svcrequest', 'svcwarranty', 'svcsupplierrma', 'svcsupplierreturn', 'shipping'), true)) {
 		foreach ($descriptions as $key => $description) {
