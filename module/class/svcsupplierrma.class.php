@@ -298,7 +298,7 @@ class SvcSupplierRma extends CommonObject
 			return -1;
 		}
 
-		if ($this->logEvent('CREATE', '', self::STATUS_DRAFT, '', $user) < 0) {
+		if ($this->logEvent('CREATE', '', self::STATUS_DRAFT, '', $user, $this->date_request) < 0) {
 			$this->db->rollback();
 			return -1;
 		}
@@ -574,6 +574,27 @@ class SvcSupplierRma extends CommonObject
 	 * @param string $reason Optional explanatory note
 	 * @return int 1 on success, -1 on failure
 	 */
+	/**
+	 * Map workflow milestones to their actual business event date columns.
+	 * States without a dedicated date use their recorded transition time.
+	 *
+	 * @param string $status Workflow status
+	 * @return string|null Column name
+	 */
+	private function statusDateField($status)
+	{
+		$map = array(
+			self::STATUS_AUTHORIZED => 'date_authorized',
+			self::STATUS_SHIPPED => 'date_shipped',
+			self::STATUS_RECEIVED_BY_SUPPLIER => 'date_supplier_received',
+			self::STATUS_REPAIRED => 'date_supplier_completed',
+			self::STATUS_REPLACED => 'date_supplier_completed',
+			self::STATUS_REJECTED => 'date_supplier_completed',
+			self::STATUS_RETURNED => 'date_returned'
+		);
+		return isset($map[$status]) ? $map[$status] : null;
+	}
+
 	public function setBusinessDate($field, $timestamp, $user, $reason = '')
 	{
 		$allowed = array(
@@ -699,7 +720,9 @@ class SvcSupplierRma extends CommonObject
 
 		$this->status = $newStatus;
 		$this->fk_user_modif = (int) $user->id;
-		if ($this->logEvent('STATUS', $oldStatus, $newStatus, $note, $user) < 0) {
+		$eventDateField = $this->statusDateField($newStatus);
+		$effectiveDate = $eventDateField && !empty($this->{$eventDateField}) ? $this->{$eventDateField} : $now;
+		if ($this->logEvent('STATUS', $oldStatus, $newStatus, $note, $user, $effectiveDate) < 0) {
 			$this->db->rollback();
 			return -1;
 		}
@@ -825,12 +848,12 @@ class SvcSupplierRma extends CommonObject
 		return 1;
 	}
 
-	public function logEvent($eventCode, $oldStatus, $newStatus, $note, $user)
+	public function logEvent($eventCode, $oldStatus, $newStatus, $note, $user, $effectiveDate = null)
 	{
 		global $conf;
 
 		$sql = "INSERT INTO ".MAIN_DB_PREFIX."svc_supplier_rma_log";
-		$sql .= " (entity, fk_supplier_rma, event_code, old_status, new_status, note, date_event, fk_user) VALUES (";
+		$sql .= " (entity, fk_supplier_rma, event_code, old_status, new_status, note, date_event, date_effective, fk_user) VALUES (";
 		$sql .= ((int) $conf->entity);
 		$sql .= ", ".((int) $this->id);
 		$sql .= ", '".$this->db->escape($eventCode)."'";
@@ -838,6 +861,7 @@ class SvcSupplierRma extends CommonObject
 		$sql .= ", ".$this->sqlStringOrNull($newStatus);
 		$sql .= ", ".$this->sqlStringOrNull($note);
 		$sql .= ", '".$this->db->idate(dol_now())."'";
+		$sql .= ", ".$this->sqlDateOrNull($effectiveDate);
 		$sql .= ", ".((int) $user->id);
 		$sql .= ")";
 		if (!$this->db->query($sql)) {
@@ -854,7 +878,7 @@ class SvcSupplierRma extends CommonObject
 		$sql .= " FROM ".MAIN_DB_PREFIX."svc_supplier_rma_log l";
 		$sql .= " LEFT JOIN ".MAIN_DB_PREFIX."user u ON u.rowid = l.fk_user";
 		$sql .= " WHERE l.fk_supplier_rma = ".((int) $this->id);
-		$sql .= " ORDER BY l.date_event ASC, l.rowid ASC";
+		$sql .= " ORDER BY COALESCE(l.date_effective, l.date_event) ASC, l.rowid ASC";
 		$resql = $this->db->query($sql);
 		if (!$resql) {
 			$this->error = $this->db->lasterror();
@@ -868,6 +892,7 @@ class SvcSupplierRma extends CommonObject
 				'new_status' => (string) $obj->new_status,
 				'note' => (string) $obj->note,
 				'date_event' => !empty($obj->date_event) ? $this->db->jdate($obj->date_event) : null,
+				'date_effective' => !empty($obj->date_effective) ? $this->db->jdate($obj->date_effective) : null,
 				'fk_user' => (int) $obj->fk_user,
 				'user_name' => trim((string) $obj->firstname.' '.(string) $obj->lastname) ?: (string) $obj->login,
 			);
