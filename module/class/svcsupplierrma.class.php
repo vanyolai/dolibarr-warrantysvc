@@ -64,6 +64,7 @@ class SvcSupplierRma extends CommonObject
 		'replacement_serial_number' => array('type'=>'varchar(128)', 'label'=>'ReplacementSerial', 'enabled'=>1, 'visible'=>1),
 		'problem_description' => array('type'=>'text', 'label'=>'SupplierRmaProblemDescription', 'enabled'=>1, 'visible'=>1),
 		'diagnosis' => array('type'=>'text', 'label'=>'SupplierRmaDiagnosis', 'enabled'=>1, 'visible'=>1),
+		'supplier_work_done' => array('type'=>'text', 'label'=>'SupplierRmaWorkDone', 'enabled'=>1, 'visible'=>1),
 		'accessories_sent' => array('type'=>'text', 'label'=>'SupplierRmaAccessoriesSent', 'enabled'=>1, 'visible'=>1),
 		'fk_warehouse_source' => array('type'=>'integer', 'label'=>'SvcWarehouseSource', 'enabled'=>1, 'visible'=>-1),
 		'fk_warehouse_return' => array('type'=>'integer', 'label'=>'SvcWarehouseReturn', 'enabled'=>1, 'visible'=>-1),
@@ -102,6 +103,7 @@ class SvcSupplierRma extends CommonObject
 	public $replacement_serial_number;
 	public $problem_description;
 	public $diagnosis;
+	public $supplier_work_done;
 	public $accessories_sent;
 	public $fk_warehouse_source;
 	public $fk_warehouse_return;
@@ -224,7 +226,7 @@ class SvcSupplierRma extends CommonObject
 		$sql .= "ref, entity, fk_svc_request, fk_soc_supplier, fk_product, qty, serial_number, supplier_rma_ref, status,";
 		$sql .= "date_request, outbound_carrier, outbound_tracking, outbound_tracking_url,";
 		$sql .= "return_carrier, return_tracking, return_tracking_url, result_type, replacement_serial_number,";
-		$sql .= "problem_description, diagnosis, accessories_sent, fk_warehouse_source, fk_warehouse_return,";
+		$sql .= "problem_description, diagnosis, supplier_work_done, accessories_sent, fk_warehouse_source, fk_warehouse_return,";
 		$sql .= "fk_stock_movement_out, fk_stock_movement_in, note_private, fk_user_creat, fk_user_modif, date_creation";
 		$sql .= ") VALUES (";
 		$sql .= "'".$this->db->escape($provisionalRef)."'";
@@ -247,6 +249,7 @@ class SvcSupplierRma extends CommonObject
 		$sql .= ", ".$this->sqlStringOrNull($this->replacement_serial_number);
 		$sql .= ", ".$this->sqlStringOrNull($this->problem_description);
 		$sql .= ", ".$this->sqlStringOrNull($this->diagnosis);
+		$sql .= ", ".$this->sqlStringOrNull($this->supplier_work_done);
 		$sql .= ", ".$this->sqlStringOrNull($this->accessories_sent);
 		$sql .= ", ".$this->sqlIntOrNull($this->fk_warehouse_source);
 		$sql .= ", ".$this->sqlIntOrNull($this->fk_warehouse_return);
@@ -433,6 +436,7 @@ class SvcSupplierRma extends CommonObject
 		$sql .= ", replacement_serial_number = ".$this->sqlStringOrNull($this->replacement_serial_number);
 		$sql .= ", problem_description = ".$this->sqlStringOrNull($this->problem_description);
 		$sql .= ", diagnosis = ".$this->sqlStringOrNull($this->diagnosis);
+		$sql .= ", supplier_work_done = ".$this->sqlStringOrNull($this->supplier_work_done);
 		$sql .= ", accessories_sent = ".$this->sqlStringOrNull($this->accessories_sent);
 		$sql .= ", fk_warehouse_source = ".$this->sqlIntOrNull($this->fk_warehouse_source);
 		$sql .= ", fk_warehouse_return = ".$this->sqlIntOrNull($this->fk_warehouse_return);
