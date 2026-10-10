@@ -1008,3 +1008,5 @@ ErrorSupplierRmaInvalidDateField=Unknown RMA date field.
 ErrorSupplierRmaRequiredDate=The RMA request date cannot be cleared.
 ErrorSupplierRmaInvalidDate=Invalid RMA event date.
 ErrorSupplierRmaHasDocuments=This RMA has file attachments or external document links. Remove them before permanently deleting the record.
+SupplierRmaEffectiveDate=Actual event date
+SupplierRmaRecordedDate=Recorded at
