@@ -352,6 +352,25 @@ class modWarrantySvc extends DolibarrModules
 			$r++;
 		}
 
+		// Supplier service / RMA is its own business object. Make it directly
+		// accessible alongside customer claims, without duplicating any data.
+		$this->menu[$r] = array(
+			'fk_menu'  => 'fk_mainmenu=products,fk_leftmenu=warrantysvc_requests',
+			'type'     => 'left',
+			'titre'    => 'SupplierRmaServiceMenu',
+			'prefix'   => img_picto('', 'tools', 'class="paddingright pictofixedwidth"'),
+			'mainmenu' => 'products',
+			'leftmenu' => 'warrantysvc_supplier_rma',
+			'url'      => '/warrantysvc/supplier_rma_list.php?mainmenu=products&leftmenu=warrantysvc_supplier_rma',
+			'langs'    => 'warrantysvc@warrantysvc',
+			'position' => 921,
+			'enabled'  => 'isModEnabled("warrantysvc")',
+			'perms'    => '$user->hasRight("warrantysvc", "supplierrma", "read")',
+			'target'   => '',
+			'user'     => 0,
+		);
+		$r++;
+
 		// Warranties are a section with multiple equal views.
 		$this->menu[$r] = array(
 			'fk_menu'  => 'fk_mainmenu=products,fk_leftmenu=warrantysvc',
