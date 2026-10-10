@@ -470,7 +470,7 @@ if ($permwrite) {
         ))
     );
     if ($verified) {
-        $sendHref=$canSend?$_SERVER['PHP_SELF'].'?id='.((int)$object->id).'&action=presend#formmailbeforetitle':'#';
+        $sendHref=$canSend?$_SERVER['PHP_SELF'].'?id='.((int)$object->id).'&action=presend&mode=init#formmailbeforetitle':'#';
         print dolGetButtonAction(
             $canSend ? '' : $langs->trans('WarrantyLetterStaleWarning'),
             $langs->trans('WarrantyLetterSend'),
