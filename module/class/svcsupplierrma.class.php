@@ -485,6 +485,47 @@ class SvcSupplierRma extends CommonObject
 			return -1;
 		}
 
+		// An RMA with supplier correspondence is an auditable business record.
+		// Never leave orphaned files or Paperless/external links behind on hard delete.
+		$sql = 'SELECT rowid FROM '.MAIN_DB_PREFIX.'links';
+		$sql .= " WHERE objecttype = '".$this->db->escape($this->element)."'";
+		$sql .= ' AND objectid = '.((int) $this->id);
+		$sql .= $this->db->plimit(1);
+		$res = $this->db->query($sql);
+		if (!$res) {
+			$this->error = $this->db->lasterror();
+			return -1;
+		}
+		$hasLinks = (bool) $this->db->fetch_object($res);
+		$this->db->free($res);
+		if ($hasLinks) {
+			$this->error = 'ErrorSupplierRmaHasDocuments';
+			return -1;
+		}
+
+		$sql = 'SELECT ref FROM '.MAIN_DB_PREFIX.'svc_request';
+		$sql .= ' WHERE rowid = '.((int) $this->fk_svc_request);
+		$sql .= ' AND entity = '.((int) $this->entity);
+		$res = $this->db->query($sql);
+		if (!$res) {
+			$this->error = $this->db->lasterror();
+			return -1;
+		}
+		$request = $this->db->fetch_object($res);
+		$this->db->free($res);
+		if (!$request) {
+			$this->error = 'ErrorSupplierRmaServiceRequestNotFound';
+			return -1;
+		}
+		$documentDir = $this->getDocumentOutputDir((string) $request->ref);
+		if ($documentDir !== '' && is_dir($documentDir)) {
+			require_once DOL_DOCUMENT_ROOT.'/core/lib/files.lib.php';
+			if (!empty(dol_dir_list($documentDir, 'files', 1))) {
+				$this->error = 'ErrorSupplierRmaHasDocuments';
+				return -1;
+			}
+		}
+
 		$this->db->begin();
 
 		$sql = "DELETE FROM ".MAIN_DB_PREFIX."svc_supplier_rma_log WHERE fk_supplier_rma = ".((int) $this->id);
