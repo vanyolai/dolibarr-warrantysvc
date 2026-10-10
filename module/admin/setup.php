@@ -493,5 +493,19 @@ if ($handle) {
 }
 print '</table>';
 
+// Warranty Letter email templates are native, editable Dolibarr templates.
+// Take administrators directly to the standard filtered templates list.
+print '<br>';
+print load_fiche_titre($langs->trans('WarrantyLetterEmailTemplates'), '', 'email');
+print '<p class="opacitymedium">'.$langs->trans('WarrantyLetterEmailTemplatesInfo').'</p>';
+print '<div class="tabsAction">';
+print dolGetButtonAction(
+    '',
+    $langs->trans('WarrantyLetterManageEmailTemplates'),
+    'default',
+    DOL_URL_ROOT.'/admin/mails_templates.php?search_type_template=svcwarrantyletter'
+);
+print '</div>';
+
 llxFooter();
 $db->close();
