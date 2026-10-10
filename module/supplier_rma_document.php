@@ -51,6 +51,7 @@ $upload_dir = $baseOutput !== ''
 	? $baseOutput.'/'.dol_sanitizeFileName($sr->ref).'/supplier-rma/'.dol_sanitizeFileName($object->ref)
 	: '';
 $modulepart = 'warrantysvc';
+$relativepathwithnofile = dol_sanitizeFileName($sr->ref).'/supplier-rma/'.dol_sanitizeFileName($object->ref).'/';
 $permissiontoadd = $permwrite ? 1 : 0;
 $permtoedit = $permissiontoadd;
 $permission = $permissiontoadd;
