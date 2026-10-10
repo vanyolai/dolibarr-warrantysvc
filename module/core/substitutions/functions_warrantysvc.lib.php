@@ -38,6 +38,7 @@ function warrantysvc_completesubstitutionarray(&$substitutionarray, $outputlangs
 		'__SUPPLIER_NAME__' => $outputlangs->transnoentitiesnoconv('SubstSupplierName'),
 		'__SUPPLIER_RMA_PROBLEM_DESCRIPTION__' => $outputlangs->transnoentitiesnoconv('SubstSupplierRmaProblemDescription'),
 		'__SUPPLIER_RMA_DIAGNOSIS__' => $outputlangs->transnoentitiesnoconv('SubstSupplierRmaDiagnosis'),
+		'__SUPPLIER_RMA_WORK_DONE__' => $outputlangs->transnoentitiesnoconv('SubstSupplierRmaWorkDone'),
 		'__SUPPLIER_RMA_ACCESSORIES__' => $outputlangs->transnoentitiesnoconv('SubstSupplierRmaAccessories'),
 		'__OUTBOUND_CARRIER__' => $outputlangs->transnoentitiesnoconv('SubstOutboundCarrier'),
 		'__OUTBOUND_TRACKING__' => $outputlangs->transnoentitiesnoconv('SubstOutboundTracking'),
@@ -97,6 +98,7 @@ function warrantysvc_completesubstitutionarray(&$substitutionarray, $outputlangs
 	$supplierName = '';
 	$supplierRmaProblem = '';
 	$supplierRmaDiagnosis = '';
+	$supplierRmaWorkDone = '';
 	$supplierRmaAccessories = '';
 	$outboundCarrier = '';
 	$outboundTracking = '';
@@ -150,6 +152,7 @@ function warrantysvc_completesubstitutionarray(&$substitutionarray, $outputlangs
 		$supplierRmaStatus = method_exists($object, 'getLibStatut') ? (string) $object->getLibStatut(1) : (string) $object->status;
 		$supplierRmaProblem = isset($object->problem_description) ? (string) $object->problem_description : '';
 		$supplierRmaDiagnosis = isset($object->diagnosis) ? (string) $object->diagnosis : '';
+		$supplierRmaWorkDone = isset($object->supplier_work_done) ? (string) $object->supplier_work_done : '';
 		$supplierRmaAccessories = isset($object->accessories_sent) ? (string) $object->accessories_sent : '';
 		$outboundCarrier = isset($object->outbound_carrier) ? (string) $object->outbound_carrier : '';
 		$outboundTracking = isset($object->outbound_tracking) ? (string) $object->outbound_tracking : '';
@@ -302,6 +305,7 @@ function warrantysvc_completesubstitutionarray(&$substitutionarray, $outputlangs
 		'__SUPPLIER_NAME__' => $supplierName,
 		'__SUPPLIER_RMA_PROBLEM_DESCRIPTION__' => $supplierRmaProblem,
 		'__SUPPLIER_RMA_DIAGNOSIS__' => $supplierRmaDiagnosis,
+		'__SUPPLIER_RMA_WORK_DONE__' => $supplierRmaWorkDone,
 		'__SUPPLIER_RMA_ACCESSORIES__' => $supplierRmaAccessories,
 		'__OUTBOUND_CARRIER__' => $outboundCarrier,
 		'__OUTBOUND_TRACKING__' => $outboundTracking,
