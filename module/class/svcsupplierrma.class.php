@@ -121,6 +121,25 @@ class SvcSupplierRma extends CommonObject
 		$this->db = $db;
 	}
 
+	/**
+	 * Resolve this RMA's document folder consistently for uploads and email.
+	 * Kept beneath the parent request so pre-existing RMA mail paths remain
+	 * stable when the new Documents tab is enabled.
+	 *
+	 * @param string $requestRef Parent service request reference
+	 * @return string Absolute folder path or empty string if unconfigured
+	 */
+	public function getDocumentOutputDir($requestRef)
+	{
+		global $conf;
+		$base = !empty($conf->warrantysvc->multidir_output[$this->entity])
+			? $conf->warrantysvc->multidir_output[$this->entity]
+			: (!empty($conf->warrantysvc->dir_output) ? $conf->warrantysvc->dir_output : '');
+		if ($base === '' || $requestRef === '' || empty($this->ref)) return '';
+		return rtrim($base, '/').'/'.dol_sanitizeFileName($requestRef)
+			.'/supplier-rma/'.dol_sanitizeFileName($this->ref);
+	}
+
 	private function sqlStringOrNull($value)
 	{
 		return ($value !== null && $value !== '') ? "'".$this->db->escape((string) $value)."'" : "NULL";
