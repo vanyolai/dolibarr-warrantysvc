@@ -337,6 +337,7 @@ class SvcSupplierRma extends CommonObject
 		$this->replacement_serial_number = (string) $obj->replacement_serial_number;
 		$this->problem_description = (string) $obj->problem_description;
 		$this->diagnosis = (string) $obj->diagnosis;
+		$this->supplier_work_done = (string) $obj->supplier_work_done;
 		$this->accessories_sent = (string) $obj->accessories_sent;
 		$this->fk_warehouse_source = (int) $obj->fk_warehouse_source;
 		$this->fk_warehouse_return = (int) $obj->fk_warehouse_return;
