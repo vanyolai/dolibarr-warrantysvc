@@ -61,8 +61,8 @@ foreach (array(
 
 $sqlFrom = ' FROM '.MAIN_DB_PREFIX.'svc_supplier_rma r';
 $sqlFrom .= ' JOIN '.MAIN_DB_PREFIX.'svc_request sr ON sr.rowid = r.fk_svc_request AND sr.entity = r.entity';
-$sqlFrom .= ' JOIN '.MAIN_DB_PREFIX.'societe s ON s.rowid = r.fk_soc_supplier';
-$sqlFrom .= ' JOIN '.MAIN_DB_PREFIX.'product p ON p.rowid = r.fk_product AND p.entity IN ('.getEntity('product').')';
+$sqlFrom .= ' LEFT JOIN '.MAIN_DB_PREFIX.'societe s ON s.rowid = r.fk_soc_supplier';
+$sqlFrom .= ' LEFT JOIN '.MAIN_DB_PREFIX.'product p ON p.rowid = r.fk_product AND p.entity IN ('.getEntity('product').')';
 $sqlWhere = ' WHERE r.entity = '.((int) $conf->entity);
 if ($searchRef !== '') $sqlWhere .= natural_search('r.ref', $searchRef);
 if ($searchSupplier !== '') $sqlWhere .= natural_search('s.nom', $searchSupplier);
