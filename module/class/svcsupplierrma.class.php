@@ -637,6 +637,48 @@ class SvcSupplierRma extends CommonObject
 			$this->db->rollback();
 			return -1;
 		}
+		// Synchronize the effective time on the actual lifecycle milestone,
+		// without altering date_event (the immutable time it was recorded).
+		// A date entered before its workflow step has no milestone yet; the
+		// future setStatus() call picks up that date from this RMA.
+		$milestoneStatuses = array(
+			'date_authorized' => array(self::STATUS_AUTHORIZED),
+			'date_shipped' => array(self::STATUS_SHIPPED),
+			'date_supplier_received' => array(self::STATUS_RECEIVED_BY_SUPPLIER),
+			'date_supplier_completed' => array(self::STATUS_REPAIRED, self::STATUS_REPLACED, self::STATUS_REJECTED),
+			'date_returned' => array(self::STATUS_RETURNED)
+		);
+		$eventQuery = 'SELECT rowid FROM '.MAIN_DB_PREFIX.'svc_supplier_rma_log';
+		$eventQuery .= ' WHERE entity = '.((int) $this->entity);
+		$eventQuery .= ' AND fk_supplier_rma = '.((int) $this->id);
+		if ($field === 'date_request') {
+			$eventQuery .= " AND event_code = 'CREATE'";
+		} else {
+			$statusList = array_map(array($this->db, 'escape'), $milestoneStatuses[$field]);
+			$eventQuery .= " AND event_code = 'STATUS' AND new_status IN ('".implode("','", $statusList)."')";
+		}
+		$eventQuery .= ' ORDER BY rowid DESC'.$this->db->plimit(1);
+		$eventResult = $this->db->query($eventQuery);
+		if (!$eventResult) {
+			$this->error = $this->db->lasterror();
+			$this->db->rollback();
+			return -1;
+		}
+		$milestoneRow = $this->db->fetch_object($eventResult);
+		$this->db->free($eventResult);
+		if ($milestoneRow) {
+			$updateEvent = 'UPDATE '.MAIN_DB_PREFIX.'svc_supplier_rma_log';
+			$updateEvent .= ' SET date_effective = '.$this->sqlDateOrNull($timestamp);
+			$updateEvent .= ' WHERE rowid = '.((int) $milestoneRow->rowid);
+			$updateEvent .= ' AND entity = '.((int) $this->entity);
+			$updateEvent .= ' AND fk_supplier_rma = '.((int) $this->id);
+			if (!$this->db->query($updateEvent)) {
+				$this->error = $this->db->lasterror();
+				$this->db->rollback();
+				return -1;
+			}
+		}
+
 		if ($this->logEvent('DATE', $this->status, $this->status, $eventNote, $user) < 0) {
 			$this->db->rollback();
 			return -1;
