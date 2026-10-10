@@ -281,7 +281,7 @@ class modWarrantySvc extends DolibarrModules
 			'prefix'   => img_picto('', 'technic', 'class="paddingright pictofixedwidth"'),
 			'mainmenu' => 'products',
 			'leftmenu' => 'warrantysvc_requests',
-			'url'      => '/warrantysvc/list.php?mainmenu=products&leftmenu=warrantysvc_requests',
+			'url'      => '', // Section header; the List and Supplier RMA links are independent.
 			'langs'    => 'warrantysvc@warrantysvc',
 			'position' => 910,
 			'enabled'  => 'isModEnabled("warrantysvc")',
