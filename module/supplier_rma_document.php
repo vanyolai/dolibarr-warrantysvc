@@ -44,12 +44,7 @@ if ($sr->fetch((int) $object->fk_svc_request) <= 0) {
 
 // Files live in the same existing RMA directory as the native mail form.
 // Link objects belong to the RMA (not the parent service request).
-$baseOutput = !empty($conf->warrantysvc->multidir_output[$object->entity])
-	? $conf->warrantysvc->multidir_output[$object->entity]
-	: (!empty($conf->warrantysvc->dir_output) ? $conf->warrantysvc->dir_output : '');
-$upload_dir = $baseOutput !== ''
-	? $baseOutput.'/'.dol_sanitizeFileName($sr->ref).'/supplier-rma/'.dol_sanitizeFileName($object->ref)
-	: '';
+$upload_dir = $object->getDocumentOutputDir((string) $sr->ref);
 $modulepart = 'warrantysvc';
 $relativepathwithnofile = dol_sanitizeFileName($sr->ref).'/supplier-rma/'.dol_sanitizeFileName($object->ref).'/';
 $permissiontoadd = $permwrite ? 1 : 0;
