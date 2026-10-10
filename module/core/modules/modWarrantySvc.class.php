@@ -742,13 +742,14 @@ class modWarrantySvc extends DolibarrModules
 		// timestamp as the initial effective date until explicitly corrected.
 		if ($this->tableExists($supplierRmaLogTable)) {
 			$columns = $this->getColumnTypes($supplierRmaLogTable);
-			if (!isset($columns['date_effective'])
-				&& $this->db->DDLAddField($supplierRmaLogTable, 'date_effective', array('type'=>'datetime')) < 0) {
-				return -1;
+			if (!isset($columns['date_effective'])) {
+				if ($this->db->DDLAddField($supplierRmaLogTable, 'date_effective', array('type'=>'datetime')) < 0) return -1;
+				// Initial historical backfill exactly once; a deliberately cleared
+				// business date must not be restored on later module activations.
+				$sql = 'UPDATE '.$supplierRmaLogTable.' SET date_effective = date_event';
+				$sql .= " WHERE date_effective IS NULL AND event_code IN ('CREATE', 'STATUS')";
+				if (!$this->db->query($sql)) return -1;
 			}
-			$sql = 'UPDATE '.$supplierRmaLogTable.' SET date_effective = date_event';
-			$sql .= " WHERE date_effective IS NULL AND event_code IN ('CREATE', 'STATUS')";
-			if (!$this->db->query($sql)) return -1;
 		}
 
 		return 1;
