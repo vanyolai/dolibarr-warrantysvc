@@ -666,7 +666,8 @@ print load_fiche_titre($langs->trans('SupplierRmaLifecycle'), '', 'history');
 print '<div class="div-table-responsive">';
 print '<table class="noborder centpercent">';
 print '<tr class="liste_titre">';
-print '<td>'.$langs->trans('Date').'</td>';
+print '<td>'.$langs->trans('SupplierRmaEffectiveDate').'</td>';
+print '<td>'.$langs->trans('SupplierRmaRecordedDate').'</td>';
 print '<td>'.$langs->trans('Event').'</td>';
 print '<td>'.$langs->trans('Status').'</td>';
 print '<td>'.$langs->trans('User').'</td>';
@@ -674,12 +675,13 @@ print '<td>'.$langs->trans('Note').'</td>';
 print '</tr>';
 
 if (empty($history)) {
-	print '<tr class="oddeven"><td colspan="5"><span class="opacitymedium">'.$langs->trans('NoLifecycleEvents').'</span></td></tr>';
+	print '<tr class="oddeven"><td colspan="6"><span class="opacitymedium">'.$langs->trans('NoLifecycleEvents').'</span></td></tr>';
 } else {
 	foreach ($history as $entry) {
 		$tmpStatus = new SvcSupplierRma($db);
 		$tmpStatus->status = $entry['new_status'];
 		print '<tr class="oddeven">';
+		print '<td>'.($entry['date_effective'] ? dol_print_date($entry['date_effective'], 'dayhour') : '—').'</td>';
 		print '<td>'.($entry['date_event'] ? dol_print_date($entry['date_event'], 'dayhour') : '—').'</td>';
 		print '<td>'.dol_escape_htmltag($langs->trans('SupplierRmaEvent'.$entry['event_code'])).'</td>';
 		print '<td>'.$tmpStatus->getLibStatut().'</td>';
