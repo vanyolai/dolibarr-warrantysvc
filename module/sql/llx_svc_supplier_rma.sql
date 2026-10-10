@@ -29,6 +29,7 @@ CREATE TABLE llx_svc_supplier_rma(
 	replacement_serial_number   VARCHAR(128),
 	problem_description         TEXT,
 	diagnosis                   TEXT,
+	supplier_work_done          TEXT,
 	accessories_sent            TEXT,
 	fk_warehouse_source         INTEGER,
 	fk_warehouse_return         INTEGER,
