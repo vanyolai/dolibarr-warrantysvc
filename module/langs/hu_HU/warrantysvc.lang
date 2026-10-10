@@ -992,3 +992,18 @@ WarrantyLetterAgendaRevisionDeleted=%s garancialevél v%s PDF-verziója törölv
 WarrantyLetterAgendaRevisionDeletedNote=Törölt dokumentum: %s
 WarrantyLetterAgendaSentByEmail=%s garancialevél v%s elküldve e-mailben
 WarrantyLetterAgendaSentByEmailNote=Címzett: %s\nTárgy: %s
+
+# Supplier service / RMA workspace
+SupplierRmaServiceMenu=Beszállítói szerviz / RMA
+SupplierRmaOpenOverview=Folyamatban lévő beszállítói RMA-k
+SupplierRmaInServiceOverview=A beszállítónál folyamatban lévő szervizelések
+SupplierRmaWorkDone=A beszállító által elvégzett munka
+SupplierRmaDateUpdated=Az RMA eseménydátuma frissítve, a módosítás naplózva.
+SupplierRmaClearDate=Dátum törlése
+SupplierRmaDateCorrectionReason=A dátum javításának oka (opcionális)
+SupplierRmaEventDATE=Dátumkorrekció
+SupplierRmaDocuments=Beszállítói dokumentumok
+SupplierRmaDocumentsHint=Csatolhatsz RMA-űrlapot, szervizjegyzőkönyvet vagy más fájlt. Külső dokumentum (pl. Paperless) hivatkozása is hozzáadható a Dolibarr linkkezelőjével, ha a hivatkozás megfelel a biztonsági szabályoknak.
+ErrorSupplierRmaInvalidDateField=Ismeretlen RMA dátummező.
+ErrorSupplierRmaRequiredDate=Az RMA igénylés dátuma nem törölhető.
+ErrorSupplierRmaInvalidDate=Érvénytelen RMA eseménydátum.
