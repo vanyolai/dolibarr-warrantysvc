@@ -684,6 +684,7 @@ SupplierRmaLifecycle=Supplier RMA lifecycle
 NoLifecycleEvents=No lifecycle events recorded.
 SupplierRmaEventCREATE=Created
 SupplierRmaEventSTATUS=Status change
+SupplierRmaEventUPDATE=Fields updated
 SupplierRmaEventEMAIL=Email sent
 SupplierRmaCreated=Supplier RMA %s created.
 SupplierRmaUpdated=Supplier RMA updated.
@@ -1011,3 +1012,6 @@ ErrorSupplierRmaHasDocuments=This RMA has file attachments or external document 
 SupplierRmaEffectiveDate=Actual event date
 SupplierRmaRecordedDate=Recorded at
 SubstSupplierRmaWorkDone=Work performed by supplier
+
+SupplierRmaRevision=Record revision
+ErrorSupplierRmaAuditEncoding=Could not encode the RMA field-change audit record.
