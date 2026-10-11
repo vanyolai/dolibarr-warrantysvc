@@ -163,6 +163,7 @@ Document new decisions here, especially exceptions, changes to workflow semantic
 ### Implementation checkpoint — 2026-10-11 (Phase 1 work still open)
 
 - **Branch:** `feature/rma-integrity-audit-concurrency` from `feature/supplier-rma-workflow` @ `51002351c5d8`.
+- **Draft review PR:** [#1 — Phase 1 RMA integrity, audit and concurrency](https://github.com/vanyolai/dolibarr-warrantysvc/pull/1) targeting `feature/supplier-rma-workflow`; keep draft, unmerged and off production until acceptance.
 - **Documents:** [audit, implementation plan and test gates](PHASE1_RMA_INTEGRITY.md) (`7b12762308e7`); status is maintained in this file.
 - **Schema and migration:** fresh supplier-RMA SQL + idempotent `revision INTEGER NOT NULL DEFAULT 1` upgrade; Dolibarr DDL descriptor corrected in `40c46f5ec131`. Existing records are not rewritten except for additive column initialization. **Unverified on a real database**.
 - **Code:** `1d005fb74965` atomic allowlisted UPDATE audit and CAS; `6a05d8eb6a8d` card revision + audit display; `995fc241ba46` unified status/rollback/date revisions and history entity filter; `265010c76a59` form tokens for dates/status/rollback. Translations also committed.
