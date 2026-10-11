@@ -21,7 +21,7 @@ php tests/integration/rma_integrity.php
 
 The numeric IDs above are **examples**, not preconfigured fixture IDs. Only use IDs from the throwaway database.
 
-The runner refuses non-CLI execution, requires explicit opt-in and refuses databases whose names do not start with `warrantysvc_test`. It creates and attempts to delete its own RMA record; no other objects are intentionally modified. Inspect the database after a failed run, as test cleanup is best-effort. The test does **not** re-enable/disable the module or test HTTP/CSRF.
+The runner refuses non-CLI execution, requires explicit opt-in and refuses databases whose names do not start with `warrantysvc_test`. It creates an audited RMA that is deliberately **retained** for verification and a separate untouched draft that it deletes. Destroy the **entire disposable database** after the run. Never run this on a production or shared sandbox database. The test does **not** re-enable/disable the module or test HTTP/CSRF.
 
 ## Current covered scenarios
 
@@ -31,6 +31,7 @@ The runner refuses non-CLI execution, requires explicit opt-in and refuses datab
 - Cross-entity edit refusal.
 - Backdated business date with unchanged recorded timestamp.
 - Post-shipment identity lock.
+- Guarded hard deletion: untouched draft may be deleted, edited/status-progressed RMA may not; preserved lifecycle history.
 
 ## Not yet implemented or executed
 
