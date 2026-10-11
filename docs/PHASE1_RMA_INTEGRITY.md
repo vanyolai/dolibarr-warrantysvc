@@ -21,7 +21,7 @@ Baseline audited: `feature/supplier-rma-workflow` @ `51002351c5d8bf74e80793cf46f
 4. **Atomic change ledger:** write an UPDATE event within the *same DB transaction* as the data change. It contains deterministic changed-field old/new values, operator and recorded timestamp. Only whitelist model-managed business fields; never audit internal framework/transient properties. Do not create audit rows for no-op saves. A failing audit INSERT must roll back the UPDATE.
 5. **Audit chronology:** `date_event` is immutable recorded time; `date_effective` is only a business event time. Date corrections must not rewrite `date_event`, even during rollback or reactivation.
 6. **Lifecycle concurrency:** status, rollback and date corrections must check and increment the same revision. Entity predicates belong on every read/write. Checks and writes should be in one transaction; never update the in-memory object permanently before commit.
-7. **Retention:** restrict hard deletion of meaningful lifecycle history; assess native cancellation/closure instead of deleting audited rows. Do not change historical data or drop existing tables.
+7. **Retention:** only an untouched DRAFT at revision 1, with exactly one CREATE event and no stock movement, files, document links or contact records, may be hard-deleted; a persisted row lock and the user-provided revision prevent stale confirmation. Edited, emailed or progressed records must be retained (use cancellation/closure as applicable). Historical records are not rewritten and existing audit rows are never purged as a side effect of updating.
 8. **Native Dolibarr:** keep core DB abstractions, permission checks, Dolibarr CSRF patterns, module helpers, translations and the existing `module/` source layout. No changes to production or `dist/`.
 
 ## Delivery and acceptance gates
@@ -34,3 +34,10 @@ Baseline audited: `feature/supplier-rma-workflow` @ `51002351c5d8bf74e80793cf46f
 - **P1-F — Sandbox acceptance:** back up real sandbox, deploy feature branch module files, run migration twice and the documented tests, perform manual UI/role/date/rollback checks; only then propose integration PR.
 
 Each package is a small reviewable commit or set of commits. Update `docs/PROJECT_STATUS.md` at each completed milestone, with exact evidence and next steps. CI lint success alone is never a release gate.
+
+## Implementation notes — 2026-10-11 (P1-D source work)
+
+- Source implementation: [retention guard](https://github.com/vanyolai/dolibarr-warrantysvc/commit/5ff4ab04e1ab613b182d5a742374b8b77a5e16a1), [HTTP POST/revision guard](https://github.com/vanyolai/dolibarr-warrantysvc/commit/8946bdaed2772362a63844df6ebd564cdc77d2f6), [transactional in-memory correction](https://github.com/vanyolai/dolibarr-warrantysvc/commit/478b742ba0a5b3a3747666bbbbf7bb730ac90449).
+- After that, the smoke runner was adapted to assert that an audited RMA cannot be deleted, while a separate untouched draft can be deleted, and to leave auditable test records in the **disposable** fixture for inspection.
+- **Validation:** CI PHP lint passed for `ea6f3a3e2eb7` after a smoke-test syntax fix. No Dolibarr or MariaDB tests have run. The native confirmation forms and permissions require HTTP integration verification.
+- **Risk:** a physical document filesystem write and a database deletion cannot be guaranteed atomic by the SQL transaction alone. The current guard refuses a deletion if any directory content is found; still test race scenarios. Do not claim complete deletion safety until these are reviewed.
