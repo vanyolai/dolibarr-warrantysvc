@@ -21,7 +21,7 @@
 | Supplier RMA documents and external links (e.g. Paperless URL) | Implemented using native Dolibarr file/link tools | Upload, access control, links and delete behavior require sandbox verification | A Paperless API integration is **not** implemented |
 | Supplier RMA physical outbound and inbound stock movement | **Not implemented** in RMA lifecycle | Not applicable | Existing fields and shared stock service must be assessed |
 | Field-level RMA edit audit and optimistic concurrency | **Implemented in Phase 1 branch**, including shared revision token for edit/status/rollback/date | PHP lint passed; no DB-backed run yet | **NOT accepted** until fixture/migration tests pass |
-| Dolibarr/MariaDB automated integration tests | Guarded native-model smoke script added at `tests/integration/rma_integrity.php` | PHP syntax CI passes; test **not executed** against a Dolibarr/MariaDB fixture | Build isolated fixture + actual CI execution next |
+| Dolibarr/MariaDB automated integration tests | Guarded native-model smoke script added at `tests/integration/rma_integrity.php` | PHP syntax CI passes following test-runner parse fix; script **not executed** against a Dolibarr/MariaDB fixture | Build isolated fixture + actual CI execution next |
 | Final refactor and release | Pending | Not applicable | Do not merge into production prematurely |
 
 **Evidence:** the [PHP lint CI](https://github.com/vanyolai/dolibarr-warrantysvc/actions/runs/38034233644) passed on the baseline commit. PHP lint is **not** proof of correct database migrations, transactions, permissions, SMTP, PDF generation or UI behavior. Distinguish user-confirmed sandbox behavior from untested functionality in every future update.
@@ -71,7 +71,7 @@ Relevant references:
 - [ ] **Code implemented, testing pending:** atomic RMA UPDATE + structured UPDATE log in existing RMA history; complete only after DB failure/rollback test.
 - [ ] **Code implemented, testing pending:** persisted `revision` CAS on edit, status, rollback and date operations; stale-submit test must pass in actual DB and HTTP forms.
 - [ ] Verify that date correction never rewrites the historical *recorded at* time; preserve both dates in lifecycle history.
-- [ ] **Partial:** guarded Dolibarr/MariaDB smoke test script added; its edit, audit, transition, backdating and entity scenarios have **not run**; rollback, roles and schema reactivation tests still missing.
+- [ ] **Partial:** guarded Dolibarr/MariaDB smoke test script added (including draft-only deletion); these scenarios have **not run**; rollback, roles and schema reactivation tests still missing.
 - [ ] Establish a supported Dolibarr 23 + database test fixture/CI setup, with isolation from production databases and mail recipients.
 - [ ] Run the tests on a representative sandbox database; record the exact commands and outcomes here.
 
@@ -120,7 +120,7 @@ Relevant references:
 | RMA-03 | High | CI executes PHP syntax lint (including integration script); real Dolibarr/database regression job is absent | Install isolated fixture, then automate smoke test in CI |
 | RMA-04 | Medium | Status and `result_type` support different concepts; credits/no-fault may not fit the existing physical-return-only path | Phase 3 business design |
 | RMA-05 | Medium | Date and status operations now use common revision CAS; historical rollback/correction sequences remain untested | DB checks of recorded/effective timestamp preservation and repeated rollback |
-| RMA-06 | High | Hard-delete currently removes prior RMA log/history when no stock/documents exist | Restrict to unmodified draft-only deletion; test audit retention and HTTP permissions in P1-D |
+| RMA-06 | High | Hard-delete is now restricted in code to a revision-1 draft with only CREATE event and no linked content, contacts or stock | Source fix coded; test against Dolibarr/MariaDB and role-protected HTTP actions before closure |
 | RMA-07 | Medium | Revision migration uses Dolibarr `DDLAddField(null => NOT NULL)` with default 1 | Confirm existing rows, rerun activation twice, verify no reset or schema errors |
 | CROSS-01 | Medium | Remaining hard-coded `DOL_URL_ROOT.'/custom/warrantysvc/'` and similar paths appear in several module files | Audit and refactor in Phase 5 |
 | LETTER-01 | Medium | Warranty-letter PDF file deletion and SQL updates are not fully atomic on failure | Review before production release |
@@ -170,6 +170,16 @@ Document new decisions here, especially exceptions, changes to workflow semantic
 - **Tests:** guarded native Dolibarr/MariaDB smoke runner `tests/integration/rma_integrity.php` (latest assertion commit `bc646aa67c30`), [setup instructions](../tests/integration/README.md), PHP 8.2/8.3/8.4 syntax lint now includes `tests/`. [Latest verified PHP lint success](https://github.com/vanyolai/dolibarr-warrantysvc/actions/runs/38131426140) for `bc646aa67c30`; **script not executed; no database/permission/HTTP tests passed yet**.
 - **High-priority issues still open:** final hard-delete audit retention / POST guard; rollback semantics for pre-entered milestone dates; test error injection, independent DB connections and reactivation; real CI fixture.
 - **Exact next work:** P1-D hard-delete retention and HTTP POST/permission checks, after reviewing implications for the isolated test runner cleanup. Then provision disposable `warrantysvc_test` database and pinned Dolibarr 23 + MariaDB, run the smoke test and backfill integration coverage. Only with DB validation consider P1-B/C accepted. **Do not deploy to production or begin Phase 2 stock movement.**
+
+### Implementation checkpoint — 2026-10-11 (retention and HTTP hardening)
+
+- **PR:** [draft #1](https://github.com/vanyolai/dolibarr-warrantysvc/pull/1); no merge/deployment. Living status remains this file; detailed design in [Phase 1 plan](PHASE1_RMA_INTEGRITY.md).
+- **P1-D code added:** `5ff4ab04e1ab` locks the persisted RMA and permits hard-delete only for a revision-1 DRAFT with precisely one CREATE audit event, no external links, files/subdirectories, stock movements or RMA contact rows; otherwise preserve record and its history. `8946bdaed277` enforces POST for mutations, passes revision to native delete confirmation, hides delete action outside pristine draft. HU/EN translation added.
+- **P1-C stabilization:** `478b742ba0a5` defers in-memory status/date/result updates until after successful DB commit; checks stale no-op business date corrections. Not DB tested.
+- **Test source changes:** `7b5f465d262b` tests retention invariants in disposable DB; `5f5498593739` restores valid PHP try/finally control flow after a temporary CI parse failure. No functional test execution or confirmed transaction outcome yet.
+- **CI evidence:** [PHP lint success](https://github.com/vanyolai/dolibarr-warrantysvc/actions/runs/38133651456) on `ea6f3a3e2eb7`, covering PHP 8.2/8.3/8.4 and `tests/`. Earlier parse failures were fixed; **this is not a Dolibarr/MariaDB integration result**.
+- **Risks still open:** test harness is manual and not provisioned in CI; verify `formconfirm` POST and permission semantics, migration twice, rollback/retention behaviors, effective/recorded timestamps and separate DB-connection race handling. Filesystem/upload race cannot be made atomic with SQL alone.
+- **Next exact action:** provide a pinned disposable Dolibarr 23 + MariaDB fixture, execute the guarded smoke suite and correct findings, then add automated HTTP/migration tests. Prepare a sandbox runbook only when CI/integration evidence supports user acceptance. The user requested notification when a testable milestone or real decision is reached. No production changes.
 
 ## 7. Rules for updating this document
 
