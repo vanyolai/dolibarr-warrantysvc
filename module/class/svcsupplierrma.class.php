@@ -779,14 +779,34 @@ class SvcSupplierRma extends CommonObject
 			return -1;
 		}
 		$previous = !empty($this->{$field}) ? (int) $this->{$field} : null;
-		if ($previous === $timestamp) return 1;
+		if ($previous === $timestamp) {
+			// A stale no-op must not be reported as a valid save. It creates
+			// no new event and does not increment revision.
+			$sqlCheck = 'SELECT revision FROM '.MAIN_DB_PREFIX.'svc_supplier_rma';
+			$sqlCheck .= ' WHERE rowid = '.((int) $this->id).' AND entity = '.((int) $this->entity);
+			$resCheck = $this->db->query($sqlCheck);
+			if (!$resCheck) {
+				$this->error = $this->db->lasterror();
+				return -1;
+			}
+			$check = $this->db->fetch_object($resCheck);
+			$this->db->free($resCheck);
+			if (!$check || (int) $check->revision !== (int) $this->revision) {
+				$this->error = 'ErrorSupplierRmaConcurrentUpdate';
+				return -1;
+			}
+			return 1;
+		}
 
 		$previousSql = $previous === null ? 'NULL' : $this->db->idate($previous);
 		$newSql = $timestamp === null ? 'NULL' : $this->db->idate($timestamp);
 		$eventNote = $field.': '.$previousSql.' -> '.$newSql;
 		if (trim((string) $reason) !== '') $eventNote .= "\n".trim((string) $reason);
 
-		$this->db->begin();
+		if ($this->db->begin() <= 0) {
+			$this->error = $this->db->lasterror();
+			return -1;
+		}
 		$sql = 'UPDATE '.MAIN_DB_PREFIX.'svc_supplier_rma SET '.$field.' = '.$this->sqlDateOrNull($timestamp);
 		$sql .= ', fk_user_modif = '.((int) $user->id).', revision = revision + 1';
 		$sql .= ' WHERE rowid = '.((int) $this->id).' AND entity = '.((int) $this->entity);
@@ -882,6 +902,7 @@ class SvcSupplierRma extends CommonObject
 
 		$oldStatus = $this->status;
 		$now = dol_now();
+		$pending = array();
 		$sets = array(
 			"status = '".$this->db->escape($newStatus)."'",
 			"fk_user_modif = ".((int) $user->id),
@@ -889,30 +910,33 @@ class SvcSupplierRma extends CommonObject
 		);
 		if ($newStatus === self::STATUS_AUTHORIZED && empty($this->date_authorized)) {
 			$sets[] = "date_authorized = '".$this->db->idate($now)."'";
-			$this->date_authorized = $now;
+			$pending['date_authorized'] = $now;
 		}
 		if ($newStatus === self::STATUS_SHIPPED && empty($this->date_shipped)) {
 			$sets[] = "date_shipped = '".$this->db->idate($now)."'";
-			$this->date_shipped = $now;
+			$pending['date_shipped'] = $now;
 		}
 		if ($newStatus === self::STATUS_RECEIVED_BY_SUPPLIER && empty($this->date_supplier_received)) {
 			$sets[] = "date_supplier_received = '".$this->db->idate($now)."'";
-			$this->date_supplier_received = $now;
+			$pending['date_supplier_received'] = $now;
 		}
 		if (in_array($newStatus, array(self::STATUS_REPAIRED, self::STATUS_REPLACED, self::STATUS_REJECTED), true) && empty($this->date_supplier_completed)) {
 			$sets[] = "date_supplier_completed = '".$this->db->idate($now)."'";
-			$this->date_supplier_completed = $now;
+			$pending['date_supplier_completed'] = $now;
 			if (empty($this->result_type)) {
-				$this->result_type = $newStatus;
-				$sets[] = "result_type = '".$this->db->escape($this->result_type)."'";
+				$pending['result_type'] = $newStatus;
+				$sets[] = "result_type = '".$this->db->escape($newStatus)."'";
 			}
 		}
 		if ($newStatus === self::STATUS_RETURNED && empty($this->date_returned)) {
 			$sets[] = "date_returned = '".$this->db->idate($now)."'";
-			$this->date_returned = $now;
+			$pending['date_returned'] = $now;
 		}
 
-		$this->db->begin();
+		if ($this->db->begin() <= 0) {
+			$this->error = $this->db->lasterror();
+			return -1;
+		}
 		$sql = "UPDATE ".MAIN_DB_PREFIX."svc_supplier_rma SET ".implode(', ', $sets);
 		$sql .= " WHERE rowid = ".((int) $this->id);
 		$sql .= " AND entity = ".((int) $this->entity);
@@ -930,10 +954,12 @@ class SvcSupplierRma extends CommonObject
 			return -1;
 		}
 
-		$this->status = $newStatus;
-		$this->fk_user_modif = (int) $user->id;
 		$eventDateField = $this->statusDateField($newStatus);
-		$effectiveDate = $eventDateField && !empty($this->{$eventDateField}) ? $this->{$eventDateField} : $now;
+		$effectiveDate = $now;
+		if ($eventDateField) {
+			$eventValue = array_key_exists($eventDateField, $pending) ? $pending[$eventDateField] : $this->{$eventDateField};
+			if (!empty($eventValue)) $effectiveDate = $eventValue;
+		}
 		if ($this->logEvent('STATUS', $oldStatus, $newStatus, $note, $user, $effectiveDate) < 0) {
 			$this->db->rollback();
 			return -1;
@@ -942,6 +968,9 @@ class SvcSupplierRma extends CommonObject
 			$this->error = $this->db->lasterror();
 			return -1;
 		}
+		foreach ($pending as $field => $value) $this->{$field} = $value;
+		$this->status = $newStatus;
+		$this->fk_user_modif = (int) $user->id;
 		$this->revision++;
 		return 1;
 	}
@@ -1011,6 +1040,7 @@ class SvcSupplierRma extends CommonObject
 			return -1;
 		}
 
+		$pendingClears = array();
 		$sets = array(
 			"status = '".$this->db->escape($newStatus)."'",
 			"fk_user_modif = ".((int) $user->id),
@@ -1020,26 +1050,29 @@ class SvcSupplierRma extends CommonObject
 		// Clear timestamps introduced by the accidentally-entered state.
 		if ($oldStatus === self::STATUS_AUTHORIZED) {
 			$sets[] = "date_authorized = NULL";
-			$this->date_authorized = null;
+			$pendingClears[] = 'date_authorized';
 		} elseif ($oldStatus === self::STATUS_SHIPPED) {
 			$sets[] = "date_shipped = NULL";
-			$this->date_shipped = null;
+			$pendingClears[] = 'date_shipped';
 		} elseif ($oldStatus === self::STATUS_RECEIVED_BY_SUPPLIER) {
 			$sets[] = "date_supplier_received = NULL";
-			$this->date_supplier_received = null;
+			$pendingClears[] = 'date_supplier_received';
 		} elseif (in_array($oldStatus, array(self::STATUS_REPAIRED, self::STATUS_REPLACED, self::STATUS_REJECTED), true)) {
 			$sets[] = "date_supplier_completed = NULL";
-			$this->date_supplier_completed = null;
+			$pendingClears[] = 'date_supplier_completed';
 			if ($this->result_type === $oldStatus) {
 				$sets[] = "result_type = NULL";
-				$this->result_type = '';
+				$pendingClears[] = 'result_type';
 			}
 		} elseif ($oldStatus === self::STATUS_RETURNED) {
 			$sets[] = "date_returned = NULL";
-			$this->date_returned = null;
+			$pendingClears[] = 'date_returned';
 		}
 
-		$this->db->begin();
+		if ($this->db->begin() <= 0) {
+			$this->error = $this->db->lasterror();
+			return -1;
+		}
 		$sql = "UPDATE ".MAIN_DB_PREFIX."svc_supplier_rma SET ".implode(', ', $sets);
 		$sql .= " WHERE rowid = ".((int) $this->id);
 		$sql .= " AND entity = ".((int) $this->entity);
@@ -1057,8 +1090,6 @@ class SvcSupplierRma extends CommonObject
 			return -1;
 		}
 
-		$this->status = $newStatus;
-		$this->fk_user_modif = (int) $user->id;
 		if ($this->logEvent('ROLLBACK', $oldStatus, $newStatus, $note, $user) < 0) {
 			$this->db->rollback();
 			return -1;
@@ -1068,6 +1099,9 @@ class SvcSupplierRma extends CommonObject
 			$this->error = $this->db->lasterror();
 			return -1;
 		}
+		foreach ($pendingClears as $field) $this->{$field} = $field === 'result_type' ? '' : null;
+		$this->status = $newStatus;
+		$this->fk_user_modif = (int) $user->id;
 		$this->revision++;
 		return 1;
 	}
