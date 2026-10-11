@@ -68,7 +68,8 @@ $rma->qty = 1;
 $rma->serial_number = 'TEST-'.uniqid();
 $rma->problem_description = 'Integration test item – safe to delete';
 $id = 0;
-try {
+// The test database is disposable; audited records stay as regression evidence.
+if (true) {
     $id = (int) $rma->create($user);
     checkRma($id > 0, 'RMA create with audit event: '.$rma->error);
     checkRma((int) $rma->revision === 1, 'Initial revision is 1');
