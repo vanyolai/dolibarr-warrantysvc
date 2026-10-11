@@ -707,8 +707,9 @@ class SvcSupplierRma extends CommonObject
 
 		$this->db->begin();
 		$sql = 'UPDATE '.MAIN_DB_PREFIX.'svc_supplier_rma SET '.$field.' = '.$this->sqlDateOrNull($timestamp);
-		$sql .= ', fk_user_modif = '.((int) $user->id);
+		$sql .= ', fk_user_modif = '.((int) $user->id).', revision = revision + 1';
 		$sql .= ' WHERE rowid = '.((int) $this->id).' AND entity = '.((int) $this->entity);
+		$sql .= ' AND revision = '.((int) $this->revision);
 		$sql .= ' AND '.($previous === null ? $field.' IS NULL' : $field." = '".$this->db->escape($previousSql)."'");
 		$resql = $this->db->query($sql);
 		if (!$resql) {
@@ -773,6 +774,7 @@ class SvcSupplierRma extends CommonObject
 		}
 		$this->{$field} = $timestamp;
 		$this->fk_user_modif = (int) $user->id;
+		$this->revision++;
 		return 1;
 	}
 
@@ -802,6 +804,7 @@ class SvcSupplierRma extends CommonObject
 		$sets = array(
 			"status = '".$this->db->escape($newStatus)."'",
 			"fk_user_modif = ".((int) $user->id),
+			"revision = revision + 1",
 		);
 		if ($newStatus === self::STATUS_AUTHORIZED && empty($this->date_authorized)) {
 			$sets[] = "date_authorized = '".$this->db->idate($now)."'";
@@ -831,6 +834,8 @@ class SvcSupplierRma extends CommonObject
 		$this->db->begin();
 		$sql = "UPDATE ".MAIN_DB_PREFIX."svc_supplier_rma SET ".implode(', ', $sets);
 		$sql .= " WHERE rowid = ".((int) $this->id);
+		$sql .= " AND entity = ".((int) $this->entity);
+		$sql .= " AND revision = ".((int) $this->revision);
 		$sql .= " AND status = '".$this->db->escape($oldStatus)."'";
 		$resql = $this->db->query($sql);
 		if (!$resql) {
@@ -852,7 +857,11 @@ class SvcSupplierRma extends CommonObject
 			$this->db->rollback();
 			return -1;
 		}
-		$this->db->commit();
+		if ($this->db->commit() <= 0) {
+			$this->error = $this->db->lasterror();
+			return -1;
+		}
+		$this->revision++;
 		return 1;
 	}
 
@@ -881,6 +890,7 @@ class SvcSupplierRma extends CommonObject
 
 		$sql = "SELECT old_status FROM ".MAIN_DB_PREFIX."svc_supplier_rma_log";
 		$sql .= " WHERE fk_supplier_rma = ".((int) $this->id);
+		$sql .= " AND entity = ".((int) $this->entity);
 		$sql .= " AND event_code = 'STATUS'";
 		$sql .= " AND new_status = '".$this->db->escape($this->status)."'";
 		$sql .= " AND old_status IS NOT NULL AND old_status <> ''";
@@ -923,6 +933,7 @@ class SvcSupplierRma extends CommonObject
 		$sets = array(
 			"status = '".$this->db->escape($newStatus)."'",
 			"fk_user_modif = ".((int) $user->id),
+			"revision = revision + 1",
 		);
 
 		// Clear timestamps introduced by the accidentally-entered state.
@@ -950,6 +961,8 @@ class SvcSupplierRma extends CommonObject
 		$this->db->begin();
 		$sql = "UPDATE ".MAIN_DB_PREFIX."svc_supplier_rma SET ".implode(', ', $sets);
 		$sql .= " WHERE rowid = ".((int) $this->id);
+		$sql .= " AND entity = ".((int) $this->entity);
+		$sql .= " AND revision = ".((int) $this->revision);
 		$sql .= " AND status = '".$this->db->escape($oldStatus)."'";
 		$resql = $this->db->query($sql);
 		if (!$resql) {
@@ -970,7 +983,11 @@ class SvcSupplierRma extends CommonObject
 			return -1;
 		}
 
-		$this->db->commit();
+		if ($this->db->commit() <= 0) {
+			$this->error = $this->db->lasterror();
+			return -1;
+		}
+		$this->revision++;
 		return 1;
 	}
 
@@ -1004,6 +1021,7 @@ class SvcSupplierRma extends CommonObject
 		$sql .= " FROM ".MAIN_DB_PREFIX."svc_supplier_rma_log l";
 		$sql .= " LEFT JOIN ".MAIN_DB_PREFIX."user u ON u.rowid = l.fk_user";
 		$sql .= " WHERE l.fk_supplier_rma = ".((int) $this->id);
+		$sql .= " AND l.entity = ".((int) $this->entity);
 		$sql .= " ORDER BY COALESCE(l.date_effective, l.date_event) ASC, l.rowid ASC";
 		$resql = $this->db->query($sql);
 		if (!$resql) {
