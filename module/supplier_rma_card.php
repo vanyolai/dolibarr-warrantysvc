@@ -38,6 +38,13 @@ if (!$permread || !empty($user->socid)) {
 	accessforbidden();
 }
 
+// Mutating actions use native POST/CSRF forms. Never accept a crafted GET
+// request for a save, status change, rollback or hard deletion.
+if (in_array($action, array('add', 'update', 'update_business_date', 'setstatus', 'confirm_rollback', 'confirm_delete'), true)
+	&& $_SERVER['REQUEST_METHOD'] !== 'POST') {
+	accessforbidden();
+}
+
 $object = new SvcSupplierRma($db);
 $sr = new SvcRequest($db);
 
@@ -210,6 +217,7 @@ if ($action === 'confirm_rollback' && GETPOST('confirm', 'alpha') === 'yes' && $
 }
 
 if ($action === 'confirm_delete' && GETPOST('confirm', 'alpha') === 'yes' && $permdelete && $object->id > 0) {
+	$object->revision = GETPOSTINT('revision');
 	$srid = (int) $object->fk_svc_request;
 	$result = $object->delete($user);
 	if ($result > 0) {
@@ -321,9 +329,9 @@ $head = svcsupplierrma_prepare_head($object);
 print dol_get_fiche_head($head, 'card', $langs->trans('SupplierRma'), -1, 'tools');
 
 $formconfirm = '';
-if ($action === 'delete') {
+if ($action === 'delete' && $permdelete) {
 	$formconfirm = $form->formconfirm(
-		$_SERVER['PHP_SELF'].'?id='.$object->id,
+		$_SERVER['PHP_SELF'].'?id='.$object->id.'&revision='.((int) $object->revision),
 		$langs->trans('DeleteSupplierRma'),
 		$langs->trans('ConfirmDeleteSupplierRma', $object->ref),
 		'confirm_delete',
@@ -331,7 +339,7 @@ if ($action === 'delete') {
 		0,
 		1
 	);
-} elseif ($action === 'rollback') {
+} elseif ($action === 'rollback' && $permwrite) {
 	$formconfirm = $form->formconfirm(
 		$_SERVER['PHP_SELF'].'?id='.$object->id.'&revision='.((int) $object->revision),
 		$langs->trans('SupplierRmaRollback'),
@@ -660,7 +668,8 @@ if ($isEdit) {
 		print '<a href="'.$_SERVER['PHP_SELF'].'?id='.$object->id.'&action=rollback&token='.newToken().'" class="butAction">'.$langs->trans('SupplierRmaRollback').'</a>';
 	}
 
-	if ($permdelete && empty($object->fk_stock_movement_out) && empty($object->fk_stock_movement_in)) {
+	if ($permdelete && $object->status === SvcSupplierRma::STATUS_DRAFT && (int) $object->revision === 1
+		&& empty($object->fk_stock_movement_out) && empty($object->fk_stock_movement_in)) {
 		print '<a href="'.$_SERVER['PHP_SELF'].'?id='.$object->id.'&action=delete&token='.newToken().'" class="butActionDelete">'.$langs->trans('DeleteSupplierRma').'</a>';
 	}
 }
