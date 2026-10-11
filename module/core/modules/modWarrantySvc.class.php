@@ -726,6 +726,11 @@ class modWarrantySvc extends DolibarrModules
 		// more than one unit while serial-numbered RMAs still use qty=1.
 		if ($this->tableExists($supplierRmaTable)) {
 			$columns = $this->getColumnTypes($supplierRmaTable);
+			// Phase 1: integer compare-and-swap token, including pre-existing RMAs.
+			// Re-enabling the module must never reset a revision or delete data.
+			if (!isset($columns['revision']) && $this->db->DDLAddField($supplierRmaTable, 'revision', array('type'=>'int', 'default'=>'1', 'notnull'=>1)) < 0) {
+				return -1;
+			}
 			if (!isset($columns['qty']) && $this->db->DDLAddField($supplierRmaTable, 'qty', array('type'=>'decimal', 'value'=>'24,8', 'default'=>'1')) < 0) {
 				return -1;
 			}
