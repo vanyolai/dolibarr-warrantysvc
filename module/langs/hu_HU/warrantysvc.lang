@@ -1015,3 +1015,5 @@ SubstSupplierRmaWorkDone=A beszállító által elvégzett munka
 
 SupplierRmaRevision=Rekordverzió
 ErrorSupplierRmaAuditEncoding=Az RMA mezőváltozásainak naplózása nem sikerült.
+
+ErrorSupplierRmaDeleteHistory=A beszállítói RMA már módosult, üzleti előzménye vagy kapcsolattartója van, illetve nem piszkozat. A végleges törlés nem engedélyezett; szükség esetén sztornózd.
