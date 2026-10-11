@@ -684,6 +684,7 @@ SupplierRmaLifecycle=Beszállítói RMA életút
 NoLifecycleEvents=Nincs rögzített életút-esemény.
 SupplierRmaEventCREATE=Létrehozás
 SupplierRmaEventSTATUS=Állapotváltozás
+SupplierRmaEventUPDATE=Mezők módosítása
 SupplierRmaEventEMAIL=E-mail elküldve
 SupplierRmaCreated=A(z) %s beszállítói RMA létrejött.
 SupplierRmaUpdated=Beszállítói RMA frissítve.
@@ -1011,3 +1012,6 @@ ErrorSupplierRmaHasDocuments=Az RMA-hoz fájl vagy külső dokumentumhivatkozás
 SupplierRmaEffectiveDate=Tényleges eseménydátum
 SupplierRmaRecordedDate=Rögzítés időpontja
 SubstSupplierRmaWorkDone=A beszállító által elvégzett munka
+
+SupplierRmaRevision=Rekordverzió
+ErrorSupplierRmaAuditEncoding=Az RMA mezőváltozásainak naplózása nem sikerült.
