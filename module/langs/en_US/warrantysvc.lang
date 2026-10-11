@@ -1015,3 +1015,5 @@ SubstSupplierRmaWorkDone=Work performed by supplier
 
 SupplierRmaRevision=Record revision
 ErrorSupplierRmaAuditEncoding=Could not encode the RMA field-change audit record.
+
+ErrorSupplierRmaDeleteHistory=This supplier RMA has business history, contacts, or a non-draft status and must be retained. Cancel it instead.
