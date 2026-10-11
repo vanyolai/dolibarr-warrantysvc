@@ -133,12 +133,24 @@ try {
     $locked->serial_number = 'ILLEGAL-CHANGE';
     checkRma($locked->update($user) < 0 && $locked->error === 'ErrorSupplierRmaIdentityLocked',
         'Shipped RMA identity cannot be edited');
-    echo "Integration smoke test passed; removing isolated test RMA.\n";
-} finally {
-    if ($id > 0) {
-        $cleanup = new SvcSupplierRma($db);
-        if ($cleanup->fetch($id) > 0 && $cleanup->delete($user) <= 0) {
-            fwrite(STDERR, "WARNING: cleanup failed for isolated test RMA ".$id.": ".$cleanup->error."\n");
-        }
-    }
+    $keep = new SvcSupplierRma($db);
+    checkRma($keep->fetch($id) > 0, 'Audited RMA still exists');
+    checkRma($keep->delete($user) < 0 && $keep->error === 'ErrorSupplierRmaDeleteHistory',
+        'History-bearing RMA cannot be permanently deleted');
+
+    // Only a truly untouched draft may be hard-deleted. Test the positive
+    // path using a second record entirely inside the disposable test DB.
+    $pristine = new SvcSupplierRma($db);
+    $pristine->fk_svc_request = $requestId;
+    $pristine->fk_soc_supplier = $supplierId;
+    $pristine->fk_product = $productId;
+    $pristine->qty = 1;
+    $pristine->serial_number = 'TEST-PRISTINE-'.uniqid();
+    $pristine->problem_description = 'Untouched disposable draft';
+    $pristineId = (int) $pristine->create($user);
+    checkRma($pristineId > 0, 'Pristine draft created');
+    checkRma($pristine->delete($user) > 0, 'Pristine draft can be deleted');
+    checkRma($pristine->fetch($pristineId) === 0, 'Deleted draft is no longer accessible');
+
+    echo "Integration smoke test passed. Audited RMA ".$id." intentionally retained in disposable DB; destroy fixture after the test.\\n";
 }
