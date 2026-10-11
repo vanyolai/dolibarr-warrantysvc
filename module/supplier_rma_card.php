@@ -170,6 +170,7 @@ if ($action === 'update_business_date' && $permwrite && $object->id > 0 && $_SER
 		if (!$validDate || (!$clearDate && (!$time || $time < 1))) {
 			setEventMessages($langs->trans('ErrorSupplierRmaInvalidDate'), null, 'errors');
 		} else {
+			$object->revision = GETPOSTINT('revision');
 			$result = $object->setBusinessDate($editDateField, $time, $user, GETPOST('date_reason', 'restricthtml'));
 			if ($result > 0) {
 				setEventMessages($langs->trans('SupplierRmaDateUpdated'), null, 'mesgs');
@@ -185,6 +186,7 @@ if ($action === 'update_business_date' && $permwrite && $object->id > 0 && $_SER
 if ($action === 'setstatus' && $permwrite && $object->id > 0 && $_SERVER['REQUEST_METHOD'] === 'POST') {
 	$newStatus = GETPOST('newstatus', 'alpha');
 	$note = GETPOST('status_note', 'restricthtml');
+	$object->revision = GETPOSTINT('revision');
 	$result = $object->setStatus($newStatus, $user, $note);
 	if ($result > 0) {
 		setEventMessages($langs->trans('SupplierRmaStatusUpdated'), null, 'mesgs');
@@ -196,6 +198,7 @@ if ($action === 'setstatus' && $permwrite && $object->id > 0 && $_SERVER['REQUES
 }
 
 if ($action === 'confirm_rollback' && GETPOST('confirm', 'alpha') === 'yes' && $permwrite && $object->id > 0) {
+	$object->revision = GETPOSTINT('revision');
 	$result = $object->rollbackStatus($user, $langs->transnoentitiesnoconv('SupplierRmaRollbackAuditNote'));
 	if ($result > 0) {
 		setEventMessages($langs->trans('SupplierRmaRolledBack'), null, 'mesgs');
@@ -330,7 +333,7 @@ if ($action === 'delete') {
 	);
 } elseif ($action === 'rollback') {
 	$formconfirm = $form->formconfirm(
-		$_SERVER['PHP_SELF'].'?id='.$object->id,
+		$_SERVER['PHP_SELF'].'?id='.$object->id.'&revision='.((int) $object->revision),
 		$langs->trans('SupplierRmaRollback'),
 		$langs->trans('ConfirmSupplierRmaRollback'),
 		'confirm_rollback',
@@ -438,6 +441,7 @@ foreach ($businessDateFields as $dateField => $dateLabel) {
 		print '<form method="POST" action="'.$_SERVER['PHP_SELF'].'?id='.((int) $object->id).'">';
 		print '<input type="hidden" name="token" value="'.newToken().'">';
 		print '<input type="hidden" name="action" value="update_business_date">';
+		print '<input type="hidden" name="revision" value="'.((int) $object->revision).'">';
 		print '<input type="hidden" name="field" value="'.dol_escape_htmltag($dateField).'">';
 		print $form->selectDate($object->{$dateField} ?: -1, 'business_date_', 1, 1, 1);
 		if ($dateField !== 'date_request') {
@@ -645,6 +649,7 @@ if ($isEdit) {
 			print '<form method="POST" action="'.$_SERVER['PHP_SELF'].'?id='.((int) $object->id).'" class="inline-block">';
 			print '<input type="hidden" name="token" value="'.newToken().'">';
 			print '<input type="hidden" name="action" value="setstatus">';
+			print '<input type="hidden" name="revision" value="'.((int) $object->revision).'">';
 			print '<input type="hidden" name="newstatus" value="'.dol_escape_htmltag($nextStatus).'">';
 			print '<button type="submit" class="'.$css.'">'.dol_escape_htmltag($langs->trans($labelKey)).'</button>';
 			print '</form>';
