@@ -558,90 +558,171 @@ class SvcSupplierRma extends CommonObject
 		return 1;
 	}
 
+	/**
+	 * Hard-delete only an untouched, unreferenced draft.
+	 *
+	 * Once a supplier RMA has been edited, communicated or progressed, its
+	 * business history must be retained; cancel it instead. The CREATE event
+	 * may only be removed with a truly untouched draft and within the same
+	 * transaction as the RMA row.
+	 *
+	 * @param User $user Operator (permission is checked by the caller)
+	 * @param int $notrigger Dolibarr compatibility argument
+	 * @return int 1 on success, -1 on failure
+	 */
 	public function delete($user, $notrigger = 0)
 	{
-		// Phase 1 has no stock movements yet, so an RMA may be permanently
-		// deleted from any workflow state. Once Phase 2 has created an actual
-		// movement, hard deletion is deliberately blocked to preserve stock and
-		// audit traceability.
-		if (!empty($this->fk_stock_movement_out) || !empty($this->fk_stock_movement_in)) {
-			$this->error = 'ErrorSupplierRmaDeleteStockMovements';
+		if ((int) $this->id <= 0 || (int) $this->entity <= 0) {
+			$this->error = 'ErrorRecordNotFound';
+			return -1;
+		}
+		if ($this->db->begin() <= 0) {
+			$this->error = $this->db->lasterror();
 			return -1;
 		}
 
-		// An RMA with supplier correspondence is an auditable business record.
-		// Never leave orphaned files or Paperless/external links behind on hard delete.
-		$sql = 'SELECT rowid FROM '.MAIN_DB_PREFIX.'links';
-		$sql .= " WHERE objecttype = '".$this->db->escape($this->element)."'";
-		$sql .= ' AND objectid = '.((int) $this->id);
-		$sql .= $this->db->plimit(1);
+		// Lock before checking history/stock: a stale confirmation must not
+		// delete an RMA that has been changed by another operator.
+		$sql = 'SELECT revision, status, fk_svc_request, fk_stock_movement_out, fk_stock_movement_in';
+		$sql .= ' FROM '.MAIN_DB_PREFIX.'svc_supplier_rma';
+		$sql .= ' WHERE rowid = '.((int) $this->id).' AND entity = '.((int) $this->entity).' FOR UPDATE';
 		$res = $this->db->query($sql);
 		if (!$res) {
 			$this->error = $this->db->lasterror();
+			$this->db->rollback();
+			return -1;
+		}
+		$current = $this->db->fetch_object($res);
+		$this->db->free($res);
+		if (!$current) {
+			$this->error = 'ErrorRecordNotFound';
+			$this->db->rollback();
+			return -1;
+		}
+		if ((int) $current->revision !== (int) $this->revision) {
+			$this->error = 'ErrorSupplierRmaConcurrentUpdate';
+			$this->db->rollback();
+			return -1;
+		}
+		if (!empty($current->fk_stock_movement_out) || !empty($current->fk_stock_movement_in)) {
+			$this->error = 'ErrorSupplierRmaDeleteStockMovements';
+			$this->db->rollback();
+			return -1;
+		}
+		if ((string) $current->status !== self::STATUS_DRAFT || (int) $current->revision !== 1) {
+			$this->error = 'ErrorSupplierRmaDeleteHistory';
+			$this->db->rollback();
+			return -1;
+		}
+
+		// Require exactly the one original CREATE event. Legacy entries with
+		// missing history and all subsequently edited/emailed drafts are kept.
+		$sql = 'SELECT event_code FROM '.MAIN_DB_PREFIX.'svc_supplier_rma_log';
+		$sql .= ' WHERE fk_supplier_rma = '.((int) $this->id);
+		$sql .= ' AND entity = '.((int) $this->entity).' FOR UPDATE';
+		$res = $this->db->query($sql);
+		if (!$res) {
+			$this->error = $this->db->lasterror();
+			$this->db->rollback();
+			return -1;
+		}
+		$eventCount = 0;
+		$onlyCreate = true;
+		while ($event = $this->db->fetch_object($res)) {
+			$eventCount++;
+			if ((string) $event->event_code !== 'CREATE') $onlyCreate = false;
+		}
+		$this->db->free($res);
+		if ($eventCount !== 1 || !$onlyCreate) {
+			$this->error = 'ErrorSupplierRmaDeleteHistory';
+			$this->db->rollback();
+			return -1;
+		}
+
+		$sql = 'SELECT rowid FROM '.MAIN_DB_PREFIX.'links';
+		$sql .= " WHERE objecttype = '".$this->db->escape($this->element)."'";
+		$sql .= ' AND objectid = '.((int) $this->id).$this->db->plimit(1);
+		$res = $this->db->query($sql);
+		if (!$res) {
+			$this->error = $this->db->lasterror();
+			$this->db->rollback();
 			return -1;
 		}
 		$hasLinks = (bool) $this->db->fetch_object($res);
 		$this->db->free($res);
 		if ($hasLinks) {
 			$this->error = 'ErrorSupplierRmaHasDocuments';
+			$this->db->rollback();
+			return -1;
+		}
+
+		$sql = 'SELECT ec.rowid FROM '.MAIN_DB_PREFIX.'element_contact ec';
+		$sql .= ' INNER JOIN '.MAIN_DB_PREFIX.'c_type_contact tc ON tc.rowid = ec.fk_c_type_contact';
+		$sql .= ' WHERE ec.element_id = '.((int) $this->id);
+		$sql .= " AND tc.element = 'svcsupplierrma'".$this->db->plimit(1);
+		$res = $this->db->query($sql);
+		if (!$res) {
+			$this->error = $this->db->lasterror();
+			$this->db->rollback();
+			return -1;
+		}
+		$hasContacts = (bool) $this->db->fetch_object($res);
+		$this->db->free($res);
+		if ($hasContacts) {
+			$this->error = 'ErrorSupplierRmaDeleteHistory';
+			$this->db->rollback();
 			return -1;
 		}
 
 		$sql = 'SELECT ref FROM '.MAIN_DB_PREFIX.'svc_request';
-		$sql .= ' WHERE rowid = '.((int) $this->fk_svc_request);
+		$sql .= ' WHERE rowid = '.((int) $current->fk_svc_request);
 		$sql .= ' AND entity = '.((int) $this->entity);
 		$res = $this->db->query($sql);
 		if (!$res) {
 			$this->error = $this->db->lasterror();
+			$this->db->rollback();
 			return -1;
 		}
 		$request = $this->db->fetch_object($res);
 		$this->db->free($res);
 		if (!$request) {
 			$this->error = 'ErrorSupplierRmaServiceRequestNotFound';
+			$this->db->rollback();
 			return -1;
 		}
 		$documentDir = $this->getDocumentOutputDir((string) $request->ref);
 		if ($documentDir !== '' && is_dir($documentDir)) {
 			require_once DOL_DOCUMENT_ROOT.'/core/lib/files.lib.php';
-			if (!empty(dol_dir_list($documentDir, 'files', 0, '', '(\.meta|_preview.*\.png)$'))) {
+			if (!empty(dol_dir_list($documentDir, 'all', 0))) {
 				$this->error = 'ErrorSupplierRmaHasDocuments';
+				$this->db->rollback();
 				return -1;
 			}
 		}
 
-		$this->db->begin();
-
-		$sql = "DELETE FROM ".MAIN_DB_PREFIX."svc_supplier_rma_log WHERE fk_supplier_rma = ".((int) $this->id);
+		// The CREATE event and pristine draft disappear together, never a
+		// partial record; both DELETEs are entity-scoped.
+		$sql = 'DELETE FROM '.MAIN_DB_PREFIX.'svc_supplier_rma_log';
+		$sql .= ' WHERE fk_supplier_rma = '.((int) $this->id);
+		$sql .= ' AND entity = '.((int) $this->entity);
 		if (!$this->db->query($sql)) {
 			$this->error = $this->db->lasterror();
 			$this->db->rollback();
 			return -1;
 		}
-
-		$sql = "DELETE ec FROM ".MAIN_DB_PREFIX."element_contact ec";
-		$sql .= " INNER JOIN ".MAIN_DB_PREFIX."c_type_contact tc ON tc.rowid = ec.fk_c_type_contact";
-		$sql .= " WHERE ec.element_id = ".((int) $this->id);
-		$sql .= " AND tc.element = 'svcsupplierrma'";
-		if ($this->db->type === 'pgsql') {
-			$sql = "DELETE FROM ".MAIN_DB_PREFIX."element_contact";
-			$sql .= " WHERE element_id = ".((int) $this->id);
-			$sql .= " AND fk_c_type_contact IN (SELECT rowid FROM ".MAIN_DB_PREFIX."c_type_contact WHERE element = 'svcsupplierrma')";
-		}
-		if (!$this->db->query($sql)) {
-			$this->error = $this->db->lasterror();
+		$sql = 'DELETE FROM '.MAIN_DB_PREFIX.'svc_supplier_rma';
+		$sql .= ' WHERE rowid = '.((int) $this->id).' AND entity = '.((int) $this->entity);
+		$sql .= ' AND revision = 1 AND status = '. $this->sqlStringOrNull(self::STATUS_DRAFT);
+		$res = $this->db->query($sql);
+		if (!$res || $this->db->affected_rows($res) !== 1) {
+			$this->error = $res ? 'ErrorSupplierRmaConcurrentUpdate' : $this->db->lasterror();
 			$this->db->rollback();
 			return -1;
 		}
-
-		$sql = "DELETE FROM ".MAIN_DB_PREFIX."svc_supplier_rma WHERE rowid = ".((int) $this->id);
-		if (!$this->db->query($sql)) {
+		if ($this->db->commit() <= 0) {
 			$this->error = $this->db->lasterror();
-			$this->db->rollback();
 			return -1;
 		}
-
-		$this->db->commit();
 		return 1;
 	}
 
