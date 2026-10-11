@@ -2,6 +2,12 @@
 
 **Fork target:** Dolibarr 23.x | **Upstream base:** WarrantySvc 1.36.0 | License: GPL-3.0
 
+## Development status (active fork)
+
+**Start here when joining or resuming development:** [docs/PROJECT_STATUS.md](docs/PROJECT_STATUS.md). It records the active branch, what is implemented versus verified, current risks, roadmap, decisions, CI evidence and the next handoff step. This is the single living project-status document, not a claim that all features are production-ready.
+
+Coding assistants and contributors should also read [AGENTS.md](AGENTS.md) and update the project status alongside meaningful changes. Technical details and manual test scenarios remain in the corresponding files under `docs/` and [TEST_PLAN.md](TEST_PLAN.md).
+
 ## Overview
 
 > This fork keeps the upstream RMA/service workflow but adds a Dolibarr 23 compatibility layer and an optional **Product-field warranty model**. In that mode, customer warranty duration comes from one configurable integer Product extrafield expressed in calendar months. Warranty Type remains available as the original upstream mode, but the two duration models are mutually exclusive.
