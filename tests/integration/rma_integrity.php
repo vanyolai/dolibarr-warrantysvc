@@ -107,13 +107,21 @@ try {
 
     $check->entity = (int) $rma->entity;
     $check->diagnosis = '';
+    $staleBeforeTransition = new SvcSupplierRma($db);
+    checkRma($staleBeforeTransition->fetch($id) > 0, 'Pre-transition snapshot loaded');
     checkRma($check->setStatus(SvcSupplierRma::STATUS_AUTHORIZED, $user) > 0, 'Authorized state reached');
+    checkRma($check->revision === 3, 'Status change increments common revision');
+    $staleBeforeTransition->diagnosis = 'Outdated status-screen edit';
+    checkRma($staleBeforeTransition->update($user) < 0
+        && $staleBeforeTransition->error === 'ErrorSupplierRmaConcurrentUpdate',
+        'Transition prevents stale edit across action types');
     $authLog = rmaLogRows($db, $id, (int) $rma->entity, 'STATUS');
     checkRma(count($authLog) === 1, 'Status has exactly one event');
     $originalRecordedAt = $authLog[0]->date_event;
     $corrected = dol_now() - 86400;
     checkRma($check->setBusinessDate('date_authorized', $corrected, $user, 'Delayed reporting') > 0,
         'Backdated business timestamp accepted');
+    checkRma($check->revision === 4, 'Date correction increments common revision');
     $after = rmaLogRows($db, $id, (int) $rma->entity, 'STATUS');
     checkRma($after[0]->date_event === $originalRecordedAt
         && $after[0]->date_effective === $db->idate($corrected),
