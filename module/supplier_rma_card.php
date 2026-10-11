@@ -132,6 +132,8 @@ if ($action === 'update' && $permwrite && $object->id > 0) {
 	$object->fk_svc_request = $previousRequestId;
 	$object->fk_warehouse_source = $previousWarehouseSource;
 	$object->fk_warehouse_return = $previousWarehouseReturn;
+	// Use the revision displayed when the form was opened, not the freshly fetched one.
+	$object->revision = GETPOSTINT('revision');
 	$result = $object->update($user);
 	if ($result > 0) {
 		setEventMessages($langs->trans('SupplierRmaUpdated'), null, 'mesgs');
@@ -357,6 +359,7 @@ if ($isEdit) {
 	print '<form action="'.$_SERVER['PHP_SELF'].'?id='.$object->id.'" method="POST">';
 	print '<input type="hidden" name="token" value="'.newToken().'">';
 	print '<input type="hidden" name="action" value="update">';
+	print '<input type="hidden" name="revision" value="'.((int) $object->revision).'">';
 	print '<input type="hidden" name="fk_svc_request" value="'.((int) $object->fk_svc_request).'">';
 }
 
@@ -690,7 +693,24 @@ if (empty($history)) {
 		print '<td>'.dol_escape_htmltag($langs->trans('SupplierRmaEvent'.$entry['event_code'])).'</td>';
 		print '<td>'.$tmpStatus->getLibStatut().'</td>';
 		print '<td>'.dol_escape_htmltag($entry['user_name']).'</td>';
-		print '<td>'.(!empty($entry['note']) ? dol_string_onlythesehtmltags(dol_htmlentitiesbr($entry['note'])) : '—').'</td>';
+		// UPDATE notes contain an explicitly whitelisted field-level JSON diff.
+		// Render it readably, escaping every persisted value; keep legacy notes.
+		$noteHtml = !empty($entry['note']) ? dol_string_onlythesehtmltags(dol_htmlentitiesbr($entry['note'])) : '—';
+		if ($entry['event_code'] === 'UPDATE') {
+			$payload = json_decode($entry['note'], true);
+			if (is_array($payload) && isset($payload['schema']) && (int) $payload['schema'] === 1 && !empty($payload['changes']) && is_array($payload['changes'])) {
+				$lines = array();
+				foreach ($payload['changes'] as $fieldName => $change) {
+					if (!isset($object->fields[$fieldName]) || !is_array($change) || !array_key_exists('old', $change) || !array_key_exists('new', $change)) continue;
+					$label = $langs->trans($object->fields[$fieldName]['label']);
+					$oldValue = dol_escape_htmltag((string) $change['old']);
+					$newValue = dol_escape_htmltag((string) $change['new']);
+					$lines[] = dol_escape_htmltag($label).': '.($oldValue !== '' ? $oldValue : '—').' → '.($newValue !== '' ? $newValue : '—');
+				}
+				if ($lines) $noteHtml = implode('<br>', $lines);
+			}
+		}
+		print '<td>'.$noteHtml.'</td>';
 		print '</tr>';
 	}
 }
