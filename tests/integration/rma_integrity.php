@@ -68,8 +68,7 @@ $rma->qty = 1;
 $rma->serial_number = 'TEST-'.uniqid();
 $rma->problem_description = 'Integration test item – safe to delete';
 $id = 0;
-// The test database is disposable; audited records stay as regression evidence.
-if (true) {
+try {
     $id = (int) $rma->create($user);
     checkRma($id > 0, 'RMA create with audit event: '.$rma->error);
     checkRma((int) $rma->revision === 1, 'Initial revision is 1');
@@ -153,5 +152,7 @@ if (true) {
     checkRma($pristine->delete($user) > 0, 'Pristine draft can be deleted');
     checkRma($pristine->fetch($pristineId) === 0, 'Deleted draft is no longer accessible');
 
-    echo "Integration smoke test passed. Audited RMA ".$id." intentionally retained in disposable DB; destroy fixture after the test.\\n";
+    echo "Integration smoke test passed. Audited RMA ".$id." intentionally retained in disposable DB.\n";
+} finally {
+    fwrite(STDERR, "Disposable test fixture: destroy the entire warrantysvc_test database after running tests.\n");
 }
