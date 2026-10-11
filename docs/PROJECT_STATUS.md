@@ -3,8 +3,8 @@
 > **Source of truth for ongoing development.** Read this file first when resuming the project, including in a new chat or AI coding session. This file is a *status record*, not a replacement for source-code review. If it disagrees with code or CI, verify the repository and correct this file.
 >
 > **Last reviewed:** 2026-10-11  
-> **Working branch:** [feature/supplier-rma-workflow](https://github.com/vanyolai/dolibarr-warrantysvc/tree/feature/supplier-rma-workflow)  
-> **Code baseline reviewed:** [14e3ba389848](https://github.com/vanyolai/dolibarr-warrantysvc/commit/14e3ba389848ecf303aae7bf150b4be7e3f152fb) (before introducing this status document)  
+> **Working branch:** [feature/rma-integrity-audit-concurrency](https://github.com/vanyolai/dolibarr-warrantysvc/tree/feature/rma-integrity-audit-concurrency) (based on `feature/supplier-rma-workflow` @ `51002351c5d8`)  
+> **Code baseline reviewed:** [51002351c5d8](https://github.com/vanyolai/dolibarr-warrantysvc/commit/51002351c5d8bf74e80793cf46fde04d779c8c1f) (2026-10-11; before Phase 1 implementation)  
 > **Release status:** **Development / sandbox validation** — **NOT production-ready**.  
 > **Target:** Dolibarr 23, PHP 8.4; PHP lint matrix currently also covers 8.2 and 8.3.
 
@@ -29,7 +29,7 @@
 ## 2. Repository and workflow
 
 - **Repository:** https://github.com/vanyolai/dolibarr-warrantysvc
-- **Current development branch:** `feature/supplier-rma-workflow` (based on `feature/warranty-letter-v2`).
+- **Current development branch:** `feature/rma-integrity-audit-concurrency` (based on `feature/supplier-rma-workflow`; do not touch production).
 - **Deployable source:** `module/`. Do not confuse this with generated distribution files or another Dolibarr fork.
 - **Sandbox module path:** `/mnt/pool1/work/code/web/dolibarr-sandbox/htdocs/custom/warrantysvc/`.
 - The sandbox is refreshed by cloning the chosen feature branch and syncing **the repository's `module/` contents** into that directory.
@@ -62,11 +62,11 @@ Relevant references:
 
 **The sequence matters.** Do not begin stock movement work until the audit/transaction groundwork is checked and the identified high-impact defects are addressed.
 
-### Phase 1 — Data integrity, field-level audit and automated testing — NEXT
+### Phase 1 — Data integrity, field-level audit and automated testing — IN PROGRESS
 
 **Goal:** Prevent silent overwrites and make every important supplier RMA change explainable and testable.
 
-- [ ] Audit `SvcSupplierRma::create/update/delete/setStatus/rollbackStatus/setBusinessDate/logEvent/fetchHistory` and associated card actions for transaction boundaries, entity isolation, CSRF, permissions and audit reliability.
+- [x] Initial source audit of `SvcSupplierRma` and associated card actions, migration and CI; see [Phase 1 audit and acceptance plan](PHASE1_RMA_INTEGRITY.md). Findings require fixes and runtime testing; this checkbox marks source review only.
 - [ ] Define field-level changes to record (old/new values, operator, recorded timestamp) for supplier action, results, replacement serial, diagnosis, logistics and other relevant edits.
 - [ ] Persist changes and audit events atomically using existing RMA audit infrastructure where feasible, rather than adding a second unrelated audit system.
 - [ ] Add optimistic concurrency protection against two operators overwriting one another's edits.
@@ -148,11 +148,13 @@ Document new decisions here, especially exceptions, changes to workflow semantic
 5. **Update this document in the same PR/change set** to record finished work, remaining problems, code/CI links and the *exact next step*. Update dated baseline and verification notes, never mark untested behavior as passing.
 6. If a phase is interrupted, write a **Handoff checkpoint** below before stopping; the next session should be able to continue from repository state alone.
 
-### Handoff checkpoint — 2026-10-11
+### Handoff checkpoint — 2026-10-11 (Phase 1 opened)
 
 - **Last completed functional fix:** Existing Supplier RMA card now displays and edits `supplier_work_done` correctly; commit [14e3ba389848](https://github.com/vanyolai/dolibarr-warrantysvc/commit/14e3ba389848ecf303aae7bf150b4be7e3f152fb). User confirmed the display appeared correct in sandbox.
 - **Verified automated check:** PHP lint succeeded for PHP 8.2/8.3/8.4 for that baseline; [CI run](https://github.com/vanyolai/dolibarr-warrantysvc/actions/runs/38034233644).
-- **Next exact action:** Begin **Phase 1** with a source-based audit of RMA edit persistence, optimistic concurrency and field-level audit events. Write explicit tests/acceptance checks before implementing the change. **Do not start Phase 2 stock writes yet**.
+- **New branch:** `feature/rma-integrity-audit-concurrency`, derived from audited `51002351c5d8`. [Phase 1 audit, detailed design and test gates](PHASE1_RMA_INTEGRITY.md) committed as `7b12762308e7`.
+- **Source-confirmed risks:** `update()` lacks transactional revision/audit; status updates omit entity predicate and only compare status; history lookup omits entity; hard delete removes RMA log; date CAS checks only the date. Not yet reproduced in a DB-backed test.
+- **Next exact action:** Implement P1-B (additive `revision` migration + fresh schema, edit-form revision token, transactional CAS with structured field-level UPDATE log); add tests before claiming completion. Continue P1-C/P1-D/P1-E per linked plan. **Do not start Phase 2 stock writes yet**.
 - **Open blockers:** No integration test harness yet; no production approval. Do not infer full sandbox regression success from the user confirming one field.
 
 ## 7. Rules for updating this document
