@@ -13,11 +13,11 @@
 | Area | Implementation | Verification | Remarks |
 | --- | --- | --- | --- |
 | Customer warranties, shipment generation, LOT/SN and warranty duration | Implemented | Previously exercised in sandbox; full regression pending | Avoid unrelated rewrites |
-| Shipment-based warranty letters, versioned PDF, email, native card | Implemented in parent branch | Individual UI fixes user-confirmed; end-to-end regression pending | Source branch: \`feature/warranty-letter-v2\` |
-| Customer service requests (\`SvcRequest\`) | Existing workflow | Broader regression pending | Parent of supplier RMAs |
-| Supplier RMA separate menu, list, overview | Implemented | Basic sandbox UI exercised; full permissions/filters test pending | Reuses \`SvcSupplierRma\`, no parallel RMA table |
-| Supplier's work performed (\`supplier_work_done\`) | Implemented | Display on existing RMA confirmed by user | Separate from diagnosis and result |
-| Six editable business dates and dual-timestamp RMA history | Implemented | Automated integration and concurrency tests **not** done | \`date_event\` = recorded at; \`date_effective\` = business event time |
+| Shipment-based warranty letters, versioned PDF, email, native card | Implemented in parent branch | Individual UI fixes user-confirmed; end-to-end regression pending | Source branch: `feature/warranty-letter-v2` |
+| Customer service requests (`SvcRequest`) | Existing workflow | Broader regression pending | Parent of supplier RMAs |
+| Supplier RMA separate menu, list, overview | Implemented | Basic sandbox UI exercised; full permissions/filters test pending | Reuses `SvcSupplierRma`, no parallel RMA table |
+| Supplier's work performed (`supplier_work_done`) | Implemented | Display on existing RMA confirmed by user | Separate from diagnosis and result |
+| Six editable business dates and dual-timestamp RMA history | Implemented | Automated integration and concurrency tests **not** done | `date_event` = recorded at; `date_effective` = business event time |
 | Supplier RMA documents and external links (e.g. Paperless URL) | Implemented using native Dolibarr file/link tools | Upload, access control, links and delete behavior require sandbox verification | A Paperless API integration is **not** implemented |
 | Supplier RMA physical outbound and inbound stock movement | **Not implemented** in RMA lifecycle | Not applicable | Existing fields and shared stock service must be assessed |
 | Field-level RMA edit audit and optimistic concurrency | **Not implemented** | Not applicable | **Next work package** |
@@ -29,28 +29,29 @@
 ## 2. Repository and workflow
 
 - **Repository:** https://github.com/vanyolai/dolibarr-warrantysvc
-- **Current development branch:** \`feature/supplier-rma-workflow\` (based on \`feature/warranty-letter-v2\`).
-- **Deployable source:** \`module/\`. Do not confuse this with generated distribution files or another Dolibarr fork.
-- **Sandbox module path:** \`/mnt/pool1/work/code/web/dolibarr-sandbox/htdocs/custom/warrantysvc/\`.
-- The sandbox is refreshed by cloning the chosen feature branch and syncing **the repository's \`module/\` contents** into that directory.
+- **Current development branch:** `feature/supplier-rma-workflow` (based on `feature/warranty-letter-v2`).
+- **Deployable source:** `module/`. Do not confuse this with generated distribution files or another Dolibarr fork.
+- **Sandbox module path:** `/mnt/pool1/work/code/web/dolibarr-sandbox/htdocs/custom/warrantysvc/`.
+- The sandbox is refreshed by cloning the chosen feature branch and syncing **the repository's `module/` contents** into that directory.
 - **DB changes:** use additive/idempotent migrations via the module's upgrade path; back up sandbox DB before enabling a migration. Never assume refresh/re-enable is safe without checking what the change actually needs.
-- **Do not update production or \`dist/\`** as a side effect of feature work. Integrate only after explicit validation.
+- **Do not update production or `dist/`** as a side effect of feature work. Integrate only after explicit validation.
 
 ### Core code entry points
 
 | Purpose | File |
 | --- | --- |
-| Supplier RMA model/business transitions | \`module/class/svcsupplierrma.class.php\` |
-| Supplier RMA card + HTTP actions | \`module/supplier_rma_card.php\` |
-| Supplier RMA list / documents | \`module/supplier_rma_list.php\`, \`module/supplier_rma_document.php\` |
-| Dashboard / counters | \`module/index.php\` |
-| Module menus, setup, DB migration | \`module/core/modules/modWarrantySvc.class.php\` |
-| Shared stock movement service | \`module/class/warrantysvcstockservice.class.php\` |
-| Customer requests | \`module/class/svcrequest.class.php\`, \`module/card.php\` |
-| Warranty letters | \`module/class/svcwarrantyletter.class.php\`, \`module/warranty_letter_card.php\` |
-| Translation strings | \`module/langs/hu_HU/warrantysvc.lang\`, \`module/langs/en_US/warrantysvc.lang\` |
+| Supplier RMA model/business transitions | `module/class/svcsupplierrma.class.php` |
+| Supplier RMA card + HTTP actions | `module/supplier_rma_card.php` |
+| Supplier RMA list / documents | `module/supplier_rma_list.php`, `module/supplier_rma_document.php` |
+| Dashboard / counters | `module/index.php` |
+| Module menus, setup, DB migration | `module/core/modules/modWarrantySvc.class.php` |
+| Shared stock movement service | `module/class/warrantysvcstockservice.class.php` |
+| Customer requests | `module/class/svcrequest.class.php`, `module/card.php` |
+| Warranty letters | `module/class/svcwarrantyletter.class.php`, `module/warranty_letter_card.php` |
+| Translation strings | `module/langs/hu_HU/warrantysvc.lang`, `module/langs/en_US/warrantysvc.lang` |
 
 Relevant references:
+- [Contributor / AI coding instructions](../AGENTS.md)
 - [Supplier RMA workflow and sandbox checks](SUPPLIER_RMA_WORKFLOW.md)
 - [Supplier RMA / loaner longer-term design](SUPPLIER_RMA_LOANER_DESIGN.md)
 - [Warranty-letter design](WARRANTY_LETTER_DESIGN.md)
@@ -65,7 +66,7 @@ Relevant references:
 
 **Goal:** Prevent silent overwrites and make every important supplier RMA change explainable and testable.
 
-- [ ] Audit \`SvcSupplierRma::create/update/delete/setStatus/rollbackStatus/setBusinessDate/logEvent/fetchHistory\` and associated card actions for transaction boundaries, entity isolation, CSRF, permissions and audit reliability.
+- [ ] Audit `SvcSupplierRma::create/update/delete/setStatus/rollbackStatus/setBusinessDate/logEvent/fetchHistory` and associated card actions for transaction boundaries, entity isolation, CSRF, permissions and audit reliability.
 - [ ] Define field-level changes to record (old/new values, operator, recorded timestamp) for supplier action, results, replacement serial, diagnosis, logistics and other relevant edits.
 - [ ] Persist changes and audit events atomically using existing RMA audit infrastructure where feasible, rather than adding a second unrelated audit system.
 - [ ] Add optimistic concurrency protection against two operators overwriting one another's edits.
@@ -79,7 +80,7 @@ Relevant references:
 ### Phase 2 — Supplier RMA physical stock movements
 
 - [ ] Design outbound / inbound movement rules for repaired, replaced, rejected and credited units.
-- [ ] Reuse and extend \`WarrantySvcStockService\`; do not duplicate stock-transaction logic.
+- [ ] Reuse and extend `WarrantySvcStockService`; do not duplicate stock-transaction logic.
 - [ ] Record actual Dolibarr stock movement IDs on the RMA and ensure retry idempotency.
 - [ ] Preserve original and replacement LOT/SN identities; validate warehouse, ownership, quantities and concurrent operations.
 - [ ] Cover rollbacks/reversals and failure recovery without destroying stock history.
@@ -102,26 +103,26 @@ Relevant references:
 
 ### Phase 5 — Refactor, docs and stable release
 
-- [ ] Replace remaining hardwired \`/custom/warrantysvc/\` paths with module-aware Dolibarr helpers where suitable.
-- [ ] Review \`CommonObject\` conventions, SQL/multientity, translations, PDFs, email, notifications and hooks.
-- [ ] Bring \`docs/TECHNICAL.md\`, README and manual test plan in sync with actual code.
+- [ ] Replace remaining hardwired `/custom/warrantysvc/` paths with module-aware Dolibarr helpers where suitable.
+- [ ] Review `CommonObject` conventions, SQL/multientity, translations, PDFs, email, notifications and hooks.
+- [ ] Bring `docs/TECHNICAL.md`, README and manual test plan in sync with actual code.
 - [ ] Complete end-to-end regression, release notes and a reviewed PR to the intended integration branch.
 - [ ] Mark production-ready only after explicit acceptance.
 
-**Later, optional:** loaner-unit lifecycle from \`SUPPLIER_RMA_LOANER_DESIGN.md\`, not within the current phase without a separate decision.
+**Later, optional:** loaner-unit lifecycle from `SUPPLIER_RMA_LOANER_DESIGN.md`, not within the current phase without a separate decision.
 
 ## 4. Open risks / known architectural gaps (not all confirmed runtime bugs)
 
 | ID | Priority | Observation and file | Next action |
 | --- | --- | --- | --- |
-| RMA-01 | High | \`SvcSupplierRma::update()\` writes multiple editable fields without a field-level \`logEvent\` record; a second editor may overwrite changes | Audit then implement atomic diff logging + version/concurrency guard |
-| RMA-02 | High | RMA \`setStatus()\` handles state and dates, but supplier RMA outbound/inbound physical stock movement is not integrated | Handle in Phase 2, using stock service |
+| RMA-01 | High | `SvcSupplierRma::update()` writes multiple editable fields without a field-level `logEvent` record; a second editor may overwrite changes | Audit then implement atomic diff logging + version/concurrency guard |
+| RMA-02 | High | RMA `setStatus()` handles state and dates, but supplier RMA outbound/inbound physical stock movement is not integrated | Handle in Phase 2, using stock service |
 | RMA-03 | High | Only PHP lint is automated; no real Dolibarr/database regression jobs are present | Start Phase 1 test harness |
-| RMA-04 | Medium | Status and \`result_type\` support different concepts; credits/no-fault may not fit the existing physical-return-only path | Phase 3 business design |
-| RMA-05 | Medium | \`SvcSupplierRma::setBusinessDate()\` updates a matching milestone's \`date_effective\` and adds a DATE event; complex rollback/correction sequences are not tested | Cover historical and concurrent scenarios in Phase 1 |
-| CROSS-01 | Medium | Remaining hard-coded \`DOL_URL_ROOT.'/custom/warrantysvc/'\` and similar paths appear in several module files | Audit and refactor in Phase 5 |
+| RMA-04 | Medium | Status and `result_type` support different concepts; credits/no-fault may not fit the existing physical-return-only path | Phase 3 business design |
+| RMA-05 | Medium | `SvcSupplierRma::setBusinessDate()` updates a matching milestone's `date_effective` and adds a DATE event; complex rollback/correction sequences are not tested | Cover historical and concurrent scenarios in Phase 1 |
+| CROSS-01 | Medium | Remaining hard-coded `DOL_URL_ROOT.'/custom/warrantysvc/'` and similar paths appear in several module files | Audit and refactor in Phase 5 |
 | LETTER-01 | Medium | Warranty-letter PDF file deletion and SQL updates are not fully atomic on failure | Review before production release |
-| DOC-01 | Low | \`docs/TECHNICAL.md\` references earlier module versions and may describe older APIs | Update from real code in Phase 5 |
+| DOC-01 | Low | `docs/TECHNICAL.md` references earlier module versions and may describe older APIs | Update from real code in Phase 5 |
 
 A risk is **not closed** until the corresponding test or review evidence is recorded; do not treat a plan or completed PHP lint as proof.
 
@@ -129,9 +130,9 @@ A risk is **not closed** until the corresponding test or review evidence is reco
 
 | Date | Decision | Rationale |
 | --- | --- | --- |
-| 2026-10-11 | Use the existing \`SvcSupplierRma\` model and its audit log rather than creating a second RMA model | Avoid duplicate sources of truth and data migration |
-| 2026-10-11 | Separate business event date (\`date_effective\`) from recorded timestamp (\`date_event\`) | Late data entry must not falsify audit chronology |
-| 2026-10-11 | Keep \`supplier_work_done\`, diagnosis and structured result separately | Distinct business semantics |
+| 2026-10-11 | Use the existing `SvcSupplierRma` model and its audit log rather than creating a second RMA model | Avoid duplicate sources of truth and data migration |
+| 2026-10-11 | Separate business event date (`date_effective`) from recorded timestamp (`date_event`) | Late data entry must not falsify audit chronology |
+| 2026-10-11 | Keep `supplier_work_done`, diagnosis and structured result separately | Distinct business semantics |
 | 2026-10-11 | Supplier documents use native attachments and links; Paperless API integration is deferred | Avoid bespoke document storage |
 | 2026-10-11 | Separate stock movements / release gating from current UI changes | Stock and financial traceability require tested transactional operations |
 | 2026-10-11 | A single living status document is authoritative for project handoffs | Continuing work should not depend on chat history |
@@ -149,7 +150,7 @@ Document new decisions here, especially exceptions, changes to workflow semantic
 
 ### Handoff checkpoint — 2026-10-11
 
-- **Last completed functional fix:** Existing Supplier RMA card now displays and edits \`supplier_work_done\` correctly; commit [14e3ba389848](https://github.com/vanyolai/dolibarr-warrantysvc/commit/14e3ba389848ecf303aae7bf150b4be7e3f152fb). User confirmed the display appeared correct in sandbox.
+- **Last completed functional fix:** Existing Supplier RMA card now displays and edits `supplier_work_done` correctly; commit [14e3ba389848](https://github.com/vanyolai/dolibarr-warrantysvc/commit/14e3ba389848ecf303aae7bf150b4be7e3f152fb). User confirmed the display appeared correct in sandbox.
 - **Verified automated check:** PHP lint succeeded for PHP 8.2/8.3/8.4 for that baseline; [CI run](https://github.com/vanyolai/dolibarr-warrantysvc/actions/runs/38034233644).
 - **Next exact action:** Begin **Phase 1** with a source-based audit of RMA edit persistence, optimistic concurrency and field-level audit events. Write explicit tests/acceptance checks before implementing the change. **Do not start Phase 2 stock writes yet**.
 - **Open blockers:** No integration test harness yet; no production approval. Do not infer full sandbox regression success from the user confirming one field.
