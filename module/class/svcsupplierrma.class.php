@@ -852,6 +852,22 @@ class SvcSupplierRma extends CommonObject
 		}
 		$milestoneRow = $this->db->fetch_object($eventResult);
 		$this->db->free($eventResult);
+		if ($milestoneRow && $field !== 'date_request') {
+			// Once a milestone was undone, a newly pre-entered date belongs to
+			// the next workflow pass. Do not rewrite the old STATUS event.
+			$undoQuery = 'SELECT rowid FROM '.MAIN_DB_PREFIX.'svc_supplier_rma_log';
+			$undoQuery .= ' WHERE fk_supplier_rma = '.((int) $this->id).' AND entity = '.((int) $this->entity);
+			$undoQuery .= " AND event_code = 'ROLLBACK' AND old_status IN ('".implode("','", $statusList)."')";
+			$undoQuery .= ' AND rowid > '.((int) $milestoneRow->rowid).$this->db->plimit(1);
+			$undoResult = $this->db->query($undoQuery);
+			if (!$undoResult) {
+				$this->error = $this->db->lasterror();
+				$this->db->rollback();
+				return -1;
+			}
+			if ($this->db->fetch_object($undoResult)) $milestoneRow = null;
+			$this->db->free($undoResult);
+		}
 		if ($milestoneRow) {
 			$updateEvent = 'UPDATE '.MAIN_DB_PREFIX.'svc_supplier_rma_log';
 			$updateEvent .= ' SET date_effective = '.$this->sqlDateOrNull($timestamp);
@@ -920,9 +936,11 @@ class SvcSupplierRma extends CommonObject
 			$sets[] = "date_supplier_received = '".$this->db->idate($now)."'";
 			$pending['date_supplier_received'] = $now;
 		}
-		if (in_array($newStatus, array(self::STATUS_REPAIRED, self::STATUS_REPLACED, self::STATUS_REJECTED), true) && empty($this->date_supplier_completed)) {
-			$sets[] = "date_supplier_completed = '".$this->db->idate($now)."'";
-			$pending['date_supplier_completed'] = $now;
+		if (in_array($newStatus, array(self::STATUS_REPAIRED, self::STATUS_REPLACED, self::STATUS_REJECTED), true)) {
+			if (empty($this->date_supplier_completed)) {
+				$sets[] = "date_supplier_completed = '".$this->db->idate($now)."'";
+				$pending['date_supplier_completed'] = $now;
+			}
 			if (empty($this->result_type)) {
 				$pending['result_type'] = $newStatus;
 				$sets[] = "result_type = '".$this->db->escape($newStatus)."'";
@@ -960,7 +978,18 @@ class SvcSupplierRma extends CommonObject
 			$eventValue = array_key_exists($eventDateField, $pending) ? $pending[$eventDateField] : $this->{$eventDateField};
 			if (!empty($eventValue)) $effectiveDate = $eventValue;
 		}
-		if ($this->logEvent('STATUS', $oldStatus, $newStatus, $note, $user, $effectiveDate) < 0) {
+		// Record which fields this transition actually introduced. Rollback
+		// must distinguish automatic values from prior/manual business data.
+		$changes = array();
+		foreach ($pending as $field => $value) {
+			$changes[$field] = array(
+				'old' => $field === 'result_type' ? (string) $this->{$field} : (!empty($this->{$field}) ? $this->db->idate($this->{$field}) : null),
+				'new' => $field === 'result_type' ? (string) $value : $this->db->idate($value)
+			);
+		}
+		$auditNote = json_encode(array('schema' => 1, 'message' => (string) $note, 'changes' => $changes), JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
+		if ($auditNote === false || $this->logEvent('STATUS', $oldStatus, $newStatus, $auditNote, $user, $effectiveDate) < 0) {
+			if ($auditNote === false) $this->error = 'ErrorSupplierRmaAuditEncoding';
 			$this->db->rollback();
 			return -1;
 		}
@@ -998,7 +1027,7 @@ class SvcSupplierRma extends CommonObject
 			return -1;
 		}
 
-		$sql = "SELECT old_status FROM ".MAIN_DB_PREFIX."svc_supplier_rma_log";
+		$sql = "SELECT rowid, old_status, note FROM ".MAIN_DB_PREFIX."svc_supplier_rma_log";
 		$sql .= " WHERE fk_supplier_rma = ".((int) $this->id);
 		$sql .= " AND entity = ".((int) $this->entity);
 		$sql .= " AND event_code = 'STATUS'";
@@ -1040,33 +1069,54 @@ class SvcSupplierRma extends CommonObject
 			return -1;
 		}
 
-		$pendingClears = array();
+		$pendingRestores = array();
 		$sets = array(
 			"status = '".$this->db->escape($newStatus)."'",
 			"fk_user_modif = ".((int) $user->id),
 			"revision = revision + 1",
 		);
 
-		// Clear timestamps introduced by the accidentally-entered state.
-		if ($oldStatus === self::STATUS_AUTHORIZED) {
-			$sets[] = "date_authorized = NULL";
-			$pendingClears[] = 'date_authorized';
-		} elseif ($oldStatus === self::STATUS_SHIPPED) {
-			$sets[] = "date_shipped = NULL";
-			$pendingClears[] = 'date_shipped';
-		} elseif ($oldStatus === self::STATUS_RECEIVED_BY_SUPPLIER) {
-			$sets[] = "date_supplier_received = NULL";
-			$pendingClears[] = 'date_supplier_received';
-		} elseif (in_array($oldStatus, array(self::STATUS_REPAIRED, self::STATUS_REPLACED, self::STATUS_REJECTED), true)) {
-			$sets[] = "date_supplier_completed = NULL";
-			$pendingClears[] = 'date_supplier_completed';
-			if ($this->result_type === $oldStatus) {
-				$sets[] = "result_type = NULL";
-				$pendingClears[] = 'result_type';
+		// Restore only proven automatic values that have not since been
+		// explicitly corrected. Legacy plain-text events have no provenance:
+		// preserve their dates/results instead of destructively guessing.
+		$transition = json_decode((string) $obj->note, true);
+		$allowedRestores = array_filter(array($this->statusDateField($oldStatus)));
+		if (in_array($oldStatus, array(self::STATUS_REPAIRED, self::STATUS_REPLACED, self::STATUS_REJECTED), true)) $allowedRestores[] = 'result_type';
+		$explicitFields = array();
+		$sqlCorrections = 'SELECT event_code, note FROM '.MAIN_DB_PREFIX.'svc_supplier_rma_log';
+		$sqlCorrections .= ' WHERE fk_supplier_rma = '.((int) $this->id).' AND entity = '.((int) $this->entity);
+		$sqlCorrections .= " AND event_code IN ('DATE', 'UPDATE') AND rowid > ".((int) $obj->rowid);
+		$resCorrections = $this->db->query($sqlCorrections);
+		if (!$resCorrections) {
+			$this->error = $this->db->lasterror();
+			return -1;
+		}
+		while ($correction = $this->db->fetch_object($resCorrections)) {
+			if ($correction->event_code === 'DATE') {
+				$explicitFields[strtok((string) $correction->note, ':')] = true;
+			} else {
+				$edit = json_decode((string) $correction->note, true);
+				if (is_array($edit) && isset($edit['schema']) && (int) $edit['schema'] === 1 && isset($edit['changes']) && is_array($edit['changes'])) {
+					foreach ($edit['changes'] as $field => $change) $explicitFields[$field] = true;
+				}
 			}
-		} elseif ($oldStatus === self::STATUS_RETURNED) {
-			$sets[] = "date_returned = NULL";
-			$pendingClears[] = 'date_returned';
+		}
+		$this->db->free($resCorrections);
+		$changes = array();
+		if (is_array($transition) && isset($transition['schema']) && (int) $transition['schema'] === 1
+			&& isset($transition['changes']) && is_array($transition['changes'])) {
+			foreach ($allowedRestores as $field) {
+				if (isset($explicitFields[$field]) || !isset($transition['changes'][$field]) || !is_array($transition['changes'][$field])) continue;
+				$change = $transition['changes'][$field];
+				if (!array_key_exists('old', $change) || !array_key_exists('new', $change)) continue;
+				$current = $field === 'result_type' ? (string) $this->{$field} : (!empty($this->{$field}) ? $this->db->idate($this->{$field}) : null);
+				// Currently transitions introduce only empty -> generated values.
+				// Keep this restore allowlist narrow, including malformed old logs.
+				if ($current !== $change['new'] || !in_array($change['old'], array(null, ''), true)) continue;
+				$pendingRestores[$field] = $field === 'result_type' ? '' : null;
+				$sets[] = $field.' = NULL';
+				$changes[$field] = array('old' => $current, 'new' => $change['old']);
+			}
 		}
 
 		if ($this->db->begin() <= 0) {
@@ -1090,7 +1140,9 @@ class SvcSupplierRma extends CommonObject
 			return -1;
 		}
 
-		if ($this->logEvent('ROLLBACK', $oldStatus, $newStatus, $note, $user) < 0) {
+		$auditNote = json_encode(array('schema' => 1, 'message' => (string) $note, 'changes' => $changes), JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
+		if ($auditNote === false || $this->logEvent('ROLLBACK', $oldStatus, $newStatus, $auditNote, $user) < 0) {
+			if ($auditNote === false) $this->error = 'ErrorSupplierRmaAuditEncoding';
 			$this->db->rollback();
 			return -1;
 		}
@@ -1099,7 +1151,7 @@ class SvcSupplierRma extends CommonObject
 			$this->error = $this->db->lasterror();
 			return -1;
 		}
-		foreach ($pendingClears as $field) $this->{$field} = $field === 'result_type' ? '' : null;
+		foreach ($pendingRestores as $field => $value) $this->{$field} = $value;
 		$this->status = $newStatus;
 		$this->fk_user_modif = (int) $user->id;
 		$this->revision++;

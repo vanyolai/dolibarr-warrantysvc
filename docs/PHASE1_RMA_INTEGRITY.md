@@ -41,3 +41,7 @@ Each package is a small reviewable commit or set of commits. Update `docs/PROJEC
 - After that, the smoke runner was adapted to assert that an audited RMA cannot be deleted, while a separate untouched draft can be deleted, and to leave auditable test records in the **disposable** fixture for inspection.
 - **Validation:** CI PHP lint passed for `ea6f3a3e2eb7` after a smoke-test syntax fix. No Dolibarr or MariaDB tests have run. The native confirmation forms and permissions require HTTP integration verification.
 - **Risk:** a physical document filesystem write and a database deletion cannot be guaranteed atomic by the SQL transaction alone. The current guard refuses a deletion if any directory content is found; still test race scenarios. Do not claim complete deletion safety until these are reviewed.
+
+## Date-provenance contract
+
+New STATUS/ROLLBACK notes use schema-1 JSON with `message` and `changes`, rendered alongside the existing UPDATE audit. STATUS captures only dates/results introduced automatically. A rollback clears only proven automatic values that still match and have no subsequent explicit DATE/UPDATE correction; it preserves pre-entered values and legacy plain-text events whose provenance is unknown. Rolling back never rewrites the old STATUS row. A new date pre-entered after rollback belongs to the next STATUS event, not the undone prior milestone. Completion result defaults are independent of whether its effective date was already entered. Regression: `tests/integration/rma_dates.php`; actual results remain in PROJECT_STATUS.

@@ -13,6 +13,7 @@ php "$test_dir/fixture.php" seed
 source "$fixture_root/fixture.env"
 php "$test_dir/rma_integrity.php"
 php "$test_dir/rma_transactions.php"
+php "$test_dir/rma_dates.php"
 php "$test_dir/rma_concurrency.php"
 php "$test_dir/rma_migration.php"
 php -S 127.0.0.1:18080 -t "$WARRANTYSVC_TEST_HTDOCS" > "$fixture_root/http.log" 2>&1 &

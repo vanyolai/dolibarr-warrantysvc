@@ -707,13 +707,14 @@ if (empty($history)) {
 		print '<td>'.dol_escape_htmltag($langs->trans('SupplierRmaEvent'.$entry['event_code'])).'</td>';
 		print '<td>'.$tmpStatus->getLibStatut().'</td>';
 		print '<td>'.dol_escape_htmltag($entry['user_name']).'</td>';
-		// UPDATE notes contain an explicitly whitelisted field-level JSON diff.
+		// Edit and lifecycle notes contain a whitelisted field-level JSON diff.
 		// Render it readably, escaping every persisted value; keep legacy notes.
 		$noteHtml = !empty($entry['note']) ? dol_string_onlythesehtmltags(dol_htmlentitiesbr($entry['note'])) : '—';
-		if ($entry['event_code'] === 'UPDATE') {
+		if (in_array($entry['event_code'], array('UPDATE', 'STATUS', 'ROLLBACK'), true)) {
 			$payload = json_decode($entry['note'], true);
-			if (is_array($payload) && isset($payload['schema']) && (int) $payload['schema'] === 1 && !empty($payload['changes']) && is_array($payload['changes'])) {
+			if (is_array($payload) && isset($payload['schema']) && (int) $payload['schema'] === 1 && isset($payload['changes']) && is_array($payload['changes'])) {
 				$lines = array();
+				if (isset($payload['message']) && is_string($payload['message']) && $payload['message'] !== '') $lines[] = dol_htmlentitiesbr($payload['message']);
 				foreach ($payload['changes'] as $fieldName => $change) {
 					if (!isset($object->fields[$fieldName]) || !is_array($change) || !array_key_exists('old', $change) || !array_key_exists('new', $change)) continue;
 					$label = $langs->trans($object->fields[$fieldName]['label']);
@@ -721,7 +722,7 @@ if (empty($history)) {
 					$newValue = dol_escape_htmltag((string) $change['new']);
 					$lines[] = dol_escape_htmltag($label).': '.($oldValue !== '' ? $oldValue : '—').' → '.($newValue !== '' ? $newValue : '—');
 				}
-				if ($lines) $noteHtml = implode('<br>', $lines);
+				$noteHtml = $lines ? implode('<br>', $lines) : '—';
 			}
 		}
 		print '<td>'.$noteHtml.'</td>';

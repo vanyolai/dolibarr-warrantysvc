@@ -2,10 +2,10 @@
 
 > **Source of truth for ongoing development.** Read this file first when resuming the project, including in a new chat or AI coding session. This file is a *status record*, not a replacement for source-code review. If it disagrees with code or CI, verify the repository and correct this file.
 >
-> **Last reviewed:** 2026-10-12  
-> **Working branch:** [feature/rma-integrity-audit-concurrency](https://github.com/vanyolai/dolibarr-warrantysvc/tree/feature/rma-integrity-audit-concurrency) (based on `feature/supplier-rma-workflow` @ `51002351c5d8`)  
-> **Code baseline reviewed:** [51002351c5d8](https://github.com/vanyolai/dolibarr-warrantysvc/commit/51002351c5d8bf74e80793cf46fde04d779c8c1f); **baseline at session start:** [68b7a140c4c3](https://github.com/vanyolai/dolibarr-warrantysvc/commit/68b7a140c4c3592d449b0aff7a2243c797e17146); native fixture and regression suite added in this change set (local database/HTTP tests passed; new CI pending)  
-> **Release status:** **Development / sandbox validation** — **NOT production-ready**.  
+> **Last reviewed:** 2026-10-12
+> **Working branch:** [feature/rma-integrity-audit-concurrency](https://github.com/vanyolai/dolibarr-warrantysvc/tree/feature/rma-integrity-audit-concurrency) (based on `feature/supplier-rma-workflow` @ `51002351c5d8`)
+> **Code baseline reviewed:** [51002351c5d8](https://github.com/vanyolai/dolibarr-warrantysvc/commit/51002351c5d8bf74e80793cf46fde04d779c8c1f); **baseline at session start:** [68b7a140c4c3](https://github.com/vanyolai/dolibarr-warrantysvc/commit/68b7a140c4c3592d449b0aff7a2243c797e17146); local fixture commit `f42aea3`; subsequent date-provenance fix in this change set (all six local database/HTTP suites passed; push/CI pending approval)
+> **Release status:** **Development / sandbox validation** — **NOT production-ready**.
 > **Target:** Dolibarr 23, PHP 8.4; PHP lint matrix currently also covers 8.2 and 8.3.
 
 ## 1. Where we are
@@ -17,7 +17,7 @@
 | Customer service requests (`SvcRequest`) | Existing workflow | Broader regression pending | Parent of supplier RMAs |
 | Supplier RMA separate menu, list, overview | Implemented | Basic sandbox UI exercised; full permissions/filters test pending | Reuses `SvcSupplierRma`, no parallel RMA table |
 | Supplier's work performed (`supplier_work_done`) | Implemented | Display on existing RMA confirmed by user | Separate from diagnosis and result |
-| Six editable business dates and dual-timestamp RMA history | Implemented | Date correction/recorded-time preservation passed in local native model and HTTP tests; rollback of pre-entered dates remains open | `date_event` = recorded at; `date_effective` = business event time |
+| Six editable business dates and dual-timestamp RMA history | Implemented | Correction/recorded-time preservation and rollback of automatic, pre-entered, corrected and legacy dates passed locally | `date_event` = recorded at; `date_effective` = business event time |
 | Supplier RMA documents and external links (e.g. Paperless URL) | Implemented using native Dolibarr file/link tools | Upload, access control, links and delete behavior require sandbox verification | A Paperless API integration is **not** implemented |
 | Supplier RMA physical outbound and inbound stock movement | **Not implemented** in RMA lifecycle | Not applicable | Existing fields and shared stock service must be assessed |
 | Field-level RMA edit audit and optimistic concurrency | **Implemented in Phase 1 branch**, including shared revision token for edit/status/rollback/date | Local Dolibarr 23.0.4/PHP 8.3.6/MariaDB 10.11.14 model, SQL-failure, true concurrency and HTTP tests passed; CI PHP 8.4/MariaDB 11.4.5 pending | **NOT accepted** until fixture/migration tests pass |
@@ -67,12 +67,12 @@ Relevant references:
 **Goal:** Prevent silent overwrites and make every important supplier RMA change explainable and testable.
 
 - [x] Initial source audit of `SvcSupplierRma` and associated card actions, migration and CI; see [Phase 1 audit and acceptance plan](PHASE1_RMA_INTEGRITY.md). Findings require fixes and runtime testing; this checkbox marks source review only.
-- [x] Define an explicit business-field allowlist and structured old/new audit schema for edits (see `update()` and [implementation plan](PHASE1_RMA_INTEGRITY.md)); DB verification pending.
+- [x] Explicit business-field allowlist and structured old/new edit audit; local DB and rollback-failure verification passed. STATUS/ROLLBACK additionally record generated/restored fields with their original message.
 - [x] Atomic RMA UPDATE + structured UPDATE log: local SQL-trigger failure test proves business update/revision/audit rollback; no-op and stale edits also passed.
-- [ ] **Code implemented, testing pending:** persisted `revision` CAS on edit, status, rollback and date operations; stale-submit test must pass in actual DB and HTTP forms.
-- [ ] Verify that date correction never rewrites the historical *recorded at* time; preserve both dates in lifecycle history.
+- [x] Persisted revision CAS for edit/status/rollback/date: local actual overlapping SQL sessions and authenticated HTTP stale submissions passed; remote CI/sandbox acceptance pending.
+- [x] Local model and HTTP tests preserve recorded timestamps. Rollback retains manual/legacy dates; new pre-entry after rollback leaves undone historical milestones unchanged.
 - [x] Local native-model, SQL-failure, true two-session concurrency, retention, HTTP roles/CSRF and schema/reactivation regression suites run successfully.
-- [ ] Pinned Dolibarr 23.0.4/MariaDB fixture and CI implemented; local fresh install passed, first GitHub CI run pending.
+- [ ] Pinned Dolibarr 23.0.4/MariaDB fixture and CI implemented; local fresh install passed, first GitHub CI run pending authorized push.
 - [ ] Run the tests on a representative sandbox database; record the exact commands and outcomes here.
 
 **Done when:** high-impact findings are fixed and reviewed, new audit/concurrency tests run successfully, an existing RMA is still readable/editable after migration, and sandbox behavior is confirmed. A green PHP lint check alone does **not** close this phase.
@@ -117,9 +117,9 @@ Relevant references:
 | --- | --- | --- | --- |
 | RMA-01 | High | Source audit confirmed unversioned full writes | Local DB/SQL-failure/overlapping-session and HTTP tests passed; CI verification and representative sandbox acceptance outstanding |
 | RMA-02 | High | RMA `setStatus()` handles state and dates, but supplier RMA outbound/inbound physical stock movement is not integrated | Handle in Phase 2, using stock service |
-| RMA-03 | High | CI executes PHP syntax lint (including integration script); real Dolibarr/database regression job is absent | Pinned native fixture and real regression workflow added; inspect first CI run |
+| RMA-03 | High | CI executes PHP syntax lint (including integration script); real Dolibarr/database regression job is absent | Native fixture and real regression workflow added locally; first remote run awaits push authorization |
 | RMA-04 | Medium | Status and `result_type` support different concepts; credits/no-fault may not fit the existing physical-return-only path | Phase 3 business design |
-| RMA-05 | Medium | Date and status operations now use common revision CAS; historical rollback/correction sequences remain untested | Local correction/repeated rollback/immutable history tests passed; pre-entered and subsequently corrected rollback dates still need coverage |
+| RMA-05 | Medium | Date and status operations now use common revision CAS; historical rollback/correction sequences remain untested | Local correction/repeated rollback/immutable history and pre-entered/corrected/legacy provenance tests passed; verify in representative sandbox |
 | RMA-06 | High | Hard-delete is now restricted in code to a revision-1 draft with only CREATE event and no linked content, contacts or stock | Local untouched/history/contact/link/file/stock/email and SQL delete failure checks passed; native delete-only HTTP role and stale confirmation passed |
 | RMA-07 | Medium | Revision migration uses Dolibarr `DDLAddField(null => NOT NULL)` with default 1 | Local legacy-column simulation and two native disable/enable cycles passed, preserving all nonrevision fields/logs and incremented revision; CI pending |
 | CROSS-01 | Medium | Remaining hard-coded `DOL_URL_ROOT.'/custom/warrantysvc/'` and similar paths appear in several module files | Audit and refactor in Phase 5 |
@@ -137,6 +137,7 @@ A risk is **not closed** until the corresponding test or review evidence is reco
 | 2026-10-11 | Keep `supplier_work_done`, diagnosis and structured result separately | Distinct business semantics |
 | 2026-10-11 | Supplier documents use native attachments and links; Paperless API integration is deferred | Avoid bespoke document storage |
 | 2026-10-11 | Separate stock movements / release gating from current UI changes | Stock and financial traceability require tested transactional operations |
+| 2026-10-12 | Lifecycle audit records generated/restored field provenance in existing schema-1 JSON notes; rollback retains pre-entered/corrected/legacy values | Avoid loss of user-supplied dates and preserve undone milestone chronology without another table/schema migration |
 | 2026-10-11 | A single living status document is authoritative for project handoffs | Continuing work should not depend on chat history |
 | 2026-10-11 | RMA optimistic concurrency uses a persisted integer revision; field changes use the existing RMA log (`UPDATE` JSON with old/new) | Avoid timestamp precision races and second audit datastore; compatible with old history |
 
@@ -189,14 +190,22 @@ Document new decisions here, especially exceptions, changes to workflow semantic
 - **Remaining gate:** provision a disposable **pinned Dolibarr 23 + MariaDB** fixture (`warrantysvc_test*`), actually execute `tests/integration/rma_integrity.php`, rerun activation/migration, then test true two-connection concurrency, failed-audit rollbacks, HTTP permissions/CSRF, native formconfirm and rollback chronology. **Do not ask user to deploy or test in shared sandbox until these pass**, and do not treat green PHP lint as functionality proven.
 - **Next exact action:** P1-E fixture/CI setup and test execution; fix any runtime findings, update this status with precise test results and links, then prepare isolated sandbox acceptance instructions. User wishes to be notified when there is a real testable milestone or a blocking decision.
 
-### Integration fixture checkpoint — 2026-10-12
+### Integration fixture checkpoint — 2026-10-12 (local commit `f42aea3`, push pending)
 
 - **Scope:** P1-E native disposable fixture; `tests/integration/run.sh` provisions a **fresh** config/empty DB through Dolibarr's `install/step2.php set en_US`, native module activation and synthetic users/business records. Requires loopback, dedicated `warrantysvc_test` account, opt-in and `warrantysvc_test*` database; refuses existing schema/config/documents. Source pinned to **23.0.4 @ cb82037066c1c71f7c867482e9e92975222dfc14**. SMTP points to loopback port 1 and synthetic recipients; no real mail/production credentials.
 - **Actual local command:** `WARRANTYSVC_TEST_ALLOW=yes WARRANTYSVC_TEST_HTDOCS=<fresh pinned checkout>/htdocs WARRANTYSVC_TEST_DB_PORT=13306 WARRANTYSVC_TEST_DB_PASS=<disposable password> bash tests/integration/run.sh`. Passed on **PHP 8.3.6 / MariaDB 10.11.14**, using a standalone scratch DB. No user/shared sandbox acceptance is inferred.
 - **Passed:** original smoke; real SQL-trigger audit insertion failures for edit/status/date/rollback; delete failure restoring CREATE; stale/no-op and entity isolation; immutable recorded dates/repeated rollback; contact/link/file/stock/email/history retention. Four actual overlapping worker SQL sessions (edit/status/date/rollback versus winning edit), observed waiting on the parent's row lock, leave exactly the winner's update/event. Legacy `revision` column simulation + native migration and two further disable/enable cycles preserve all other row data and history, with no revision reset.
 - **Passed HTTP:** actual native login for admin/read/write/read+delete/no-access roles; GET mutation refusal; missing/forged CSRF; role-protected actions; persisted edit revision and stale edit; status, date and native AJAX POST rollback/delete confirmations; history retention, stale delete and foreign entity refusal. These are authenticated loopback requests to the actual card, not controller mocks.
-- **CI:** added `.github/workflows/rma-integration.yml` for **PHP 8.4 / MariaDB 11.4.5**; first remote result pending. Existing lint at starting HEAD `68b7a140c4c3` is green ([run 38217668834](https://github.com/vanyolai/dolibarr-warrantysvc/actions/runs/38217668834)). No database CI success claimed yet.
+- **CI:** added `.github/workflows/rma-integration.yml` for **PHP 8.4 / MariaDB 11.4.5**; first remote result pending authorized push. Existing lint at starting HEAD `68b7a140c4c3` is green ([run 38217668834](https://github.com/vanyolai/dolibarr-warrantysvc/actions/runs/38217668834)). No database CI success claimed yet.
 - **Exact next action:** test/fix rollback of pre-entered and corrected milestone dates (existing rollback clears the field unconditionally), verify result defaults with pre-entered completion date, inspect remote integration CI, then prepare representative sandbox acceptance. Phase 1 remains open; do not begin stock movement, merge or deploy production.
+
+### Date provenance and final local verification — 2026-10-12
+
+- **Reproduced defect:** the new `rma_dates.php` failed against prior code: an authorized → draft rollback deleted an explicitly pre-entered authorization date. Further source review showed new pre-entry after rollback rewrote the old undone STATUS effective date, and a pre-entered completion date prevented the outcome default from being set.
+- **Fix:** STATUS/ROLLBACK notes reuse the existing schema-1 JSON audit mechanism (`message` + whitelisted `changes`) to record automatic date/result provenance. Rollback restores only values that the transition introduced and that have not been explicitly changed since; pre-entered/corrected dates and unknown-provenance legacy notes are retained. DATE correction does not modify an undone milestone; a repeated STATUS creates a new event. Result defaults are independent of pre-entered completion dates. History displays structured lifecycle diffs/messages safely and retains legacy text. No schema/data rewrite or Phase 2 stock writes.
+- **Final local evidence:** fresh `tests/integration/run.sh` completed with **six suites / 327 PASS assertions** on **Dolibarr 23.0.4 / PHP 8.3.6 / MariaDB 10.11.14**, including the reproduced-case fix and all prior SQL-failure, concurrency, migration and native authenticated HTTP checks. All module/test PHP files pass PHP 8.3 lint; shell syntax and `git diff --check` pass. PHP 8.4/MariaDB 11.4.5 workflow is implemented but **not run remotely**.
+- **Publishing blocker:** automatic approval review rejected `git push origin feature/rma-integrity-audit-concurrency`, asking for explicit permission to publish to the public repository. Read-only connector checks confirmed the authenticated user `vanyolai` has admin/push permission and the remote is exactly the user's named repository; a retry was also rejected. Do not bypass the block through another upload API. Local code/tests/status commits are prepared; GitHub PR #1 and remote status have not been updated in this session.
+- **Next exact action:** after explicit user push authorization, publish the prepared commits to the **existing** feature branch, inspect PHP lint and RMA integration workflows, correct any PHP 8.4/MariaDB 11.4.5 findings, then update draft PR #1/status with the real CI links. Keep it draft/unmerged. Only after these pass provide the representative sandbox acceptance runbook and run the user's manual acceptance; do not start Phase 2 before that gate.
 
 ## 7. Rules for updating this document
 
