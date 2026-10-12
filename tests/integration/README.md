@@ -45,7 +45,7 @@ Use a fresh checkout and database for each full run. The preparer **refuses exis
 | `rma_transactions.php` | Server-side audit failure injection for edit/status/date/rollback; atomic hard-delete failure; stale lifecycle/date actions, repeated rollback, invalid dates/states, history isolation, links/contacts/files/stock/email/missing-history retention |
 | `rma_dates.php` | Pre-entered/corrected dates survive rollback; automatic values may be undone; new workflow pass does not rewrite old milestones; legacy provenance is preserved; completion defaults |
 | `rma_concurrency.php` + worker | Four overlapping independent PHP/SQL sessions (edit/status/date/rollback); observes worker SQL blocked on the parent's row lock before releasing the winning update; loser must not write/log |
-| `rma_migration.php` | Legacy schema without revision; native disable/enable migration; all other data/logs preserved; existing RMA editable; two further activations cannot reset revision/data/history |
+| `rma_migration.php` | Legacy schema without revision; native disable/enable migration; all rows/audit events preserved; existing RMA editable; reactivations cannot reset revisions or cleared dates; one-time legacy effective-date backfill without rewriting recorded history |
 | `rma_http.py` + CLI fixture | Actual native login, read/write/read+delete/no-access roles, GET refusals, missing/forged CSRF, revision forms and stale edits, lifecycle/date writes, native AJAX POST confirmations, retention and cross-entity refusal |
 
 Every failed assertion exits nonzero. The native installer exits nonzero on failure; its diagnostics are in `<checkout>/install.log`, HTTP server diagnostics in `<checkout>/http.log`. GitHub Actions keeps installer diagnostics on failure.
