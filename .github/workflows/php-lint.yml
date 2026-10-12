@@ -19,4 +19,4 @@ jobs:
         with:
           php-version: ${{ matrix.php-version }}
       - name: Lint PHP files
-        run: find module -type f -name '*.php' -print0 | xargs -0 -n1 php -l
+        run: find module tests -type f -name '*.php' -print0 | xargs -0 -n1 php -l

@@ -74,6 +74,7 @@ class SvcSupplierRma extends CommonObject
 		'fk_user_creat' => array('type'=>'integer:User:user/class/user.class.php', 'label'=>'UserCreation', 'enabled'=>1, 'visible'=>-2),
 		'fk_user_modif' => array('type'=>'integer:User:user/class/user.class.php', 'label'=>'UserModif', 'enabled'=>1, 'visible'=>-2),
 		'date_creation' => array('type'=>'datetime', 'label'=>'DateCreation', 'enabled'=>1, 'visible'=>-2, 'notnull'=>1),
+		'revision' => array('type'=>'integer', 'label'=>'SupplierRmaRevision', 'enabled'=>1, 'visible'=>-2, 'notnull'=>1),
 		'tms' => array('type'=>'timestamp', 'label'=>'DateModification', 'enabled'=>1, 'visible'=>-2),
 	);
 
@@ -113,6 +114,7 @@ class SvcSupplierRma extends CommonObject
 	public $fk_user_creat;
 	public $fk_user_modif;
 	public $date_creation;
+	public $revision = 1;
 	public $model_pdf = '';
 	public $last_main_doc = '';
 
@@ -365,6 +367,7 @@ class SvcSupplierRma extends CommonObject
 		$this->note_private = (string) $obj->note_private;
 		$this->fk_user_creat = (int) $obj->fk_user_creat;
 		$this->fk_user_modif = (int) $obj->fk_user_modif;
+		$this->revision = (int) $obj->revision;
 
 		return 1;
 	}
@@ -395,35 +398,29 @@ class SvcSupplierRma extends CommonObject
 		), true);
 	}
 
+
+	/**
+	 * Save business fields using a record revision and atomic field-level audit.
+	 *
+	 * A stale browser form must fail, not overwrite changes made by another
+	 * operator. The original row and its audit event share a DB transaction.
+	 *
+	 * @param User $user Operator
+	 * @param int $notrigger Reserved Dolibarr compatibility argument
+	 * @return int 1 on success, -1 on failure
+	 */
 	public function update($user, $notrigger = 0)
 	{
-		if ((float) $this->qty <= 0) {
-			$this->error = 'ErrorSupplierRmaQtyRequired';
+		if ((int) $this->id <= 0 || (int) $this->entity <= 0) {
+			$this->error = 'ErrorRecordNotFound';
 			return -1;
 		}
-		if ($this->id > 0) {
-			$sqlCurrent = "SELECT fk_soc_supplier, fk_product, qty, serial_number, status FROM ".MAIN_DB_PREFIX."svc_supplier_rma";
-			$sqlCurrent .= " WHERE rowid = ".((int) $this->id);
-			$resCurrent = $this->db->query($sqlCurrent);
-			if (!$resCurrent || !($current = $this->db->fetch_object($resCurrent))) {
-				$this->error = $resCurrent ? 'ErrorRecordNotFound' : $this->db->lasterror();
-				if ($resCurrent) $this->db->free($resCurrent);
-				return -1;
-			}
-			$this->db->free($resCurrent);
-			if ($this->isIdentityLocked((string) $current->status)) {
-				if ((int) $current->fk_soc_supplier !== (int) $this->fk_soc_supplier
-					|| (int) $current->fk_product !== (int) $this->fk_product
-					|| abs((float) $current->qty - (float) $this->qty) > 0.00000001
-					|| (string) $current->serial_number !== (string) $this->serial_number
-				) {
-					$this->error = 'ErrorSupplierRmaIdentityLocked';
-					return -1;
-				}
-			}
+		if ((int) $this->revision <= 0) {
+			$this->error = 'ErrorSupplierRmaConcurrentUpdate';
+			return -1;
 		}
-		if ($this->id <= 0) {
-			$this->error = 'ErrorRecordNotFound';
+		if ((float) $this->qty <= 0) {
+			$this->error = 'ErrorSupplierRmaQtyRequired';
 			return -1;
 		}
 		if ($this->validateServiceRequest() < 0 || $this->validateSupplier() < 0) {
@@ -438,126 +435,294 @@ class SvcSupplierRma extends CommonObject
 			return -1;
 		}
 
-		$this->fk_user_modif = (int) $user->id;
-		$sql = "UPDATE ".MAIN_DB_PREFIX."svc_supplier_rma SET";
-		$sql .= " fk_svc_request = ".((int) $this->fk_svc_request);
-		$sql .= ", fk_soc_supplier = ".((int) $this->fk_soc_supplier);
-		$sql .= ", fk_product = ".((int) $this->fk_product);
-		$sql .= ", qty = ".price2num((float) $this->qty, 'MU');
-		$sql .= ", serial_number = ".$this->sqlStringOrNull($this->serial_number);
-		$sql .= ", supplier_rma_ref = ".$this->sqlStringOrNull($this->supplier_rma_ref);
-		$sql .= ", outbound_carrier = ".$this->sqlStringOrNull($this->outbound_carrier);
-		$sql .= ", outbound_tracking = ".$this->sqlStringOrNull($this->outbound_tracking);
-		$sql .= ", outbound_tracking_url = ".$this->sqlStringOrNull($this->outbound_tracking_url);
-		$sql .= ", return_carrier = ".$this->sqlStringOrNull($this->return_carrier);
-		$sql .= ", return_tracking = ".$this->sqlStringOrNull($this->return_tracking);
-		$sql .= ", return_tracking_url = ".$this->sqlStringOrNull($this->return_tracking_url);
-		$sql .= ", result_type = ".$this->sqlStringOrNull($this->result_type);
-		$sql .= ", replacement_serial_number = ".$this->sqlStringOrNull($this->replacement_serial_number);
-		$sql .= ", problem_description = ".$this->sqlStringOrNull($this->problem_description);
-		$sql .= ", diagnosis = ".$this->sqlStringOrNull($this->diagnosis);
-		$sql .= ", supplier_work_done = ".$this->sqlStringOrNull($this->supplier_work_done);
-		$sql .= ", accessories_sent = ".$this->sqlStringOrNull($this->accessories_sent);
-		$sql .= ", fk_warehouse_source = ".$this->sqlIntOrNull($this->fk_warehouse_source);
-		$sql .= ", fk_warehouse_return = ".$this->sqlIntOrNull($this->fk_warehouse_return);
-		$sql .= ", note_private = ".$this->sqlStringOrNull($this->note_private);
-		$sql .= ", fk_user_modif = ".((int) $this->fk_user_modif);
-		$sql .= " WHERE rowid = ".((int) $this->id);
-		$sql .= " AND entity = ".((int) $this->entity);
-
-		if (!$this->db->query($sql)) {
+		if ($this->db->begin() <= 0) {
 			$this->error = $this->db->lasterror();
 			return -1;
 		}
 
+		// Lock the persisted row before inspecting identity and calculating
+		// changes. Compare the revision captured by the editing client.
+		$sqlCurrent = "SELECT * FROM ".MAIN_DB_PREFIX."svc_supplier_rma";
+		$sqlCurrent .= " WHERE rowid = ".((int) $this->id);
+		$sqlCurrent .= " AND entity = ".((int) $this->entity)." FOR UPDATE";
+		$resCurrent = $this->db->query($sqlCurrent);
+		if (!$resCurrent) {
+			$this->error = $this->db->lasterror();
+			$this->db->rollback();
+			return -1;
+		}
+		$current = $this->db->fetch_object($resCurrent);
+		$this->db->free($resCurrent);
+		if (!$current) {
+			$this->error = 'ErrorRecordNotFound';
+			$this->db->rollback();
+			return -1;
+		}
+		if ((int) $current->revision !== (int) $this->revision) {
+			$this->error = 'ErrorSupplierRmaConcurrentUpdate';
+			$this->db->rollback();
+			return -1;
+		}
+		// An RMA may never silently switch to a different parent request.
+		if ((int) $current->fk_svc_request !== (int) $this->fk_svc_request) {
+			$this->error = 'ErrorSupplierRmaIdentityLocked';
+			$this->db->rollback();
+			return -1;
+		}
+		if ($this->isIdentityLocked((string) $current->status)
+			&& ((int) $current->fk_soc_supplier !== (int) $this->fk_soc_supplier
+				|| (int) $current->fk_product !== (int) $this->fk_product
+				|| abs((float) $current->qty - (float) $this->qty) > 0.00000001
+				|| (string) $current->serial_number !== (string) $this->serial_number)) {
+			$this->error = 'ErrorSupplierRmaIdentityLocked';
+			$this->db->rollback();
+			return -1;
+		}
+
+		// This explicit allowlist excludes lifecycle dates, stock movement IDs,
+		// status, revision and framework metadata. Those have their own APIs.
+		$fieldTypes = array(
+			'fk_soc_supplier' => 'int', 'fk_product' => 'int', 'qty' => 'qty',
+			'serial_number' => 'text', 'supplier_rma_ref' => 'text',
+			'outbound_carrier' => 'text', 'outbound_tracking' => 'text',
+			'outbound_tracking_url' => 'text', 'return_carrier' => 'text',
+			'return_tracking' => 'text', 'return_tracking_url' => 'text',
+			'result_type' => 'text', 'replacement_serial_number' => 'text',
+			'problem_description' => 'text', 'diagnosis' => 'text',
+			'supplier_work_done' => 'text', 'accessories_sent' => 'text',
+			'fk_warehouse_source' => 'nullableint', 'fk_warehouse_return' => 'nullableint',
+			'note_private' => 'text'
+		);
+		$sets = array();
+		$changes = array();
+		foreach ($fieldTypes as $field => $type) {
+			if ($type === 'int' || $type === 'nullableint') {
+				$oldValue = (int) $current->{$field};
+				$newValue = (int) $this->{$field};
+			} elseif ($type === 'qty') {
+				$oldValue = sprintf('%.8f', (float) $current->{$field});
+				$newValue = sprintf('%.8f', (float) $this->{$field});
+			} else {
+				$oldValue = (string) $current->{$field};
+				$newValue = (string) $this->{$field};
+			}
+			if ($oldValue === $newValue) continue;
+
+			$changes[$field] = array('old' => $oldValue, 'new' => $newValue);
+			if ($type === 'int') {
+				$sets[] = $field.' = '.((int) $newValue);
+			} elseif ($type === 'nullableint') {
+				$sets[] = $field.' = '.$this->sqlIntOrNull($newValue);
+			} elseif ($type === 'qty') {
+				$sets[] = $field.' = '.price2num((float) $this->qty, 'MU');
+			} else {
+				$sets[] = $field.' = '.$this->sqlStringOrNull($newValue);
+			}
+		}
+		if (!$changes) {
+			$this->db->rollback(); // Release row lock; nothing to persist or log.
+			return 1;
+		}
+
+		$sets[] = 'fk_user_modif = '.((int) $user->id);
+		$sets[] = 'revision = revision + 1';
+		$sql = "UPDATE ".MAIN_DB_PREFIX."svc_supplier_rma SET ".implode(', ', $sets);
+		$sql .= " WHERE rowid = ".((int) $this->id);
+		$sql .= " AND entity = ".((int) $this->entity);
+		$sql .= " AND revision = ".((int) $this->revision);
+		$resql = $this->db->query($sql);
+		if (!$resql) {
+			$this->error = $this->db->lasterror();
+			$this->db->rollback();
+			return -1;
+		}
+		if ($this->db->affected_rows($resql) !== 1) {
+			$this->error = 'ErrorSupplierRmaConcurrentUpdate';
+			$this->db->rollback();
+			return -1;
+		}
+
+		$payload = json_encode(array('schema' => 1, 'changes' => $changes), JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
+		if ($payload === false || $this->logEvent('UPDATE', (string) $current->status, (string) $current->status, $payload, $user) < 0) {
+			if ($payload === false) $this->error = 'ErrorSupplierRmaAuditEncoding';
+			$this->db->rollback();
+			return -1;
+		}
+		if ($this->db->commit() <= 0) {
+			$this->error = $this->db->lasterror();
+			return -1;
+		}
+		$this->revision++;
+		$this->fk_user_modif = (int) $user->id;
 		$this->socid = (int) $this->fk_soc_supplier;
 		return 1;
 	}
 
+	/**
+	 * Hard-delete only an untouched, unreferenced draft.
+	 *
+	 * Once a supplier RMA has been edited, communicated or progressed, its
+	 * business history must be retained; cancel it instead. The CREATE event
+	 * may only be removed with a truly untouched draft and within the same
+	 * transaction as the RMA row.
+	 *
+	 * @param User $user Operator (permission is checked by the caller)
+	 * @param int $notrigger Dolibarr compatibility argument
+	 * @return int 1 on success, -1 on failure
+	 */
 	public function delete($user, $notrigger = 0)
 	{
-		// Phase 1 has no stock movements yet, so an RMA may be permanently
-		// deleted from any workflow state. Once Phase 2 has created an actual
-		// movement, hard deletion is deliberately blocked to preserve stock and
-		// audit traceability.
-		if (!empty($this->fk_stock_movement_out) || !empty($this->fk_stock_movement_in)) {
-			$this->error = 'ErrorSupplierRmaDeleteStockMovements';
+		if ((int) $this->id <= 0 || (int) $this->entity <= 0) {
+			$this->error = 'ErrorRecordNotFound';
+			return -1;
+		}
+		if ($this->db->begin() <= 0) {
+			$this->error = $this->db->lasterror();
 			return -1;
 		}
 
-		// An RMA with supplier correspondence is an auditable business record.
-		// Never leave orphaned files or Paperless/external links behind on hard delete.
-		$sql = 'SELECT rowid FROM '.MAIN_DB_PREFIX.'links';
-		$sql .= " WHERE objecttype = '".$this->db->escape($this->element)."'";
-		$sql .= ' AND objectid = '.((int) $this->id);
-		$sql .= $this->db->plimit(1);
+		// Lock before checking history/stock: a stale confirmation must not
+		// delete an RMA that has been changed by another operator.
+		$sql = 'SELECT revision, status, fk_svc_request, fk_stock_movement_out, fk_stock_movement_in';
+		$sql .= ' FROM '.MAIN_DB_PREFIX.'svc_supplier_rma';
+		$sql .= ' WHERE rowid = '.((int) $this->id).' AND entity = '.((int) $this->entity).' FOR UPDATE';
 		$res = $this->db->query($sql);
 		if (!$res) {
 			$this->error = $this->db->lasterror();
+			$this->db->rollback();
+			return -1;
+		}
+		$current = $this->db->fetch_object($res);
+		$this->db->free($res);
+		if (!$current) {
+			$this->error = 'ErrorRecordNotFound';
+			$this->db->rollback();
+			return -1;
+		}
+		if ((int) $current->revision !== (int) $this->revision) {
+			$this->error = 'ErrorSupplierRmaConcurrentUpdate';
+			$this->db->rollback();
+			return -1;
+		}
+		if (!empty($current->fk_stock_movement_out) || !empty($current->fk_stock_movement_in)) {
+			$this->error = 'ErrorSupplierRmaDeleteStockMovements';
+			$this->db->rollback();
+			return -1;
+		}
+		if ((string) $current->status !== self::STATUS_DRAFT || (int) $current->revision !== 1) {
+			$this->error = 'ErrorSupplierRmaDeleteHistory';
+			$this->db->rollback();
+			return -1;
+		}
+
+		// Require exactly the one original CREATE event. Legacy entries with
+		// missing history and all subsequently edited/emailed drafts are kept.
+		$sql = 'SELECT event_code FROM '.MAIN_DB_PREFIX.'svc_supplier_rma_log';
+		$sql .= ' WHERE fk_supplier_rma = '.((int) $this->id);
+		$sql .= ' AND entity = '.((int) $this->entity).' FOR UPDATE';
+		$res = $this->db->query($sql);
+		if (!$res) {
+			$this->error = $this->db->lasterror();
+			$this->db->rollback();
+			return -1;
+		}
+		$eventCount = 0;
+		$onlyCreate = true;
+		while ($event = $this->db->fetch_object($res)) {
+			$eventCount++;
+			if ((string) $event->event_code !== 'CREATE') $onlyCreate = false;
+		}
+		$this->db->free($res);
+		if ($eventCount !== 1 || !$onlyCreate) {
+			$this->error = 'ErrorSupplierRmaDeleteHistory';
+			$this->db->rollback();
+			return -1;
+		}
+
+		$sql = 'SELECT rowid FROM '.MAIN_DB_PREFIX.'links';
+		$sql .= " WHERE objecttype = '".$this->db->escape($this->element)."'";
+		$sql .= ' AND objectid = '.((int) $this->id).$this->db->plimit(1);
+		$res = $this->db->query($sql);
+		if (!$res) {
+			$this->error = $this->db->lasterror();
+			$this->db->rollback();
 			return -1;
 		}
 		$hasLinks = (bool) $this->db->fetch_object($res);
 		$this->db->free($res);
 		if ($hasLinks) {
 			$this->error = 'ErrorSupplierRmaHasDocuments';
+			$this->db->rollback();
+			return -1;
+		}
+
+		$sql = 'SELECT ec.rowid FROM '.MAIN_DB_PREFIX.'element_contact ec';
+		$sql .= ' INNER JOIN '.MAIN_DB_PREFIX.'c_type_contact tc ON tc.rowid = ec.fk_c_type_contact';
+		$sql .= ' WHERE ec.element_id = '.((int) $this->id);
+		$sql .= " AND tc.element = 'svcsupplierrma'".$this->db->plimit(1);
+		$res = $this->db->query($sql);
+		if (!$res) {
+			$this->error = $this->db->lasterror();
+			$this->db->rollback();
+			return -1;
+		}
+		$hasContacts = (bool) $this->db->fetch_object($res);
+		$this->db->free($res);
+		if ($hasContacts) {
+			$this->error = 'ErrorSupplierRmaDeleteHistory';
+			$this->db->rollback();
 			return -1;
 		}
 
 		$sql = 'SELECT ref FROM '.MAIN_DB_PREFIX.'svc_request';
-		$sql .= ' WHERE rowid = '.((int) $this->fk_svc_request);
+		$sql .= ' WHERE rowid = '.((int) $current->fk_svc_request);
 		$sql .= ' AND entity = '.((int) $this->entity);
 		$res = $this->db->query($sql);
 		if (!$res) {
 			$this->error = $this->db->lasterror();
+			$this->db->rollback();
 			return -1;
 		}
 		$request = $this->db->fetch_object($res);
 		$this->db->free($res);
 		if (!$request) {
 			$this->error = 'ErrorSupplierRmaServiceRequestNotFound';
+			$this->db->rollback();
 			return -1;
 		}
 		$documentDir = $this->getDocumentOutputDir((string) $request->ref);
 		if ($documentDir !== '' && is_dir($documentDir)) {
 			require_once DOL_DOCUMENT_ROOT.'/core/lib/files.lib.php';
-			if (!empty(dol_dir_list($documentDir, 'files', 0, '', '(\.meta|_preview.*\.png)$'))) {
+			if (!empty(dol_dir_list($documentDir, 'all', 0))) {
 				$this->error = 'ErrorSupplierRmaHasDocuments';
+				$this->db->rollback();
 				return -1;
 			}
 		}
 
-		$this->db->begin();
-
-		$sql = "DELETE FROM ".MAIN_DB_PREFIX."svc_supplier_rma_log WHERE fk_supplier_rma = ".((int) $this->id);
+		// The CREATE event and pristine draft disappear together, never a
+		// partial record; both DELETEs are entity-scoped.
+		$sql = 'DELETE FROM '.MAIN_DB_PREFIX.'svc_supplier_rma_log';
+		$sql .= ' WHERE fk_supplier_rma = '.((int) $this->id);
+		$sql .= ' AND entity = '.((int) $this->entity);
 		if (!$this->db->query($sql)) {
 			$this->error = $this->db->lasterror();
 			$this->db->rollback();
 			return -1;
 		}
-
-		$sql = "DELETE ec FROM ".MAIN_DB_PREFIX."element_contact ec";
-		$sql .= " INNER JOIN ".MAIN_DB_PREFIX."c_type_contact tc ON tc.rowid = ec.fk_c_type_contact";
-		$sql .= " WHERE ec.element_id = ".((int) $this->id);
-		$sql .= " AND tc.element = 'svcsupplierrma'";
-		if ($this->db->type === 'pgsql') {
-			$sql = "DELETE FROM ".MAIN_DB_PREFIX."element_contact";
-			$sql .= " WHERE element_id = ".((int) $this->id);
-			$sql .= " AND fk_c_type_contact IN (SELECT rowid FROM ".MAIN_DB_PREFIX."c_type_contact WHERE element = 'svcsupplierrma')";
-		}
-		if (!$this->db->query($sql)) {
-			$this->error = $this->db->lasterror();
+		$sql = 'DELETE FROM '.MAIN_DB_PREFIX.'svc_supplier_rma';
+		$sql .= ' WHERE rowid = '.((int) $this->id).' AND entity = '.((int) $this->entity);
+		$sql .= ' AND revision = 1 AND status = '. $this->sqlStringOrNull(self::STATUS_DRAFT);
+		$res = $this->db->query($sql);
+		if (!$res || $this->db->affected_rows($res) !== 1) {
+			$this->error = $res ? 'ErrorSupplierRmaConcurrentUpdate' : $this->db->lasterror();
 			$this->db->rollback();
 			return -1;
 		}
-
-		$sql = "DELETE FROM ".MAIN_DB_PREFIX."svc_supplier_rma WHERE rowid = ".((int) $this->id);
-		if (!$this->db->query($sql)) {
+		if ($this->db->commit() <= 0) {
 			$this->error = $this->db->lasterror();
-			$this->db->rollback();
 			return -1;
 		}
-
-		$this->db->commit();
 		return 1;
 	}
 
@@ -614,17 +779,38 @@ class SvcSupplierRma extends CommonObject
 			return -1;
 		}
 		$previous = !empty($this->{$field}) ? (int) $this->{$field} : null;
-		if ($previous === $timestamp) return 1;
+		if ($previous === $timestamp) {
+			// A stale no-op must not be reported as a valid save. It creates
+			// no new event and does not increment revision.
+			$sqlCheck = 'SELECT revision FROM '.MAIN_DB_PREFIX.'svc_supplier_rma';
+			$sqlCheck .= ' WHERE rowid = '.((int) $this->id).' AND entity = '.((int) $this->entity);
+			$resCheck = $this->db->query($sqlCheck);
+			if (!$resCheck) {
+				$this->error = $this->db->lasterror();
+				return -1;
+			}
+			$check = $this->db->fetch_object($resCheck);
+			$this->db->free($resCheck);
+			if (!$check || (int) $check->revision !== (int) $this->revision) {
+				$this->error = 'ErrorSupplierRmaConcurrentUpdate';
+				return -1;
+			}
+			return 1;
+		}
 
 		$previousSql = $previous === null ? 'NULL' : $this->db->idate($previous);
 		$newSql = $timestamp === null ? 'NULL' : $this->db->idate($timestamp);
 		$eventNote = $field.': '.$previousSql.' -> '.$newSql;
 		if (trim((string) $reason) !== '') $eventNote .= "\n".trim((string) $reason);
 
-		$this->db->begin();
+		if ($this->db->begin() <= 0) {
+			$this->error = $this->db->lasterror();
+			return -1;
+		}
 		$sql = 'UPDATE '.MAIN_DB_PREFIX.'svc_supplier_rma SET '.$field.' = '.$this->sqlDateOrNull($timestamp);
-		$sql .= ', fk_user_modif = '.((int) $user->id);
+		$sql .= ', fk_user_modif = '.((int) $user->id).', revision = revision + 1';
 		$sql .= ' WHERE rowid = '.((int) $this->id).' AND entity = '.((int) $this->entity);
+		$sql .= ' AND revision = '.((int) $this->revision);
 		$sql .= ' AND '.($previous === null ? $field.' IS NULL' : $field." = '".$this->db->escape($previousSql)."'");
 		$resql = $this->db->query($sql);
 		if (!$resql) {
@@ -666,6 +852,22 @@ class SvcSupplierRma extends CommonObject
 		}
 		$milestoneRow = $this->db->fetch_object($eventResult);
 		$this->db->free($eventResult);
+		if ($milestoneRow && $field !== 'date_request') {
+			// Once a milestone was undone, a newly pre-entered date belongs to
+			// the next workflow pass. Do not rewrite the old STATUS event.
+			$undoQuery = 'SELECT rowid FROM '.MAIN_DB_PREFIX.'svc_supplier_rma_log';
+			$undoQuery .= ' WHERE fk_supplier_rma = '.((int) $this->id).' AND entity = '.((int) $this->entity);
+			$undoQuery .= " AND event_code = 'ROLLBACK' AND old_status IN ('".implode("','", $statusList)."')";
+			$undoQuery .= ' AND rowid > '.((int) $milestoneRow->rowid).$this->db->plimit(1);
+			$undoResult = $this->db->query($undoQuery);
+			if (!$undoResult) {
+				$this->error = $this->db->lasterror();
+				$this->db->rollback();
+				return -1;
+			}
+			if ($this->db->fetch_object($undoResult)) $milestoneRow = null;
+			$this->db->free($undoResult);
+		}
 		if ($milestoneRow) {
 			$updateEvent = 'UPDATE '.MAIN_DB_PREFIX.'svc_supplier_rma_log';
 			$updateEvent .= ' SET date_effective = '.$this->sqlDateOrNull($timestamp);
@@ -689,6 +891,7 @@ class SvcSupplierRma extends CommonObject
 		}
 		$this->{$field} = $timestamp;
 		$this->fk_user_modif = (int) $user->id;
+		$this->revision++;
 		return 1;
 	}
 
@@ -715,38 +918,47 @@ class SvcSupplierRma extends CommonObject
 
 		$oldStatus = $this->status;
 		$now = dol_now();
+		$pending = array();
 		$sets = array(
 			"status = '".$this->db->escape($newStatus)."'",
 			"fk_user_modif = ".((int) $user->id),
+			"revision = revision + 1",
 		);
 		if ($newStatus === self::STATUS_AUTHORIZED && empty($this->date_authorized)) {
 			$sets[] = "date_authorized = '".$this->db->idate($now)."'";
-			$this->date_authorized = $now;
+			$pending['date_authorized'] = $now;
 		}
 		if ($newStatus === self::STATUS_SHIPPED && empty($this->date_shipped)) {
 			$sets[] = "date_shipped = '".$this->db->idate($now)."'";
-			$this->date_shipped = $now;
+			$pending['date_shipped'] = $now;
 		}
 		if ($newStatus === self::STATUS_RECEIVED_BY_SUPPLIER && empty($this->date_supplier_received)) {
 			$sets[] = "date_supplier_received = '".$this->db->idate($now)."'";
-			$this->date_supplier_received = $now;
+			$pending['date_supplier_received'] = $now;
 		}
-		if (in_array($newStatus, array(self::STATUS_REPAIRED, self::STATUS_REPLACED, self::STATUS_REJECTED), true) && empty($this->date_supplier_completed)) {
-			$sets[] = "date_supplier_completed = '".$this->db->idate($now)."'";
-			$this->date_supplier_completed = $now;
+		if (in_array($newStatus, array(self::STATUS_REPAIRED, self::STATUS_REPLACED, self::STATUS_REJECTED), true)) {
+			if (empty($this->date_supplier_completed)) {
+				$sets[] = "date_supplier_completed = '".$this->db->idate($now)."'";
+				$pending['date_supplier_completed'] = $now;
+			}
 			if (empty($this->result_type)) {
-				$this->result_type = $newStatus;
-				$sets[] = "result_type = '".$this->db->escape($this->result_type)."'";
+				$pending['result_type'] = $newStatus;
+				$sets[] = "result_type = '".$this->db->escape($newStatus)."'";
 			}
 		}
 		if ($newStatus === self::STATUS_RETURNED && empty($this->date_returned)) {
 			$sets[] = "date_returned = '".$this->db->idate($now)."'";
-			$this->date_returned = $now;
+			$pending['date_returned'] = $now;
 		}
 
-		$this->db->begin();
+		if ($this->db->begin() <= 0) {
+			$this->error = $this->db->lasterror();
+			return -1;
+		}
 		$sql = "UPDATE ".MAIN_DB_PREFIX."svc_supplier_rma SET ".implode(', ', $sets);
 		$sql .= " WHERE rowid = ".((int) $this->id);
+		$sql .= " AND entity = ".((int) $this->entity);
+		$sql .= " AND revision = ".((int) $this->revision);
 		$sql .= " AND status = '".$this->db->escape($oldStatus)."'";
 		$resql = $this->db->query($sql);
 		if (!$resql) {
@@ -760,15 +972,35 @@ class SvcSupplierRma extends CommonObject
 			return -1;
 		}
 
-		$this->status = $newStatus;
-		$this->fk_user_modif = (int) $user->id;
 		$eventDateField = $this->statusDateField($newStatus);
-		$effectiveDate = $eventDateField && !empty($this->{$eventDateField}) ? $this->{$eventDateField} : $now;
-		if ($this->logEvent('STATUS', $oldStatus, $newStatus, $note, $user, $effectiveDate) < 0) {
+		$effectiveDate = $now;
+		if ($eventDateField) {
+			$eventValue = array_key_exists($eventDateField, $pending) ? $pending[$eventDateField] : $this->{$eventDateField};
+			if (!empty($eventValue)) $effectiveDate = $eventValue;
+		}
+		// Record which fields this transition actually introduced. Rollback
+		// must distinguish automatic values from prior/manual business data.
+		$changes = array();
+		foreach ($pending as $field => $value) {
+			$changes[$field] = array(
+				'old' => $field === 'result_type' ? (string) $this->{$field} : (!empty($this->{$field}) ? $this->db->idate($this->{$field}) : null),
+				'new' => $field === 'result_type' ? (string) $value : $this->db->idate($value)
+			);
+		}
+		$auditNote = json_encode(array('schema' => 1, 'message' => (string) $note, 'changes' => $changes), JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
+		if ($auditNote === false || $this->logEvent('STATUS', $oldStatus, $newStatus, $auditNote, $user, $effectiveDate) < 0) {
+			if ($auditNote === false) $this->error = 'ErrorSupplierRmaAuditEncoding';
 			$this->db->rollback();
 			return -1;
 		}
-		$this->db->commit();
+		if ($this->db->commit() <= 0) {
+			$this->error = $this->db->lasterror();
+			return -1;
+		}
+		foreach ($pending as $field => $value) $this->{$field} = $value;
+		$this->status = $newStatus;
+		$this->fk_user_modif = (int) $user->id;
+		$this->revision++;
 		return 1;
 	}
 
@@ -795,8 +1027,9 @@ class SvcSupplierRma extends CommonObject
 			return -1;
 		}
 
-		$sql = "SELECT old_status FROM ".MAIN_DB_PREFIX."svc_supplier_rma_log";
+		$sql = "SELECT rowid, old_status, note FROM ".MAIN_DB_PREFIX."svc_supplier_rma_log";
 		$sql .= " WHERE fk_supplier_rma = ".((int) $this->id);
+		$sql .= " AND entity = ".((int) $this->entity);
 		$sql .= " AND event_code = 'STATUS'";
 		$sql .= " AND new_status = '".$this->db->escape($this->status)."'";
 		$sql .= " AND old_status IS NOT NULL AND old_status <> ''";
@@ -836,36 +1069,64 @@ class SvcSupplierRma extends CommonObject
 			return -1;
 		}
 
+		$pendingRestores = array();
 		$sets = array(
 			"status = '".$this->db->escape($newStatus)."'",
 			"fk_user_modif = ".((int) $user->id),
+			"revision = revision + 1",
 		);
 
-		// Clear timestamps introduced by the accidentally-entered state.
-		if ($oldStatus === self::STATUS_AUTHORIZED) {
-			$sets[] = "date_authorized = NULL";
-			$this->date_authorized = null;
-		} elseif ($oldStatus === self::STATUS_SHIPPED) {
-			$sets[] = "date_shipped = NULL";
-			$this->date_shipped = null;
-		} elseif ($oldStatus === self::STATUS_RECEIVED_BY_SUPPLIER) {
-			$sets[] = "date_supplier_received = NULL";
-			$this->date_supplier_received = null;
-		} elseif (in_array($oldStatus, array(self::STATUS_REPAIRED, self::STATUS_REPLACED, self::STATUS_REJECTED), true)) {
-			$sets[] = "date_supplier_completed = NULL";
-			$this->date_supplier_completed = null;
-			if ($this->result_type === $oldStatus) {
-				$sets[] = "result_type = NULL";
-				$this->result_type = '';
+		// Restore only proven automatic values that have not since been
+		// explicitly corrected. Legacy plain-text events have no provenance:
+		// preserve their dates/results instead of destructively guessing.
+		$transition = json_decode((string) $obj->note, true);
+		$allowedRestores = array_filter(array($this->statusDateField($oldStatus)));
+		if (in_array($oldStatus, array(self::STATUS_REPAIRED, self::STATUS_REPLACED, self::STATUS_REJECTED), true)) $allowedRestores[] = 'result_type';
+		$explicitFields = array();
+		$sqlCorrections = 'SELECT event_code, note FROM '.MAIN_DB_PREFIX.'svc_supplier_rma_log';
+		$sqlCorrections .= ' WHERE fk_supplier_rma = '.((int) $this->id).' AND entity = '.((int) $this->entity);
+		$sqlCorrections .= " AND event_code IN ('DATE', 'UPDATE') AND rowid > ".((int) $obj->rowid);
+		$resCorrections = $this->db->query($sqlCorrections);
+		if (!$resCorrections) {
+			$this->error = $this->db->lasterror();
+			return -1;
+		}
+		while ($correction = $this->db->fetch_object($resCorrections)) {
+			if ($correction->event_code === 'DATE') {
+				$explicitFields[strtok((string) $correction->note, ':')] = true;
+			} else {
+				$edit = json_decode((string) $correction->note, true);
+				if (is_array($edit) && isset($edit['schema']) && (int) $edit['schema'] === 1 && isset($edit['changes']) && is_array($edit['changes'])) {
+					foreach ($edit['changes'] as $field => $change) $explicitFields[$field] = true;
+				}
 			}
-		} elseif ($oldStatus === self::STATUS_RETURNED) {
-			$sets[] = "date_returned = NULL";
-			$this->date_returned = null;
+		}
+		$this->db->free($resCorrections);
+		$changes = array();
+		if (is_array($transition) && isset($transition['schema']) && (int) $transition['schema'] === 1
+			&& isset($transition['changes']) && is_array($transition['changes'])) {
+			foreach ($allowedRestores as $field) {
+				if (isset($explicitFields[$field]) || !isset($transition['changes'][$field]) || !is_array($transition['changes'][$field])) continue;
+				$change = $transition['changes'][$field];
+				if (!array_key_exists('old', $change) || !array_key_exists('new', $change)) continue;
+				$current = $field === 'result_type' ? (string) $this->{$field} : (!empty($this->{$field}) ? $this->db->idate($this->{$field}) : null);
+				// Currently transitions introduce only empty -> generated values.
+				// Keep this restore allowlist narrow, including malformed old logs.
+				if ($current !== $change['new'] || !in_array($change['old'], array(null, ''), true)) continue;
+				$pendingRestores[$field] = $field === 'result_type' ? '' : null;
+				$sets[] = $field.' = NULL';
+				$changes[$field] = array('old' => $current, 'new' => $change['old']);
+			}
 		}
 
-		$this->db->begin();
+		if ($this->db->begin() <= 0) {
+			$this->error = $this->db->lasterror();
+			return -1;
+		}
 		$sql = "UPDATE ".MAIN_DB_PREFIX."svc_supplier_rma SET ".implode(', ', $sets);
 		$sql .= " WHERE rowid = ".((int) $this->id);
+		$sql .= " AND entity = ".((int) $this->entity);
+		$sql .= " AND revision = ".((int) $this->revision);
 		$sql .= " AND status = '".$this->db->escape($oldStatus)."'";
 		$resql = $this->db->query($sql);
 		if (!$resql) {
@@ -879,14 +1140,21 @@ class SvcSupplierRma extends CommonObject
 			return -1;
 		}
 
-		$this->status = $newStatus;
-		$this->fk_user_modif = (int) $user->id;
-		if ($this->logEvent('ROLLBACK', $oldStatus, $newStatus, $note, $user) < 0) {
+		$auditNote = json_encode(array('schema' => 1, 'message' => (string) $note, 'changes' => $changes), JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
+		if ($auditNote === false || $this->logEvent('ROLLBACK', $oldStatus, $newStatus, $auditNote, $user) < 0) {
+			if ($auditNote === false) $this->error = 'ErrorSupplierRmaAuditEncoding';
 			$this->db->rollback();
 			return -1;
 		}
 
-		$this->db->commit();
+		if ($this->db->commit() <= 0) {
+			$this->error = $this->db->lasterror();
+			return -1;
+		}
+		foreach ($pendingRestores as $field => $value) $this->{$field} = $value;
+		$this->status = $newStatus;
+		$this->fk_user_modif = (int) $user->id;
+		$this->revision++;
 		return 1;
 	}
 
@@ -896,7 +1164,7 @@ class SvcSupplierRma extends CommonObject
 
 		$sql = "INSERT INTO ".MAIN_DB_PREFIX."svc_supplier_rma_log";
 		$sql .= " (entity, fk_supplier_rma, event_code, old_status, new_status, note, date_event, date_effective, fk_user) VALUES (";
-		$sql .= ((int) $conf->entity);
+		$sql .= ((int) $this->entity);
 		$sql .= ", ".((int) $this->id);
 		$sql .= ", '".$this->db->escape($eventCode)."'";
 		$sql .= ", ".$this->sqlStringOrNull($oldStatus);
@@ -920,6 +1188,7 @@ class SvcSupplierRma extends CommonObject
 		$sql .= " FROM ".MAIN_DB_PREFIX."svc_supplier_rma_log l";
 		$sql .= " LEFT JOIN ".MAIN_DB_PREFIX."user u ON u.rowid = l.fk_user";
 		$sql .= " WHERE l.fk_supplier_rma = ".((int) $this->id);
+		$sql .= " AND l.entity = ".((int) $this->entity);
 		$sql .= " ORDER BY COALESCE(l.date_effective, l.date_event) ASC, l.rowid ASC";
 		$resql = $this->db->query($sql);
 		if (!$resql) {

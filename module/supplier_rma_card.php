@@ -38,6 +38,13 @@ if (!$permread || !empty($user->socid)) {
 	accessforbidden();
 }
 
+// Mutating actions use native POST/CSRF forms. Never accept a crafted GET
+// request for a save, status change, rollback or hard deletion.
+if (in_array($action, array('add', 'update', 'update_business_date', 'setstatus', 'confirm_rollback', 'confirm_delete'), true)
+	&& $_SERVER['REQUEST_METHOD'] !== 'POST') {
+	accessforbidden();
+}
+
 $object = new SvcSupplierRma($db);
 $sr = new SvcRequest($db);
 
@@ -132,6 +139,8 @@ if ($action === 'update' && $permwrite && $object->id > 0) {
 	$object->fk_svc_request = $previousRequestId;
 	$object->fk_warehouse_source = $previousWarehouseSource;
 	$object->fk_warehouse_return = $previousWarehouseReturn;
+	// Use the revision displayed when the form was opened, not the freshly fetched one.
+	$object->revision = GETPOSTINT('revision');
 	$result = $object->update($user);
 	if ($result > 0) {
 		setEventMessages($langs->trans('SupplierRmaUpdated'), null, 'mesgs');
@@ -168,6 +177,7 @@ if ($action === 'update_business_date' && $permwrite && $object->id > 0 && $_SER
 		if (!$validDate || (!$clearDate && (!$time || $time < 1))) {
 			setEventMessages($langs->trans('ErrorSupplierRmaInvalidDate'), null, 'errors');
 		} else {
+			$object->revision = GETPOSTINT('revision');
 			$result = $object->setBusinessDate($editDateField, $time, $user, GETPOST('date_reason', 'restricthtml'));
 			if ($result > 0) {
 				setEventMessages($langs->trans('SupplierRmaDateUpdated'), null, 'mesgs');
@@ -183,6 +193,7 @@ if ($action === 'update_business_date' && $permwrite && $object->id > 0 && $_SER
 if ($action === 'setstatus' && $permwrite && $object->id > 0 && $_SERVER['REQUEST_METHOD'] === 'POST') {
 	$newStatus = GETPOST('newstatus', 'alpha');
 	$note = GETPOST('status_note', 'restricthtml');
+	$object->revision = GETPOSTINT('revision');
 	$result = $object->setStatus($newStatus, $user, $note);
 	if ($result > 0) {
 		setEventMessages($langs->trans('SupplierRmaStatusUpdated'), null, 'mesgs');
@@ -194,6 +205,7 @@ if ($action === 'setstatus' && $permwrite && $object->id > 0 && $_SERVER['REQUES
 }
 
 if ($action === 'confirm_rollback' && GETPOST('confirm', 'alpha') === 'yes' && $permwrite && $object->id > 0) {
+	$object->revision = GETPOSTINT('revision');
 	$result = $object->rollbackStatus($user, $langs->transnoentitiesnoconv('SupplierRmaRollbackAuditNote'));
 	if ($result > 0) {
 		setEventMessages($langs->trans('SupplierRmaRolledBack'), null, 'mesgs');
@@ -205,6 +217,7 @@ if ($action === 'confirm_rollback' && GETPOST('confirm', 'alpha') === 'yes' && $
 }
 
 if ($action === 'confirm_delete' && GETPOST('confirm', 'alpha') === 'yes' && $permdelete && $object->id > 0) {
+	$object->revision = GETPOSTINT('revision');
 	$srid = (int) $object->fk_svc_request;
 	$result = $object->delete($user);
 	if ($result > 0) {
@@ -316,9 +329,9 @@ $head = svcsupplierrma_prepare_head($object);
 print dol_get_fiche_head($head, 'card', $langs->trans('SupplierRma'), -1, 'tools');
 
 $formconfirm = '';
-if ($action === 'delete') {
+if ($action === 'delete' && $permdelete) {
 	$formconfirm = $form->formconfirm(
-		$_SERVER['PHP_SELF'].'?id='.$object->id,
+		$_SERVER['PHP_SELF'].'?id='.$object->id.'&revision='.((int) $object->revision),
 		$langs->trans('DeleteSupplierRma'),
 		$langs->trans('ConfirmDeleteSupplierRma', $object->ref),
 		'confirm_delete',
@@ -326,9 +339,9 @@ if ($action === 'delete') {
 		0,
 		1
 	);
-} elseif ($action === 'rollback') {
+} elseif ($action === 'rollback' && $permwrite) {
 	$formconfirm = $form->formconfirm(
-		$_SERVER['PHP_SELF'].'?id='.$object->id,
+		$_SERVER['PHP_SELF'].'?id='.$object->id.'&revision='.((int) $object->revision),
 		$langs->trans('SupplierRmaRollback'),
 		$langs->trans('ConfirmSupplierRmaRollback'),
 		'confirm_rollback',
@@ -357,6 +370,7 @@ if ($isEdit) {
 	print '<form action="'.$_SERVER['PHP_SELF'].'?id='.$object->id.'" method="POST">';
 	print '<input type="hidden" name="token" value="'.newToken().'">';
 	print '<input type="hidden" name="action" value="update">';
+	print '<input type="hidden" name="revision" value="'.((int) $object->revision).'">';
 	print '<input type="hidden" name="fk_svc_request" value="'.((int) $object->fk_svc_request).'">';
 }
 
@@ -435,6 +449,7 @@ foreach ($businessDateFields as $dateField => $dateLabel) {
 		print '<form method="POST" action="'.$_SERVER['PHP_SELF'].'?id='.((int) $object->id).'">';
 		print '<input type="hidden" name="token" value="'.newToken().'">';
 		print '<input type="hidden" name="action" value="update_business_date">';
+		print '<input type="hidden" name="revision" value="'.((int) $object->revision).'">';
 		print '<input type="hidden" name="field" value="'.dol_escape_htmltag($dateField).'">';
 		print $form->selectDate($object->{$dateField} ?: -1, 'business_date_', 1, 1, 1);
 		if ($dateField !== 'date_request') {
@@ -642,6 +657,7 @@ if ($isEdit) {
 			print '<form method="POST" action="'.$_SERVER['PHP_SELF'].'?id='.((int) $object->id).'" class="inline-block">';
 			print '<input type="hidden" name="token" value="'.newToken().'">';
 			print '<input type="hidden" name="action" value="setstatus">';
+			print '<input type="hidden" name="revision" value="'.((int) $object->revision).'">';
 			print '<input type="hidden" name="newstatus" value="'.dol_escape_htmltag($nextStatus).'">';
 			print '<button type="submit" class="'.$css.'">'.dol_escape_htmltag($langs->trans($labelKey)).'</button>';
 			print '</form>';
@@ -652,7 +668,8 @@ if ($isEdit) {
 		print '<a href="'.$_SERVER['PHP_SELF'].'?id='.$object->id.'&action=rollback&token='.newToken().'" class="butAction">'.$langs->trans('SupplierRmaRollback').'</a>';
 	}
 
-	if ($permdelete && empty($object->fk_stock_movement_out) && empty($object->fk_stock_movement_in)) {
+	if ($permdelete && $object->status === SvcSupplierRma::STATUS_DRAFT && (int) $object->revision === 1
+		&& empty($object->fk_stock_movement_out) && empty($object->fk_stock_movement_in)) {
 		print '<a href="'.$_SERVER['PHP_SELF'].'?id='.$object->id.'&action=delete&token='.newToken().'" class="butActionDelete">'.$langs->trans('DeleteSupplierRma').'</a>';
 	}
 }
@@ -690,7 +707,25 @@ if (empty($history)) {
 		print '<td>'.dol_escape_htmltag($langs->trans('SupplierRmaEvent'.$entry['event_code'])).'</td>';
 		print '<td>'.$tmpStatus->getLibStatut().'</td>';
 		print '<td>'.dol_escape_htmltag($entry['user_name']).'</td>';
-		print '<td>'.(!empty($entry['note']) ? dol_string_onlythesehtmltags(dol_htmlentitiesbr($entry['note'])) : '—').'</td>';
+		// Edit and lifecycle notes contain a whitelisted field-level JSON diff.
+		// Render it readably, escaping every persisted value; keep legacy notes.
+		$noteHtml = !empty($entry['note']) ? dol_string_onlythesehtmltags(dol_htmlentitiesbr($entry['note'])) : '—';
+		if (in_array($entry['event_code'], array('UPDATE', 'STATUS', 'ROLLBACK'), true)) {
+			$payload = json_decode($entry['note'], true);
+			if (is_array($payload) && isset($payload['schema']) && (int) $payload['schema'] === 1 && isset($payload['changes']) && is_array($payload['changes'])) {
+				$lines = array();
+				if (isset($payload['message']) && is_string($payload['message']) && $payload['message'] !== '') $lines[] = dol_htmlentitiesbr($payload['message']);
+				foreach ($payload['changes'] as $fieldName => $change) {
+					if (!isset($object->fields[$fieldName]) || !is_array($change) || !array_key_exists('old', $change) || !array_key_exists('new', $change)) continue;
+					$label = $langs->trans($object->fields[$fieldName]['label']);
+					$oldValue = dol_escape_htmltag((string) $change['old']);
+					$newValue = dol_escape_htmltag((string) $change['new']);
+					$lines[] = dol_escape_htmltag($label).': '.($oldValue !== '' ? $oldValue : '—').' → '.($newValue !== '' ? $newValue : '—');
+				}
+				$noteHtml = $lines ? implode('<br>', $lines) : '—';
+			}
+		}
+		print '<td>'.$noteHtml.'</td>';
 		print '</tr>';
 	}
 }

@@ -14,14 +14,15 @@ This change works on the existing `SvcSupplierRma` / `llx_svc_supplier_rma` obje
 
 ## Schema and activation
 
-Two additive columns are introduced:
+The workflow adds the following columns (Phase 1 also adds the concurrency revision):
 
+- `llx_svc_supplier_rma.revision INTEGER NOT NULL DEFAULT 1`
 - `llx_svc_supplier_rma.supplier_work_done TEXT NULL`
 - `llx_svc_supplier_rma_log.date_effective DATETIME NULL`
 
 `modWarrantySvc::upgradeForkSchema()` adds missing columns idempotently. When the effective date column is first introduced, existing CREATE/STATUS events are backfilled from the recorded `date_event`, **once**. Later reactivations do not overwrite intentionally corrected/cleared effective dates. There is no destructive migration.
 
-The existing `date_event` continues to mean **time of recording**. The new `date_effective` means **when the business event happened**. The timeline displays both. Correcting a business date also updates the latest matching status milestone's effective date while emitting a separate DATE audit event (with the previous value, new value and an optional reason). Audit rows retain their original recorded timestamps.
+The existing `date_event` continues to mean **time of recording**. The new `date_effective` means **when the business event happened**. The timeline displays both. Correcting a business date also updates the latest matching, not-undone status milestone's effective date while emitting a separate DATE audit event (with the previous value, new value and an optional reason). Audit rows retain their original recorded timestamps.
 
 When sending status transitions, POST is used rather than a mutating GET.
 
@@ -38,3 +39,11 @@ When sending status transitions, POST is used rather than a mutating GET.
 9. **Other modules:** customer service requests, Warranty Letters, Warranties and Supplier Returns still load and can be edited as before.
 
 A PHP lint pass cannot verify database migration, HTTP actions, file permissions or actual Dolibarr rendering. Finish those checks in the sandbox before considering production integration.
+
+## Phase 1 audit/concurrency acceptance
+
+Supplier RMA edits, status changes, date corrections and rollback share the persisted revision token. Only an untouched revision-1 draft with exactly one CREATE event and no related contacts/files/links/stock can be permanently deleted. Edited/communicated/progressed records retain their history.
+
+STATUS/ROLLBACK entries record generated/restored fields in schema-1 JSON with their original message, displayed as readable old/new values. Rollback preserves pre-entered, subsequently corrected and unknown-provenance legacy dates. A new effective date entered after rollback belongs to the next workflow pass; the undone historical event is preserved.
+
+Use [PHASE1_SANDBOX_ACCEPTANCE.md](PHASE1_SANDBOX_ACCEPTANCE.md) for deployment/backup and detailed manual checks. All actual test results and remaining gates belong exclusively in [PROJECT_STATUS.md](PROJECT_STATUS.md).
