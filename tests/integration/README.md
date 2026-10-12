@@ -1,44 +1,61 @@
-# Supplier RMA integration tests (Phase 1)
+# Native Dolibarr 23 supplier RMA regression
 
-This directory contains **real Dolibarr-model test scenarios**, not a PHPUnit mock of the database. The first smoke script is intentionally **manual to invoke and not yet part of CI**. It has not been executed against a configured Dolibarr/MariaDB fixture. Syntax linting is not an integration result.
+The suite executes real Dolibarr models, native installation/activation, independent SQL sessions and authenticated HTTP card requests. It does not mock the database. See `docs/PROJECT_STATUS.md` for actual results and remaining acceptance gates.
 
-## Mandatory isolation
+## Fresh, disposable fixture
 
-1. Prepare a **disposable Dolibarr 23 + MariaDB** installation with a database named `warrantysvc_test` or `warrantysvc_test_*`. Do not use a copy mounted with production database credentials. Block outgoing SMTP and webhooks in this environment.
-2. Install and activate the current branch's **`module/`** into the Dolibarr custom-module directory; verify the `revision` migration is present first.
-3. In that disposable database, prepare a Service Request, a supplier (`fournisseur=1`), a product and an operator; all must be valid for the same Dolibarr entity. Supply their numeric IDs as environment variables.
-4. Run from CLI using the disposable Dolibarr installation:
+Requirements: PHP CLI with mysqli, mbstring, gd, curl, XML and zip; Python 3; Git; a local disposable MariaDB server. The GitHub workflow runs PHP 8.4 and `mariadb:11.4.5`; Dolibarr is pinned to **23.0.4 commit `cb82037066c1c71f7c867482e9e92975222dfc14`**.
+
+Example using a throwaway container (no persistent volume, bound to loopback):
 
 ```sh
+docker run --detach --rm --name warrantysvc-test-db \
+  --publish 127.0.0.1:33067:3306 \
+  --env MARIADB_ROOT_PASSWORD=disposable-root-password \
+  --env MARIADB_DATABASE=warrantysvc_test \
+  --env MARIADB_USER=warrantysvc_test \
+  --env MARIADB_PASSWORD=disposable-test-password \
+  mariadb:11.4.5
+
+# Proceed when the disposable server is ready:
+docker exec warrantysvc-test-db healthcheck.sh --connect --innodb_initialized
+
+git clone --depth 1 --branch 23.0.4 https://github.com/Dolibarr/dolibarr.git /tmp/warrantysvc-dolibarr-fixture
+
+# From the WarrantySvc repository:
 WARRANTYSVC_TEST_ALLOW=yes \
-WARRANTYSVC_TEST_HTDOCS=/opt/warrantysvc-test/htdocs \
-WARRANTYSVC_TEST_REQUEST_ID=123 \
-WARRANTYSVC_TEST_SUPPLIER_ID=456 \
-WARRANTYSVC_TEST_PRODUCT_ID=789 \
-WARRANTYSVC_TEST_USER_ID=1 \
+WARRANTYSVC_TEST_HTDOCS=/tmp/warrantysvc-dolibarr-fixture/htdocs \
+WARRANTYSVC_TEST_DB_PORT=33067 \
+WARRANTYSVC_TEST_DB_PASS=disposable-test-password \
+  bash tests/integration/run.sh
+
+# Tear down the complete disposable DB after inspection:
+docker stop warrantysvc-test-db
+```
+
+Use a fresh checkout and database for each full run. The preparer **refuses existing config, document directory, module installation or nonempty schema**; it never drops/resets an existing database. The guard allows only loopback, dedicated `warrantysvc_test` SQL user and a database named `warrantysvc_test` or `warrantysvc_test_<alphanumeric>`. Never use production/shared sandbox credentials or paths. Fixtures use synthetic users/business data and force SMTP to loopback port 1 with an `.invalid` recipient. No email sending action is tested.
+
+`run.sh` uses Dolibarr's native CLI installer and `activateModule()`, seeds fixture records, executes the suites, starts the PHP HTTP server on loopback port 18080, and always stops that HTTP server. It leaves the disposable schema/documents for inspection. Test users have the fixture-only password `Fixture-Only-23!`. The full suite is destructive **within the disposable schema**: migration coverage temporarily removes `revision`, and failure coverage creates/drops SQL triggers.
+
+## Suites
+
+| Script | Checks |
+| --- | --- |
+| `rma_integrity.php` | Create, revision, old/new UPDATE audit, no-op, stale/cross-entity edit, identity lock, backdated effective date with immutable recorded time, pristine-only deletion |
+| `rma_transactions.php` | Server-side audit failure injection for edit/status/date/rollback; atomic hard-delete failure; stale lifecycle/date actions, repeated rollback, invalid dates/states, history isolation, links/contacts/files/stock/email/missing-history retention |
+| `rma_concurrency.php` + worker | Four overlapping independent PHP/SQL sessions (edit/status/date/rollback); observes worker SQL blocked on the parent's row lock before releasing the winning update; loser must not write/log |
+| `rma_migration.php` | Legacy schema without revision; native disable/enable migration; all other data/logs preserved; existing RMA editable; two further activations cannot reset revision/data/history |
+| `rma_http.py` + CLI fixture | Actual native login, read/write/read+delete/no-access roles, GET refusals, missing/forged CSRF, revision forms and stale edits, lifecycle/date writes, native AJAX POST confirmations, retention and cross-entity refusal |
+
+Every failed assertion exits nonzero. The native installer exits nonzero on failure; its diagnostics are in `<checkout>/install.log`, HTTP server diagnostics in `<checkout>/http.log`. GitHub Actions keeps installer diagnostics on failure.
+
+After a successful full run, a single model suite can be rerun in that same **disposable** fixture:
+
+```sh
+export WARRANTYSVC_TEST_ALLOW=yes
+export WARRANTYSVC_TEST_HTDOCS=/tmp/warrantysvc-dolibarr-fixture/htdocs
+. /tmp/warrantysvc-dolibarr-fixture/fixture.env
 php tests/integration/rma_integrity.php
 ```
 
-The numeric IDs above are **examples**, not preconfigured fixture IDs. Only use IDs from the throwaway database.
-
-The runner refuses non-CLI execution, requires explicit opt-in and refuses databases whose names do not start with `warrantysvc_test`. It creates an audited RMA that is deliberately **retained** for verification and a separate untouched draft that it deletes. Destroy the **entire disposable database** after the run. Never run this on a production or shared sandbox database. The test does **not** re-enable/disable the module or test HTTP/CSRF.
-
-## Current covered scenarios
-
-- RMA create and initial revision.
-- Two editor snapshots, successful first save, stale second save rejected without overwrite.
-- Structured UPDATE event with old/new values, no-op save with no new event.
-- Cross-entity edit refusal.
-- Backdated business date with unchanged recorded timestamp.
-- Post-shipment identity lock.
-- Guarded hard deletion: untouched draft may be deleted, edited/status-progressed RMA may not; preserved lifecycle history.
-
-## Not yet implemented or executed
-
-- CI-provisioned/pinned Dolibarr 23 fixture with isolated MariaDB database.
-- Failure injection to prove UPDATE rollback if audit insert fails.
-- Actual simultaneous transactions with two independent SQL connections.
-- HTTP/permission/CSRF/delete tests and migration reactivation twice.
-- Revision-aware status/rollback/date operations (Phase 1-C).
-
-Record actual test commands, DB/software versions, outcomes and CI run URLs in `docs/PROJECT_STATUS.md`. Never declare Phase 1 completed based on syntax checks or this test file existing.
+HTTP provisioning expects fresh synthetic usernames. The suite is an automated integrity gate, not proof of PDF/email/stock integration or representative user sandbox acceptance. Never promote this branch to production based on these tests alone; Phase 2 stock movements are outside this suite.

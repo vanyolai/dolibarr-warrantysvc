@@ -5,49 +5,7 @@
  * Usage and database safety requirements: see tests/integration/README.md.
  * This file intentionally never bootstraps an arbitrary production database.
  */
-if (PHP_SAPI !== 'cli') {
-    fwrite(STDERR, "CLI only\n");
-    exit(2);
-}
-if (getenv('WARRANTYSVC_TEST_ALLOW') !== 'yes') {
-    fwrite(STDERR, "Set WARRANTYSVC_TEST_ALLOW=yes for the isolated test database.\n");
-    exit(2);
-}
-$htdocs = rtrim((string) getenv('WARRANTYSVC_TEST_HTDOCS'), '/');
-if ($htdocs === '' || !is_file($htdocs.'/main.inc.php')) {
-    fwrite(STDERR, "WARRANTYSVC_TEST_HTDOCS must be a Dolibarr 23 htdocs directory.\n");
-    exit(2);
-}
-require_once $htdocs.'/main.inc.php';
-require_once DOL_DOCUMENT_ROOT.'/user/class/user.class.php';
-require_once DOL_DOCUMENT_ROOT.'/custom/warrantysvc/class/svcsupplierrma.class.php';
-
-if (!isset($db->database_name) || !preg_match('/^warrantysvc_test(?:_|$)/', (string) $db->database_name)) {
-    fwrite(STDERR, "Refusing to write: DB name must begin with warrantysvc_test.\n");
-    exit(2);
-}
-if ($db->type !== 'mysqli') {
-    fwrite(STDERR, "This integration fixture currently targets MariaDB/MySQL.\n");
-    exit(2);
-}
-
-function checkRma($ok, $description)
-{
-    if (!$ok) throw new RuntimeException($description);
-    echo "PASS: ".$description."\n";
-}
-function rmaLogRows($db, $id, $entity, $code)
-{
-    $sql = "SELECT * FROM ".MAIN_DB_PREFIX."svc_supplier_rma_log";
-    $sql .= " WHERE fk_supplier_rma = ".((int) $id)." AND entity = ".((int) $entity);
-    $sql .= " AND event_code = '".$db->escape($code)."' ORDER BY rowid";
-    $res = $db->query($sql);
-    if (!$res) throw new RuntimeException($db->lasterror());
-    $rows = array();
-    while ($row = $db->fetch_object($res)) $rows[] = $row;
-    $db->free($res);
-    return $rows;
-}
+require __DIR__.'/bootstrap.php';
 
 $requestId = (int) getenv('WARRANTYSVC_TEST_REQUEST_ID');
 $supplierId = (int) getenv('WARRANTYSVC_TEST_SUPPLIER_ID');
