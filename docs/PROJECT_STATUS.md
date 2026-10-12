@@ -2,9 +2,9 @@
 
 > **Source of truth for ongoing development.** Read this file first when resuming the project, including in a new chat or AI coding session. This file is a *status record*, not a replacement for source-code review. If it disagrees with code or CI, verify the repository and correct this file.
 >
-> **Last reviewed:** 2026-10-11  
+> **Last reviewed:** 2026-10-12  
 > **Working branch:** [feature/rma-integrity-audit-concurrency](https://github.com/vanyolai/dolibarr-warrantysvc/tree/feature/rma-integrity-audit-concurrency) (based on `feature/supplier-rma-workflow` @ `51002351c5d8`)  
-> **Code baseline reviewed:** [51002351c5d8](https://github.com/vanyolai/dolibarr-warrantysvc/commit/51002351c5d8bf74e80793cf46fde04d779c8c1f); **implementation checkpoint:** [bc646aa67c30](https://github.com/vanyolai/dolibarr-warrantysvc/commit/bc646aa67c304661129e5bff22a78736002bace6) (2026-10-11; syntax checked, DB untested)  
+> **Code baseline reviewed:** [51002351c5d8](https://github.com/vanyolai/dolibarr-warrantysvc/commit/51002351c5d8bf74e80793cf46fde04d779c8c1f); **latest verified code HEAD:** [390226b6894d](https://github.com/vanyolai/dolibarr-warrantysvc/commit/390226b6894dfeba8e11751ba40f1b8463705fb7) (2026-10-12 review; PHP 8.2/8.3/8.4 lint passes; DB untested)  
 > **Release status:** **Development / sandbox validation** — **NOT production-ready**.  
 > **Target:** Dolibarr 23, PHP 8.4; PHP lint matrix currently also covers 8.2 and 8.3.
 
@@ -24,7 +24,7 @@
 | Dolibarr/MariaDB automated integration tests | Guarded native-model smoke script added at `tests/integration/rma_integrity.php` | PHP syntax CI passes following test-runner parse fix; script **not executed** against a Dolibarr/MariaDB fixture | Build isolated fixture + actual CI execution next |
 | Final refactor and release | Pending | Not applicable | Do not merge into production prematurely |
 
-**Evidence:** the [PHP lint CI](https://github.com/vanyolai/dolibarr-warrantysvc/actions/runs/38034233644) passed on the baseline commit. PHP lint is **not** proof of correct database migrations, transactions, permissions, SMTP, PDF generation or UI behavior. Distinguish user-confirmed sandbox behavior from untested functionality in every future update.
+**Evidence:** the [latest branch HEAD PHP lint CI](https://github.com/vanyolai/dolibarr-warrantysvc/actions/runs/38133724101) passed for 8.2/8.3/8.4 on commit `390226b6894d`. PHP lint is **not** proof of correct database migrations, transactions, permissions, SMTP, PDF generation or UI behavior. Distinguish user-confirmed sandbox behavior from untested functionality in every future update.
 
 ## 2. Repository and workflow
 
@@ -180,6 +180,14 @@ Document new decisions here, especially exceptions, changes to workflow semantic
 - **CI evidence:** [PHP lint success](https://github.com/vanyolai/dolibarr-warrantysvc/actions/runs/38133651456) on `ea6f3a3e2eb7`, covering PHP 8.2/8.3/8.4 and `tests/`. Earlier parse failures were fixed; **this is not a Dolibarr/MariaDB integration result**.
 - **Risks still open:** test harness is manual and not provisioned in CI; verify `formconfirm` POST and permission semantics, migration twice, rollback/retention behaviors, effective/recorded timestamps and separate DB-connection race handling. Filesystem/upload race cannot be made atomic with SQL alone.
 - **Next exact action:** provide a pinned disposable Dolibarr 23 + MariaDB fixture, execute the guarded smoke suite and correct findings, then add automated HTTP/migration tests. Prepare a sandbox runbook only when CI/integration evidence supports user acceptance. The user requested notification when a testable milestone or real decision is reached. No production changes.
+
+### Status and CI review — 2026-10-12
+
+- **Source branch:** `feature/rma-integrity-audit-concurrency`; last checked HEAD was `390226b6894d`; [draft PR #1](https://github.com/vanyolai/dolibarr-warrantysvc/pull/1) still open and unmerged into `feature/supplier-rma-workflow`.
+- **CI incident resolved:** the 2026-10-11 failed workflow runs [38133523584](https://github.com/vanyolai/dolibarr-warrantysvc/actions/runs/38133523584) and [38133578591](https://github.com/vanyolai/dolibarr-warrantysvc/actions/runs/38133578591), each from overlapping push/PR checks, logged `PHP Fatal error: Cannot use try without catch or finally in tests/integration/rma_integrity.php on line 71`. This arose from adapting test cleanup to audited-RMA retention. Fix commits `2dae897db84c` (restore valid try/finally) and `5f5498593739` (retention-safe cleanup notice) were followed by green builds. All three PHP lint matrix jobs passed at `390226b6894d`: [run 38133724101](https://github.com/vanyolai/dolibarr-warrantysvc/actions/runs/38133724101).
+- **Implemented but not integration-tested:** `revision` migration; transaction-bound field audit and optimistic concurrency; lifecycle/date revision checks; history isolation; hard-delete audit retention rules; POST/CSRF-form hardening. Only the PHP syntax checks have been executed in GitHub CI.
+- **Remaining gate:** provision a disposable **pinned Dolibarr 23 + MariaDB** fixture (`warrantysvc_test*`), actually execute `tests/integration/rma_integrity.php`, rerun activation/migration, then test true two-connection concurrency, failed-audit rollbacks, HTTP permissions/CSRF, native formconfirm and rollback chronology. **Do not ask user to deploy or test in shared sandbox until these pass**, and do not treat green PHP lint as functionality proven.
+- **Next exact action:** P1-E fixture/CI setup and test execution; fix any runtime findings, update this status with precise test results and links, then prepare isolated sandbox acceptance instructions. User wishes to be notified when there is a real testable milestone or a blocking decision.
 
 ## 7. Rules for updating this document
 
