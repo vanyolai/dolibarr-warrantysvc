@@ -39,5 +39,6 @@ CREATE TABLE llx_svc_supplier_rma(
 	fk_user_creat               INTEGER,
 	fk_user_modif               INTEGER,
 	date_creation               DATETIME NOT NULL,
+	revision                    INTEGER NOT NULL DEFAULT 1,
 	tms                         TIMESTAMP
 ) ENGINE=innodb;

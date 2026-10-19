@@ -1,0 +1,54 @@
+name: RMA integration
+
+on:
+  push:
+    branches: ['feature/**']
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  mariadb:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      mariadb:
+        image: mariadb:11.4.5
+        env:
+          MARIADB_ROOT_PASSWORD: disposable-root-password
+          MARIADB_DATABASE: warrantysvc_test
+          MARIADB_USER: warrantysvc_test
+          MARIADB_PASSWORD: disposable-test-password
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=5s --health-timeout=5s --health-retries=20
+    env:
+      WARRANTYSVC_TEST_ALLOW: 'yes'
+      WARRANTYSVC_TEST_DB_HOST: 127.0.0.1
+      WARRANTYSVC_TEST_DB_PASS: disposable-test-password
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: Dolibarr/dolibarr
+          ref: cb82037066c1c71f7c867482e9e92975222dfc14 # 23.0.4
+          path: dolibarr-fixture
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mysqli, mbstring, gd, curl, xml, zip
+          coverage: none
+      - name: Native install, activation and RMA regression
+        run: |
+          export WARRANTYSVC_TEST_HTDOCS="$GITHUB_WORKSPACE/dolibarr-fixture/htdocs"
+          bash tests/integration/run.sh
+      - name: Preserve installer diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fixture-install-log
+          path: dolibarr-fixture/install.log
+          retention-days: 7
